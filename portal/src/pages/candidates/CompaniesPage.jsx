@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
+import authService from '../../services/authService';
 import './CompaniesPage.css';
 
 const CompaniesPage = () => {
@@ -15,10 +16,55 @@ const CompaniesPage = () => {
   const [sortBy, setSortBy] = useState('Most Popular');
   const [activePage, setActivePage] = useState(1);
   const [activeFilters, setActiveFilters] = useState({});
+  const [companies, setCompanies] = useState([]);
+  const [totalCompanies, setTotalCompanies] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCompanies = async (page = 1, query = '') => {
+    setLoading(true);
+    try {
+      let sortParam = 'popular';
+      if (sortBy === 'Highest Rated') sortParam = 'name';
+      if (sortBy === 'Recently Added') sortParam = 'newest';
+
+      const res = await authService.getCompanies({
+        q: query,
+        sort: sortParam,
+        page,
+        limit: 20,
+      });
+
+      if (res?.success && res?.data) {
+        setCompanies(res.data.companies || []);
+        setTotalCompanies(res.data.total || 0);
+        setTotalPages(res.data.totalPages || 1);
+        setActivePage(res.data.page || 1);
+      }
+    } catch (err) {
+      console.error('Failed to fetch companies:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    fetchCompanies(1, searchQuery);
+  }, [sortBy]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      fetchCompanies(1, searchQuery);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  const handlePageChange = (page) => {
+    if (typeof page === 'number' && page >= 1 && page <= totalPages) {
+      fetchCompanies(page, searchQuery);
+    }
+  };
 
   const toggleFilter = (group, value) => {
     setActiveFilters(prev => {
@@ -33,29 +79,6 @@ const CompaniesPage = () => {
   };
 
   const clearAll = () => setActiveFilters({});
-
-  const initialCompanies = [
-    { id: 1, name: 'Skylark IT', rating: 3.6, reviews: 42, tags: ['Financial Services', 'Founded: 2013'], logo: 'S', color: '#1E5EFF', popularity: 88 },
-    { id: 2, name: 'Bren', rating: 4.0, reviews: 100, tags: ['Corporate', 'Real Estate', 'Founded: 1973'], logo: 'B', color: '#7C3AED', popularity: 95 },
-    { id: 3, name: 'Aforeserve', rating: 3.4, reviews: '1.4k', tags: ['Corporate', 'IT Services'], logo: 'A', color: '#F59E0B', popularity: 76 },
-    { id: 4, name: 'Capital Numbers', rating: 4.1, reviews: 580, tags: ['Indian MNC', 'Consulting'], logo: 'C', color: '#0DBF7B', popularity: 92 },
-    { id: 5, name: '3Di Systems', rating: 3.4, reviews: 61, tags: ['Corporate', 'Software'], logo: '3', color: '#EF4444', popularity: 65 },
-    { id: 6, name: 'Experience Commerce', rating: 2.7, reviews: 49, tags: ['Advertising', 'Marketing'], logo: 'E', color: '#0F2040', popularity: 50 },
-    { id: 7, name: 'Ovaledge', rating: 4.0, reviews: 38, tags: ['IT Consulting'], logo: 'O', color: '#8B5CF6', popularity: 70 },
-    { id: 8, name: 'Simplilearn', rating: 3.8, reviews: 877, tags: ['Foreign MNC', 'EdTech'], logo: 'S', color: '#0EA5E9', popularity: 85 },
-    { id: 9, name: 'Tychon Solutions', rating: 4.0, reviews: 47, tags: ['Corporate', 'IT Services'], logo: 'T', color: '#4F46E5', popularity: 68 },
-    { id: 10, name: 'Now100', rating: 2.4, reviews: 10, tags: ['Foreign MNC', 'IT Services'], logo: 'N', color: '#1E40AF', popularity: 40 },
-  ];
-
-  const getSortedCompanies = () => {
-    let sorted = [...initialCompanies];
-    if (sortBy === 'Highest Rated') sorted.sort((a, b) => b.rating - a.rating);
-    else if (sortBy === 'Most Popular') sorted.sort((a, b) => b.popularity - a.popularity);
-    else if (sortBy === 'Recently Added') sorted.sort((a, b) => b.id - a.id);
-    return sorted;
-  };
-
-  const companies = getSortedCompanies();
 
   const categories = [
     { name: 'MNCs', count: '2.3K+ Companies', icon: <FiGlobe />, accent: '#1E5EFF' },
@@ -77,6 +100,22 @@ const CompaniesPage = () => {
     if (rating >= 4.0) return '#0DBF7B';
     if (rating >= 3.5) return '#F59E0B';
     return '#EF4444';
+  };
+
+  const buildPagination = () => {
+    const pages = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (activePage > 3) pages.push('...');
+      const start = Math.max(2, activePage - 1);
+      const end = Math.min(totalPages - 1, activePage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (activePage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
   };
 
   return (
@@ -130,13 +169,12 @@ const CompaniesPage = () => {
               Discover Excellence
             </div>
             <h1 className="cp-title">Top companies hiring <span className="cp-title-accent">right now</span></h1>
-            <p className="cp-subtitle">Explore 9,936+ companies across industries and find your next career move.</p>
+            <p className="cp-subtitle">Explore {totalCompanies.toLocaleString()}+ companies across industries and find your next career move.</p>
           </div>
         </div>
 
-        {/* Category Grid Aligned with Main Layout */}
+        {/* Category Grid */}
         <div className="cp-cat-grid-layout">
-          {/* First card aligns with Sidebar */}
           <div className="cp-cat-pill" style={{ '--accent': categories[0].accent, width: '100%' }}>
             <span className="cp-cat-icon" style={{ color: categories[0].accent }}>{categories[0].icon}</span>
             <div>
@@ -146,7 +184,6 @@ const CompaniesPage = () => {
             <FiArrowRight size={14} className="cp-cat-arrow" />
           </div>
 
-          {/* Other cards align with Main Content Area */}
           <div className="cp-cat-right-row">
             {categories.slice(1).map((cat, i) => (
               <div key={i} className="cp-cat-pill" style={{ '--accent': cat.accent, flex: 1 }}>
@@ -215,7 +252,7 @@ const CompaniesPage = () => {
           <div className="cp-content">
             <div className="cp-results-bar">
               <div className="cp-results-info">
-                <span className="cp-results-count">9,936</span>
+                <span className="cp-results-count">{totalCompanies.toLocaleString()}</span>
                 <span className="cp-results-text"> elite companies found</span>
               </div>
               <div className="cp-sort-wrap">
@@ -232,71 +269,92 @@ const CompaniesPage = () => {
               </div>
             </div>
 
-            <div className="cp-grid">
-              {companies.map(company => (
-                <div
-                  key={company.id}
-                  className="cp-company-card"
-                  onClick={() => navigate(`/company/${company.id}`)}
-                >
-                  <div className="cp-comp-logo-wrap">
-                    <div
-                      className="cp-comp-logo"
-                      style={{ background: company.color }}
-                    >
-                      {company.logo}
-                    </div>
-                  </div>
-
-                  <div className="cp-comp-body">
-                    <div className="cp-comp-header">
-                      <span className="cp-comp-name">{company.name}</span>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>Loading companies...</div>
+              </div>
+            ) : companies.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
+                <FiBriefcase size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>No companies found</div>
+                <p style={{ fontSize: '13px', marginTop: 4 }}>Try adjusting your search or filters</p>
+              </div>
+            ) : (
+              <div className="cp-grid">
+                {companies.map(company => (
+                  <div
+                    key={company.id}
+                    className="cp-company-card"
+                    onClick={() => navigate(`/company/${company.id}`)}
+                  >
+                    <div className="cp-comp-logo-wrap">
                       <div
-                        className="cp-rating-badge"
-                        style={{ background: getRatingColor(company.rating) }}
+                        className="cp-comp-logo"
+                        style={{ background: company.color }}
                       >
-                        <FiStar size={9} style={{ fill: 'white', stroke: 'white' }} />
-                        {company.rating}
+                        {company.logo}
                       </div>
                     </div>
 
-                    <div className="cp-comp-reviews">
-                      {company.reviews} Reviews
+                    <div className="cp-comp-body">
+                      <div className="cp-comp-header">
+                        <span className="cp-comp-name">{company.name}</span>
+                        {company.activelyHiring && (
+                          <div className="cp-rating-badge" style={{ background: '#0DBF7B' }}>
+                            <FiZap size={9} style={{ fill: 'white', stroke: 'white' }} />
+                            Hiring
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="cp-comp-reviews">
+                        {company.activeJobCount} Active Jobs
+                      </div>
+
+                      <div className="cp-comp-tags">
+                        {company.industry && <span className="cp-comp-tag">{company.industry}</span>}
+                        {company.location && <span className="cp-comp-tag">{company.location}</span>}
+                        {company.founded && <span className="cp-comp-tag">Founded: {company.founded}</span>}
+                      </div>
                     </div>
 
-                    <div className="cp-comp-tags">
-                      {company.tags.map(tag => (
-                        <span key={tag} className="cp-comp-tag">{tag}</span>
-                      ))}
+                    <div className="cp-comp-caret">
+                      <FiChevronRight size={16} />
                     </div>
                   </div>
-
-                  <div className="cp-comp-caret">
-                    <FiChevronRight size={16} />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Pagination */}
-            <div className="cp-pagination">
-              <button className="cp-page-btn cp-page-nav">
-                <FiChevronLeft size={16} />
-              </button>
-              {[1, 2, 3, '...', 12].map((p, i) => (
+            {totalPages > 1 && (
+              <div className="cp-pagination">
                 <button
-                  key={i}
-                  className={`cp-page-btn ${activePage === p ? 'active' : ''} ${p === '...' ? 'dots' : ''}`}
-                  onClick={() => typeof p === 'number' && setActivePage(p)}
-                  disabled={p === '...'}
+                  className="cp-page-btn cp-page-nav"
+                  disabled={activePage <= 1}
+                  onClick={() => handlePageChange(activePage - 1)}
                 >
-                  {p}
+                  <FiChevronLeft size={16} />
                 </button>
-              ))}
-              <button className="cp-page-btn cp-page-nav">
-                <FiChevronRight size={16} />
-              </button>
-            </div>
+                {buildPagination().map((p, i) => (
+                  <button
+                    key={i}
+                    className={`cp-page-btn ${activePage === p ? 'active' : ''} ${p === '...' ? 'dots' : ''}`}
+                    onClick={() => handlePageChange(p)}
+                    disabled={p === '...'}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  className="cp-page-btn cp-page-nav"
+                  disabled={activePage >= totalPages}
+                  onClick={() => handlePageChange(activePage + 1)}
+                >
+                  <FiChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>

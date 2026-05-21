@@ -24,6 +24,8 @@ router.get("/dashboard", protectCandidate, candidateController.getDashboard);
 router.get("/jobs", protectCandidate, candidateController.getJobs);
 router.get("/jobs/:id", protectCandidate, candidateController.getJobDetail);
 router.get("/jobs/:id/similar", protectCandidate, candidateController.getSimilarJobs);
+router.get("/companies", protectCandidate, candidateController.getCompanies);
+router.get("/companies/:id", protectCandidate, candidateController.getCompanyDetail);
 router.get("/applications", protectCandidate, candidateController.getApplications);
 router.post("/applications", protectCandidate, candidateController.createApplication);
 router.get("/profile", protectCandidate, candidateController.getProfile);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FiMapPin, FiBriefcase, FiUsers, FiStar, FiGlobe, FiCalendar,
   FiArrowLeft, FiHeart, FiShare2, FiExternalLink, FiSearch,
@@ -9,6 +9,7 @@ import {
 import { FaRupeeSign, FaStar, FaRegStar } from 'react-icons/fa';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../AuthContext';
+import authService from '../../services/authService';
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
 
 const Jobprofile = () => {
@@ -22,69 +23,87 @@ const Jobprofile = () => {
   const [reviewText, setReviewText] = useState('');
   const [isFollowing, setIsFollowing] = useState(false);
   const [savedJobs, setSavedJobs] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const company = {
-    name: 'Hosmac',
-    fullName: 'Hosmac India Private Limited',
-    logo: 'H',
-    bg: '#002366',
-    accent: '#10b981',
-    industry: 'Medical Services / Hospital',
-    type: 'Private',
-    size: '51–200',
-    founded: '1996',
-    website: 'https://www.hosmac.com/',
-    location: 'Mumbai Suburban',
-    followers: '600',
-    rating: 3.4,
-    reviews: '39',
+  const [company, setCompany] = useState({
+    name: '', fullName: '', logo: '', bg: '#002366', accent: '#10b981',
+    industry: '', type: '', size: '', founded: '', website: '',
+    location: '', followers: '—', rating: 0, reviews: '0',
     coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
-    tags: ['Private', 'Corporate', 'B2C', 'B2B'],
-    about:
-      'Hosmac India Private Limited is a pioneering name in the field of Hospital Planning & Management consultancy in India. Since its inception in 1996, Hosmac has grown rapidly to become a unique hub of skill sets which cuts across various facets of a health care facility — be it architecture, engineering, management, or information technology.',
-    departments: [
-      { name: 'UX, Design & Architecture', openings: 6 },
-      { name: 'Construction & Site Engineering', openings: 4 },
-      { name: 'Business Development', openings: 2 },
-    ],
-    benefits: [
-      { name: 'Job / Soft Skill Training', count: 3, icon: <FiBookOpen size={24} />, color: '#4F46E5', bg: '#EEF2FF' },
-      { name: 'Health Insurance', count: 2, icon: <FiActivity size={24} />, color: '#E11D48', bg: '#FFF1F2' },
-      { name: 'Office Cab / Shuttle', count: 2, icon: <FiTruck size={24} />, color: '#7C3AED', bg: '#F5F3FF' },
-    ],
-    jobs: [
-      {
-        id: 101,
-        title: 'Architect',
-        exp: '0–6 Yrs',
-        loc: 'Mumbai Suburban',
-        posted: '8 Days Ago',
-        salary: 'Not disclosed',
-        desc: 'Working on hospital architectural plans, Revit modeling, and site coordination for large-scale healthcare infrastructure.',
-        tags: ['REVIT', 'Sketchup', 'Rhino', 'Lumion', 'AutoCAD'],
-      },
-      {
-        id: 102,
-        title: 'Sr. MEP Manager / MEP Head',
-        exp: '15–20 Yrs',
-        loc: 'Mumbai Suburban (Goregaon)',
-        posted: '9 Days Ago',
-        salary: '15–25 Lakhs',
-        desc: 'Leading MEP engineering teams for large-scale healthcare projects with cross-functional oversight.',
-        tags: ['Plumbing', 'HVAC', 'REVIT', 'Electrical Design'],
-      },
-      {
-        id: 103,
-        title: 'Interior Designer / Sr. Interior Designer',
-        exp: '5–10 Yrs',
-        loc: 'Mumbai Suburban',
-        posted: '21 Days Ago',
-        salary: '8–12 Lakhs',
-        desc: 'Focusing on clinical interior aesthetics and functional healthcare spaces with an emphasis on patient experience.',
-        tags: ['Rhino', 'AutoCAD 2D', 'Grasshopper', 'MS Office'],
-      },
-    ],
-  };
+    tags: [], about: '', departments: [], benefits: [], jobs: [],
+  });
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    const fetchCompany = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await authService.getCompanyDetail(id);
+        if (res?.success && res?.data) {
+          const c = res.data.company;
+          const jobs = res.data.jobs || [];
+
+          // Build departments from jobs
+          const deptMap = {};
+          jobs.forEach(j => {
+            const d = j.department || 'General';
+            deptMap[d] = (deptMap[d] || 0) + 1;
+          });
+          const departments = Object.entries(deptMap).map(([name, openings]) => ({ name, openings }));
+
+          setCompany({
+            name: c.name || '',
+            fullName: c.fullName || c.name || '',
+            logo: c.logo || (c.name || 'M')[0].toUpperCase(),
+            bg: c.color || '#002366',
+            accent: '#10b981',
+            industry: c.industry || 'General',
+            type: c.type || 'Private',
+            size: c.size || '10–50',
+            founded: c.founded || '',
+            website: c.website || '',
+            location: c.locationFull || c.location || '',
+            followers: '—',
+            rating: 3.4,
+            reviews: '—',
+            coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
+            tags: [c.type || 'Private', c.industry || 'Corporate'].filter(Boolean),
+            about: c.about || `${c.name} is a leading company in the ${c.industry || 'technology'} industry, committed to excellence and innovation.`,
+            mission: c.mission || '',
+            vision: c.vision || '',
+            whyJoinUs: c.whyJoinUs || [],
+            activelyHiring: c.activelyHiring !== false,
+            activeJobCount: c.activeJobCount || jobs.length,
+            departments,
+            benefits: [
+              { name: 'Job / Soft Skill Training', count: 3, icon: <FiBookOpen size={24} />, color: '#4F46E5', bg: '#EEF2FF' },
+              { name: 'Health Insurance', count: 2, icon: <FiActivity size={24} />, color: '#E11D48', bg: '#FFF1F2' },
+              { name: 'Office Cab / Shuttle', count: 2, icon: <FiTruck size={24} />, color: '#7C3AED', bg: '#F5F3FF' },
+            ],
+            jobs: jobs.map(j => ({
+              id: j.id,
+              title: j.title,
+              exp: j.experience || '0–3 Yrs',
+              loc: j.location || c.location || '',
+              posted: j.postedAt || 'Recently',
+              salary: j.salary || 'Not disclosed',
+              desc: j.summary || j.description || 'Join our team and work on exciting projects.',
+              tags: j.skills?.length > 0 ? j.skills : ['General'],
+              hasApplied: j.hasApplied || false,
+            })),
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch company:', err);
+        setError('Failed to load company details');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCompany();
+  }, [id]);
 
   const toggleSave = (jobId) =>
     setSavedJobs((prev) => ({ ...prev, [jobId]: !prev[jobId] }));
@@ -97,6 +116,30 @@ const Jobprofile = () => {
   ];
 
   const ratingLabel = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent!'];
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#EEF2F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', color: '#64748B' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 700 }}>Loading company...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#EEF2F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', color: '#EF4444' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 8 }}>{error}</div>
+          <button onClick={() => navigate('/companies')} style={{ padding: '10px 20px', borderRadius: 10, background: '#002366', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
+            Back to Companies
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div style={{ minHeight: '100vh', background: '#EEF2F9', fontFamily: "'DM Sans', sans-serif", color: '#0A1628' }}>

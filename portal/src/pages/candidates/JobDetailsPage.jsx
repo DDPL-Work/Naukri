@@ -79,6 +79,10 @@ export default function JobDetailsPage() {
             address: j.companyId?.location?.city ? `${j.companyId.location.city}, ${j.companyId.location.region || 'India'}` : "Bengaluru, Karnataka, India"
           },
           matchScore: j.matchScore || Math.floor(Math.random() * 25) + 70,
+          skillMatch: j.skillMatch,
+          locationMatch: j.locationMatch,
+          experienceMatch: j.experienceMatch,
+          roleMatch: j.roleMatch,
           hasApplied: j.hasApplied || false
         });
         setHasApplied(j.hasApplied || false);
@@ -253,7 +257,7 @@ export default function JobDetailsPage() {
 
             <div className="jdp-job-footer">
               <div className="jdp-posted-info">
-                Posted: <span className="font-semibold">{job.posted}</span> | Openings: <span className="font-semibold">200</span> | Applicants: <span className="font-semibold">100+</span>
+                Posted: <span className="font-semibold">{job.posted}</span> | Openings: <span className="font-semibold">{job.openings}</span> | Applicants: <span className="font-semibold">{job.applicants}+</span>
               </div>
               <div className="jdp-actions flex items-center gap-3">
                 {applyMessage && (
@@ -340,22 +344,32 @@ export default function JobDetailsPage() {
                 </div>
               </div>
               <div className="jdp-match-items grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                  <FiXCircle className="text-red-500 shrink-0" size={16} />
-                  <span className="text-[10px] font-black text-red-700 uppercase tracking-tight">Early Applicant</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                  <FiXCircle className="text-red-500 shrink-0" size={16} />
-                  <span className="text-[10px] font-black text-red-700 uppercase tracking-tight">Keyskills</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
-                  <FiCheckCircle className="text-[#10b981] shrink-0" size={16} />
-                  <span className="text-[10px] font-black text-green-700 uppercase tracking-tight">Location</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
-                  <FiCheckCircle className="text-[#10b981] shrink-0" size={16} />
-                  <span className="text-[10px] font-black text-green-700 uppercase tracking-tight">Experience</span>
-                </div>
+                {(() => {
+                  const items = [
+                    { label: 'Role/Dept Fit', pct: job.roleMatch ?? 85 },
+                    { label: 'Keyskills', pct: job.skillMatch ?? 65 },
+                    { label: 'Location', pct: job.locationMatch ?? 90 },
+                    { label: 'Experience', pct: job.experienceMatch ?? 95 },
+                  ];
+
+                  return items.map((item, idx) => {
+                    const isMatched = item.pct >= 70;
+                    const bgClass = isMatched ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100';
+                    const textClass = isMatched ? 'text-green-700' : 'text-red-700';
+                    const icon = isMatched ? (
+                      <FiCheckCircle className="text-[#10b981] shrink-0" size={16} />
+                    ) : (
+                      <FiXCircle className="text-red-500 shrink-0" size={16} />
+                    );
+
+                    return (
+                      <div key={idx} className={`flex items-center gap-2 p-3 rounded-xl border ${bgClass}`}>
+                        {icon}
+                        <span className={`text-[10px] font-black uppercase tracking-tight ${textClass}`}>{item.label}</span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </section>
@@ -434,28 +448,7 @@ export default function JobDetailsPage() {
             </div>
           </div>
 
-          {/* 6. Similar Jobs */}
-          <section className="jdp-similar-jobs">
-            <h2 className="jdp-section-title">Similar jobs</h2>
-            <div className="jdp-similar-grid">
-              {similarJobs.slice(0, 4).map(sj => (
-                <div key={sj.id} className="jdp-card flex justify-between items-center hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/job/${sj.id}`)}>
-                  <div className="flex gap-4">
-                    <div className="jdp-mini-logo">{sj.logo || sj.title?.[0] || 'M'}</div>
-                    <div>
-                      <h4 className="font-bold text-sm">{sj.title}</h4>
-                      <p className="text-xs text-gray-500">{sj.company} • {sj.rating} <FaStar size={8} className="inline" /></p>
-                      <div className="flex gap-3 mt-2 text-xs text-gray-400">
-                        <span className="flex items-center gap-1"><FiMapPin size={10} /> {sj.location}</span>
-                        <span className="flex items-center gap-1"><FiClock size={10} /> {sj.posted}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <FiChevronRight className="text-gray-300" />
-                </div>
-              ))}
-            </div>
-          </section>
+
 
         </main>
 
@@ -487,8 +480,8 @@ export default function JobDetailsPage() {
             <h3 className="jdp-sidebar-title">Salary insights</h3>
             <div className="jdp-salary-content">
               <p className="jdp-salary-sub">Average annual salary for this role in <span>{job.company}</span></p>
-              <div className="jdp-salary-amount">
-                ₹11.3 - ₹15.9 <span>L/yr</span>
+              <div className="jdp-salary-amount text-2xl font-black">
+                {job.salary}
               </div>
               <div className="jdp-salary-link">
                 See detailed salary breakup <FiArrowRight size={14} />

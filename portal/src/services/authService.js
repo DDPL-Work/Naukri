@@ -82,6 +82,24 @@ const authService = {
     } catch (error) {
       throw error.response?.data || { message: 'Application failed' };
     }
+  },
+
+  getCompanies: async (params) => {
+    try {
+      const response = await api.get('/candidate/companies', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch companies' };
+    }
+  },
+
+  getCompanyDetail: async (companyId) => {
+    try {
+      const response = await api.get(`/candidate/companies/${companyId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch company details' };
+    }
   }
 };
 

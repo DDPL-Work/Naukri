@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const asyncHandler = require("../middleware/async.middleware");
 const User = require("../models/User");
 const Job = require("../models/Job");
+const Company = require("../models/Company");
 const QRCode = require("../models/QRCode");
 const Application = require("../models/Application");
 const CandidateProfile = require("../models/CandidateProfile");
@@ -172,7 +173,97 @@ const formatProfile = (profile = {}, user = null) => ({
   lastUpdated: formatRelativeTime(profile?.updatedAt),
 });
 
-const formatJob = (job, applicationMap = new Map()) => {
+const parseExperienceRange = (expStr) => {
+  if (!expStr) return { min: 0, max: 99 };
+  const cleaned = String(expStr).toLowerCase().replace(/yrs?|years?/gi, "").trim();
+  const parts = cleaned.split(/[-–]/)
+    .map((p) => parseFloat(p.trim()))
+    .filter((n) => !isNaN(n));
+  if (parts.length >= 2) return { min: parts[0], max: parts[1] };
+  if (parts.length === 1) return { min: 0, max: parts[0] };
+  return { min: 0, max: 99 };
+};
+
+const normalizeStr = (s) => String(s || "").toLowerCase().trim();
+
+const computeMatchScore = (job, profile) => {
+  if (!job || !profile) {
+    return { overall: 0, skillMatch: 0, locationMatch: 0, experienceMatch: 0, roleMatch: 0, matchedSkills: [], missingSkills: [] };
+  }
+
+  const jobSkills = (Array.isArray(job.skills) ? job.skills : []).map(normalizeStr).filter(Boolean);
+  const profileSkills = (Array.isArray(profile.skills) ? profile.skills : []).map(normalizeStr).filter(Boolean);
+
+  const matchedSkills = [];
+  const missingSkills = [];
+  jobSkills.forEach((js) => {
+    const found = profileSkills.some((ps) => ps.includes(js) || js.includes(ps));
+    if (found) matchedSkills.push(js);
+    else missingSkills.push(js);
+  });
+  const skillMatch = jobSkills.length > 0
+    ? Math.round((matchedSkills.length / jobSkills.length) * 100)
+    : profileSkills.length > 0 ? 50 : 0;
+
+  const jobLoc = normalizeStr(job.location);
+  const candidateCity = normalizeStr(profile.currentCity);
+  const prefLocs = (profile.preferredLocations || []).map(normalizeStr);
+  let locationMatch = 0;
+  if (jobLoc) {
+    if (candidateCity && jobLoc.includes(candidateCity)) locationMatch = 100;
+    else if (prefLocs.some((pl) => jobLoc.includes(pl) || pl.includes(jobLoc))) locationMatch = 85;
+    else if (jobLoc.includes("remote")) locationMatch = 90;
+    else locationMatch = 20;
+  } else {
+    locationMatch = 70;
+  }
+
+  const jobExp = parseExperienceRange(job.experience);
+  const candidateExp = parseFloat(profile.totalExperience) || 0;
+  let experienceMatch = 0;
+  if (candidateExp >= jobExp.min && candidateExp <= jobExp.max) {
+    experienceMatch = 100;
+  } else if (candidateExp < jobExp.min) {
+    const gap = jobExp.min - candidateExp;
+    experienceMatch = Math.max(0, Math.round(100 - gap * 20));
+  } else {
+    const gap = candidateExp - jobExp.max;
+    experienceMatch = Math.max(0, Math.round(100 - gap * 10));
+  }
+
+  const prefRoles = (profile.preferredRoles || []).map(normalizeStr);
+  const jobTitle = normalizeStr(job.title);
+  const jobDept = normalizeStr(job.department);
+  let roleMatch = 0;
+  if (prefRoles.length > 0) {
+    const titleMatch = prefRoles.some((r) => jobTitle.includes(r) || r.includes(jobTitle));
+    const deptMatch = prefRoles.some((r) => jobDept.includes(r) || r.includes(jobDept));
+    if (titleMatch) roleMatch = 100;
+    else if (deptMatch) roleMatch = 70;
+    else roleMatch = 15;
+  } else {
+    roleMatch = 40;
+  }
+
+  const overall = Math.round(
+    skillMatch * 0.40 +
+    locationMatch * 0.25 +
+    experienceMatch * 0.25 +
+    roleMatch * 0.10
+  );
+
+  return {
+    overall: Math.min(100, Math.max(0, overall)),
+    skillMatch: Math.min(100, Math.max(0, skillMatch)),
+    locationMatch: Math.min(100, Math.max(0, locationMatch)),
+    experienceMatch: Math.min(100, Math.max(0, experienceMatch)),
+    roleMatch: Math.min(100, Math.max(0, roleMatch)),
+    matchedSkills: matchedSkills.map((s) => s.charAt(0).toUpperCase() + s.slice(1)),
+    missingSkills: missingSkills.map((s) => s.charAt(0).toUpperCase() + s.slice(1)),
+  };
+};
+
+const formatJob = (job, applicationMap = new Map(), matchData = null) => {
   const application = applicationMap.get(String(job._id));
 
   return {
@@ -196,10 +287,17 @@ const formatJob = (job, applicationMap = new Map()) => {
     hasApplied: Boolean(application),
     createdAt: job.createdAt,
     lastUpdated: formatRelativeTime(job.updatedAt),
+    matchScore: matchData?.overall ?? null,
+    skillMatch: matchData?.skillMatch ?? null,
+    locationMatch: matchData?.locationMatch ?? null,
+    experienceMatch: matchData?.experienceMatch ?? null,
+    roleMatch: matchData?.roleMatch ?? null,
+    matchedSkills: matchData?.matchedSkills || [],
+    missingSkills: matchData?.missingSkills || [],
   };
 };
 
-const formatApplication = (application) => ({
+const formatApplication = (application, matchData = null) => ({
   id: String(application._id),
   jobId: String(application.jobId?._id || application.jobId || ""),
   jobTitle: application.jobId?.title || "Unknown job",
@@ -212,6 +310,16 @@ const formatApplication = (application) => ({
   appliedAt: application.createdAt,
   updatedAt: application.updatedAt,
   lastUpdated: formatRelativeTime(application.updatedAt),
+  matchScore: matchData?.overall ?? null,
+  skillMatch: matchData?.skillMatch ?? null,
+  locationMatch: matchData?.locationMatch ?? null,
+  experienceMatch: matchData?.experienceMatch ?? null,
+  roleMatch: matchData?.roleMatch ?? null,
+  matchedSkills: matchData?.matchedSkills || [],
+  missingSkills: matchData?.missingSkills || [],
+  jobLocation: application.jobId?.location || "",
+  jobExperience: application.jobId?.experience || "",
+  jobSkills: Array.isArray(application.jobId?.skills) ? application.jobId.skills : [],
 });
 
 const formatNotification = (notification) => ({
@@ -710,7 +818,7 @@ exports.getDashboard = asyncHandler(async (req, res) => {
       .sort({ updatedAt: -1 })
       .limit(DASHBOARD_PIPELINE_LIMIT)
       .populate("companyId", "name")
-      .populate("jobId", "title"),
+      .populate("jobId", "title location experience skills department"),
     CandidateNotification.find({ candidateId: req.user._id })
       .sort({ createdAt: -1 })
       .limit(DASHBOARD_ALERTS_LIMIT),
@@ -726,6 +834,18 @@ exports.getDashboard = asyncHandler(async (req, res) => {
   const unreadAlerts = await CandidateNotification.countDocuments({
     candidateId: req.user._id,
     status: "UNREAD",
+  });
+
+  const enrichedApplications = applications.map((item) => {
+    const matchData = item.jobId && typeof item.jobId === "object"
+      ? computeMatchScore(item.jobId, profile)
+      : null;
+    return formatApplication(item, matchData);
+  });
+
+  const enrichedExtraJobs = extraJobs.map((job) => {
+    const matchData = computeMatchScore(job, profile);
+    return formatJob(job, new Map(), matchData);
   });
 
   res.status(200).json({
@@ -745,9 +865,9 @@ exports.getDashboard = asyncHandler(async (req, res) => {
       },
       mappedCompany: recommended.mappedCompany,
       recommendedJobs: recommended.jobs,
-      nvites: extraJobs.slice(0, 3).map((job) => formatJob(job)),
-      earlyAccess: extraJobs.slice(3, 10).map((job) => formatJob(job)),
-      recentApplications: applications.map((item) => formatApplication(item)),
+      nvites: enrichedExtraJobs.slice(0, 3),
+      earlyAccess: enrichedExtraJobs.slice(3, 10),
+      recentApplications: enrichedApplications,
       notifications: notifications.map((item) => formatNotification(item)),
     },
   });
@@ -838,12 +958,14 @@ exports.getJobDetail = asyncHandler(async (req, res) => {
     throw createHttpError(404, "Job not found");
   }
 
+  const profile = await ensureCandidateProfile(req.user);
   const applicationMap = await buildApplicationMap(req.user._id, [job._id]);
+  const matchData = computeMatchScore(job, profile);
 
   res.status(200).json({
     success: true,
     data: {
-      job: formatJob(job, applicationMap),
+      job: formatJob(job, applicationMap, matchData),
       similarJobs: await buildSimilarJobs(job, req.user._id),
     },
   });
@@ -1262,5 +1384,134 @@ exports.uploadProfileImage = asyncHandler(async (req, res) => {
     message: `${type === "cover" ? "Cover" : "Profile"} image updated successfully.`,
     data: uploaded,
     profileCompletion: computeProfileCompletion(profile, req.user),
+  });
+});
+
+// ── Companies Directory ──────────────────────────────────────────────────────
+
+const COMPANY_PALETTE = [
+  '#1E5EFF','#7C3AED','#F59E0B','#0DBF7B','#EF4444',
+  '#0F2040','#8B5CF6','#0EA5E9','#4F46E5','#1E40AF',
+];
+
+const companyColor = (id) => {
+  const hex = String(id).replace(/[^a-f0-9]/gi, '').slice(-4) || '0000';
+  const idx = parseInt(hex, 16) % COMPANY_PALETTE.length;
+  return COMPANY_PALETTE[Math.abs(idx)];
+};
+
+exports.getCompanies = asyncHandler(async (req, res) => {
+  const { q = "", sort = "popular", page = 1, limit = 20 } = req.query;
+
+  const filter = { status: "ACTIVE" };
+  if (q) {
+    filter.$or = [
+      { name: { $regex: q, $options: "i" } },
+      { industry: { $regex: q, $options: "i" } },
+      { tagline: { $regex: q, $options: "i" } },
+    ];
+  }
+
+  let sortQuery = { activeJobCount: -1, createdAt: -1 };
+  if (sort === "name") sortQuery = { name: 1 };
+  if (sort === "newest") sortQuery = { createdAt: -1 };
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [companies, total] = await Promise.all([
+    Company.find(filter).sort(sortQuery).skip(skip).limit(Number(limit)),
+    Company.countDocuments(filter),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      companies: companies.map((c) => ({
+        id: String(c._id),
+        name: c.name,
+        tagline: c.tagline || "",
+        industry: c.industry || "General",
+        location: c.location?.city || c.headquarters || "",
+        size: c.companySize || c.employeesCount || "",
+        activeJobCount: c.activeJobCount || 0,
+        activelyHiring: c.activelyHiring !== false,
+        packageType: c.packageType || "STANDARD",
+        color: companyColor(c._id),
+        logo: (c.name || "M")[0].toUpperCase(),
+        logoUrl: c.logoUrl || "",
+        founded: c.foundedYear || "",
+        createdAt: c.createdAt,
+      })),
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+    },
+  });
+});
+
+exports.getCompanyDetail = asyncHandler(async (req, res) => {
+  const company = await Company.findById(req.params.id);
+  if (!company || company.status !== "ACTIVE") {
+    throw createHttpError(404, "Company not found");
+  }
+
+  const jobs = await Job.find({
+    companyId: company._id,
+    isActive: true,
+    approvalStatus: "APPROVED",
+  }).sort({ createdAt: -1 });
+
+  const applicationMap = await buildApplicationMap(req.user._id, jobs.map((j) => j._id));
+
+  const formattedJobs = jobs.map((j) => ({
+    id: String(j._id),
+    title: j.title,
+    department: j.department || "General",
+    experience: j.experience || "",
+    location: j.location || company.location?.city || "",
+    salaryMin: j.salaryMin || 0,
+    salaryMax: j.salaryMax || 0,
+    salary:
+      j.salaryMin && j.salaryMax
+        ? `${(j.salaryMin / 100000).toFixed(0)}–${(j.salaryMax / 100000).toFixed(0)} Lakhs PA`
+        : "Not disclosed",
+    skills: Array.isArray(j.skills) ? j.skills : [],
+    jobType: j.jobType || "Full-time",
+    workplaceType: j.workplaceType || "",
+    summary: j.summary || "",
+    description: j.description || "",
+    postedAt: formatRelativeTime(j.createdAt),
+    deadline: j.deadline || null,
+    hasApplied: applicationMap.has(String(j._id)),
+  }));
+
+  res.status(200).json({
+    success: true,
+    data: {
+      company: {
+        id: String(company._id),
+        name: company.name,
+        fullName: company.tagline || company.name,
+        industry: company.industry || "General",
+        type: company.packageType || "Private",
+        size: company.companySize || company.employeesCount || "",
+        founded: company.foundedYear || "",
+        website: company.website || "",
+        linkedIn: company.linkedIn || "",
+        location: company.location?.city || company.headquarters || "",
+        locationFull: [company.location?.city, company.location?.region]
+          .filter(Boolean)
+          .join(", ") || "",
+        activelyHiring: company.activelyHiring !== false,
+        activeJobCount: formattedJobs.length,
+        color: companyColor(company._id),
+        logo: (company.name || "M")[0].toUpperCase(),
+        logoUrl: company.logoUrl || "",
+        about: company.about || "",
+        mission: company.mission || "",
+        vision: company.vision || "",
+        whyJoinUs: Array.isArray(company.whyJoinUs) ? company.whyJoinUs : [],
+      },
+      jobs: formattedJobs,
+    },
   });
 });
