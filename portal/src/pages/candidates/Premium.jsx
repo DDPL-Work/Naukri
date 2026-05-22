@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import {
     FiCheck, FiZap, FiArrowRight, FiUsers, FiSearch,
     FiBarChart2, FiMessageCircle, FiChevronRight,
-    FiFilter, FiTarget, FiPhoneCall, FiBell, FiInbox, FiMail
+    FiFilter, FiTarget, FiPhoneCall, FiBell, FiInbox, FiMail,
+    FiMenu, FiX
 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
@@ -134,6 +135,7 @@ export default function Premium() {
     const scrollY = useScrollY();
     const navScrolled = scrollY > 50;
     const [showBillingModal, setShowBillingModal] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -301,6 +303,16 @@ export default function Premium() {
           .hero { height: auto; min-height: calc(100svh - ${HEADER_H}px); padding: 48px 0 60px; }
           .hero-inner { padding: 0 24px; }
         }
+        .mobile-menu-btn { display: none; background: none; border: none; cursor: pointer; color: #fff; padding: 5px; }
+        .nav-menu-wrapper { display: flex; align-items: center; justify-content: space-between; flex: 1; }
+        @media (max-width: 1024px) {
+          .mobile-menu-btn { display: block; }
+          .nav-menu-wrapper { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: #0a0a0a; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+          .nav-menu-wrapper.mobile-open { display: flex; }
+          .nav-links { display: flex !important; flex-direction: column; width: 100%; align-items: flex-start; margin-bottom: 20px; }
+          .pnl { margin-bottom: 15px; }
+          .nav-menu-wrapper button { width: 100%; margin-top: 10px; }
+        }
       `}</style>
 
             {/* ══════════════ HEADER ══════════════ */}
@@ -338,11 +350,17 @@ export default function Premium() {
                     padding: '0 56px',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 }}>
-                    <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
-                        <img src={mavenLogo} alt="MavenJobs" className="logo-img" />
-                    </Link>
+                    <div className="nav-brand-area" style={{ display: 'flex', alignItems: 'center' }}>
+                        <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <img src={mavenLogo} alt="MavenJobs" className="logo-img" />
+                        </Link>
+                        <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                            {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+                        </button>
+                    </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+                    <div className={`nav-menu-wrapper ${isMobileMenuOpen ? "mobile-open" : ""}`}>
+                    <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
                         {['#why|Why PremiumX', '#discovery|Discovery', '#connect|Connect', '#get-started|Get Started'].map(item => {
                             const [href, label] = item.split('|');
                             return <a key={href} href={href} className="pnl">{label}</a>;
@@ -364,6 +382,7 @@ export default function Premium() {
                     >
                         Get PremiumX
                     </button>
+                    </div>
                 </nav>
             </header>
 

@@ -105,8 +105,44 @@ const Jobprofile = () => {
     fetchCompany();
   }, [id]);
 
-  const toggleSave = (jobId) =>
-    setSavedJobs((prev) => ({ ...prev, [jobId]: !prev[jobId] }));
+  // Production ready saved jobs state
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('maven_saved_jobs');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const map = {};
+        parsed.forEach(job => map[job.id || job._id] = true);
+        setSavedJobs(map);
+      }
+    } catch (e) {
+      console.error('Failed to parse saved jobs', e);
+    }
+  }, []);
+
+  const toggleSave = (jobId) => {
+    setSavedJobs(prev => {
+      const next = { ...prev, [jobId]: !prev[jobId] };
+      try {
+        const stored = localStorage.getItem('maven_saved_jobs');
+        let parsed = stored ? JSON.parse(stored) : [];
+        if (next[jobId]) {
+          // Find the full job object from company.jobs
+          const jobData = company.jobs.find(j => j.id === jobId) || { id: jobId };
+          // Don't add duplicate
+          if (!parsed.some(j => j.id === jobId)) {
+            parsed.push(jobData);
+          }
+        } else {
+          parsed = parsed.filter(j => j.id !== jobId && j._id !== jobId);
+        }
+        localStorage.setItem('maven_saved_jobs', JSON.stringify(parsed));
+      } catch (e) {
+        console.error('Failed to update localStorage', e);
+      }
+      return next;
+    });
+  };
 
   const ratingBreakdown = [
     { label: 'Skill Development', val: 82 },

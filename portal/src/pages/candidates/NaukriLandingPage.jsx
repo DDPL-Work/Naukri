@@ -6,6 +6,7 @@ import {
   FiChevronRight, FiClock, FiCompass, FiEdit3, FiEye, FiHeart, FiMapPin,
   FiMonitor, FiSearch, FiShoppingBag, FiTool, FiTrendingUp, FiUsers,
   FiVideo, FiZap, FiHome, FiActivity, FiBox, FiDollarSign, FiAward,
+  FiMenu, FiX
 } from "react-icons/fi";
 import {
   FaApple, FaFacebookF, FaGooglePlay, FaInstagram, FaLinkedinIn, FaStar,
@@ -125,6 +126,7 @@ const trustedBrands = ["TechCorp India", "FinEdge", "CloudNine AI", "NovaSec", "
 
 export default function NaukriLandingPage() {
   const { user, logout, openLogin, openRegister } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTopCat, setActiveTopCat] = useState("All");
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isEmployerDropdownOpen, setIsEmployerDropdownOpen] = useState(false);
@@ -200,7 +202,12 @@ export default function NaukriLandingPage() {
             <img src={mavenLogo} alt="Maven Jobs" className="nav-logo-image" />
           </Link>
 
-          <div className="nav-links">
+          <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          </button>
+
+          <div className={`nav-menu-wrapper ${isMobileMenuOpen ? "mobile-open" : ""}`}>
+            <div className="nav-links">
             {/* Jobs */}
             <div className="nav-link-item" onMouseEnter={() => setActiveNavDropdown("Jobs")} onMouseLeave={() => setActiveNavDropdown(null)}>
               <Link to="/jobs">Jobs</Link>
@@ -376,6 +383,7 @@ export default function NaukriLandingPage() {
                 )}
               </div>
             )}
+          </div>
           </div>
         </div>
       </nav>

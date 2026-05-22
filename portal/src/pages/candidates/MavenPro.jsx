@@ -5,7 +5,7 @@ import {
   FiFileText, FiAward, FiTarget, FiPenTool, FiZap, FiStar,
   FiSearch, FiBell, FiLogOut, FiArrowRight, FiChevronRight,
   FiTrendingUp, FiShield, FiUsers, FiBarChart2, FiChevronDown,
-  FiPlay, FiMessageCircle, FiLock
+  FiPlay, FiMessageCircle, FiLock, FiMenu
 } from 'react-icons/fi';
 import { FaLinkedinIn, FaFacebookF, FaInstagram, FaQuoteLeft } from 'react-icons/fa';
 import { FaXTwitter } from "react-icons/fa6";
@@ -101,6 +101,7 @@ const planData = {
 const MavenPro = () => {
   const { user, logout, openLogin, openRegister } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fn = () => setIsScrolled(window.scrollY > 20);
@@ -448,6 +449,17 @@ const MavenPro = () => {
           .gal-item:first-child{grid-row:span 1}
           .feat-grid{grid-template-columns:1fr}
         }
+          .mobile-menu-btn { display: none; background: none; border: none; cursor: pointer; color: #fff; padding: 5px; }
+          .nav-menu-wrapper { display: flex; align-items: center; justify-content: space-between; flex: 1; gap: 36px; }
+          @media (max-width: 1024px) {
+            .mobile-menu-btn { display: block; }
+            .nav-menu-wrapper { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: #002366; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+            .nav-menu-wrapper.mobile-open { display: flex; }
+            .nl { display: flex !important; flex-direction: column; width: 100%; align-items: flex-start; margin-bottom: 20px; }
+            .nla { margin-bottom: 15px; }
+            .na { flex-direction: column; width: 100%; align-items: flex-start; }
+            .nab { width: 100%; margin-bottom: 10px; }
+          }
       `}</style>
 
       {/* PROMO */}
@@ -460,39 +472,46 @@ const MavenPro = () => {
       {/* NAVBAR */}
       <header className={`nb${isScrolled ? ' sc' : ''}`}>
         <div className="nbi">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
+          <div className="nav-brand-area" style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
               <img src={mavenLogo} alt="MavenJobs" className="logo-img" />
               <div style={{ background: 'linear-gradient(135deg, #10b981, #0da371)', color: '#fff', fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '8px', letterSpacing: '0.12em', fontFamily: 'var(--fd)', boxShadow: '0 4px 12px rgba(16,185,129,0.2)' }}>PRO</div>
             </Link>
+
+            <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+              {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+            </button>
+          </div>
+
+          <div className={`nav-menu-wrapper ${isMobileMenuOpen ? "mobile-open" : ""}`}>
             <nav className="nl">
               <a href="#features" className="nla">Features</a>
               <a href="#plans" className="nla ac">Pricing</a>
               <a href="#faq" className="nla">FAQ</a>
             </nav>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            {!user ? (
-              <>
-                <button className="btnl" onClick={openLogin}>Login</button>
-                <button className="btnr" onClick={openRegister}>Get Started Free</button>
-              </>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button title="Notifications" style={{ position: 'relative', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isScrolled ? '#f8fafc' : 'rgba(255,255,255,0.1)', border: isScrolled ? '1.5px solid #e2e8f0' : '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', color: isScrolled ? '#002366' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  <FiBell size={20} />
-                  <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#0DBF7B', borderRadius: '50%', border: `2px solid ${isScrolled ? 'white' : '#002366'}` }}></span>
-                </button>
-                <Link to="/profile" style={{ textDecoration: 'none' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', padding: '2px', background: 'linear-gradient(135deg,#1E5EFF,#0DBF7B)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover', border: `2px solid ${isScrolled ? '#002366' : 'white'}` }} />
-                  </div>
-                </Link>
-                <button onClick={logout} title="Logout" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isScrolled ? 'rgba(239,68,68,.08)' : 'rgba(255,255,255,.08)', border: isScrolled ? '1.5px solid rgba(239,68,68,.15)' : '1px solid rgba(255,255,255,.15)', borderRadius: '12px', color: isScrolled ? '#EF4444' : 'rgba(255,255,255,.9)', cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#EF4444' }} onMouseOut={e => { e.currentTarget.style.background = isScrolled ? 'rgba(239,68,68,.08)' : 'rgba(255,255,255,.08)'; e.currentTarget.style.color = isScrolled ? '#EF4444' : 'rgba(255,255,255,.9)'; e.currentTarget.style.borderColor = isScrolled ? 'rgba(239,68,68,.15)' : 'rgba(255,255,255,.15)' }}>
-                  <FiLogOut size={18} />
-                </button>
-              </div>
-            )}
+            <div className="na" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              {!user ? (
+                <>
+                  <button className="btnl" onClick={openLogin}>Login</button>
+                  <button className="btnr" onClick={openRegister}>Get Started Free</button>
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button title="Notifications" style={{ position: 'relative', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isScrolled ? '#f8fafc' : 'rgba(255,255,255,0.1)', border: isScrolled ? '1.5px solid #e2e8f0' : '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', color: isScrolled ? '#002366' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <FiBell size={20} />
+                    <span style={{ position: 'absolute', top: '8px', right: '8px', width: '8px', height: '8px', background: '#0DBF7B', borderRadius: '50%', border: `2px solid ${isScrolled ? 'white' : '#002366'}` }}></span>
+                  </button>
+                  <Link to="/profile" style={{ textDecoration: 'none' }}>
+                    <div style={{ width: '42px', height: '42px', borderRadius: '12px', padding: '2px', background: 'linear-gradient(135deg,#1E5EFF,#0DBF7B)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover', border: `2px solid ${isScrolled ? '#002366' : 'white'}` }} />
+                    </div>
+                  </Link>
+                  <button onClick={logout} title="Logout" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isScrolled ? 'rgba(239,68,68,.08)' : 'rgba(255,255,255,.08)', border: isScrolled ? '1.5px solid rgba(239,68,68,.15)' : '1px solid rgba(255,255,255,.15)', borderRadius: '12px', color: isScrolled ? '#EF4444' : 'rgba(255,255,255,.9)', cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#EF4444' }} onMouseOut={e => { e.currentTarget.style.background = isScrolled ? 'rgba(239,68,68,.08)' : 'rgba(255,255,255,.08)'; e.currentTarget.style.color = isScrolled ? '#EF4444' : 'rgba(255,255,255,.9)'; e.currentTarget.style.borderColor = isScrolled ? 'rgba(239,68,68,.15)' : 'rgba(255,255,255,.15)' }}>
+                    <FiLogOut size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>

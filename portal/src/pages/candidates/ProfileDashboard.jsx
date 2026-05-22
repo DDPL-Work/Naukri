@@ -7,7 +7,7 @@ import {
   FiCalendar, FiClock, FiChevronLeft, FiInfo, FiSend, FiChevronDown,
   FiStar, FiBookmark, FiGlobe, FiTwitter, FiFacebook, FiLinkedin, FiCopy, FiShare,
   FiHelpCircle, FiShield, FiLock, FiTrash2, FiSearch,
-  FiLayers, FiBookOpen, FiArrowRight
+  FiLayers, FiBookOpen, FiArrowRight, FiMenu
 } from 'react-icons/fi';
 import { FaWhatsapp, FaLinkedinIn, FaTwitter as FaXTwitter, FaFacebookF } from 'react-icons/fa';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
@@ -42,6 +42,7 @@ export default function ProfileDashboard() {
   const navigate = useNavigate();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(user?.name || '');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Profile');
   const [coverImage, setCoverImage] = useState(user?.coverPic || "");
   const [showCompletionModal, setShowCompletionModal] = useState(user?.profileCompletion < 100);
@@ -113,7 +114,13 @@ export default function ProfileDashboard() {
     setIsDownloading(false);
   };
 
-  const profileLink = `mavenjobs.com/in/${user?.name?.toLowerCase().replace(/\s+/g, '-') || 'user'}-7a8b9c`;
+  // Production ready unique profile link generation like LinkedIn
+  const getUniqueId = () => {
+    if (user?._id) return user._id.toString().slice(-6);
+    if (user?.id) return user.id.toString().slice(-6);
+    return Math.random().toString(36).substr(2, 6);
+  };
+  const profileLink = `${window.location.host}/in/${user?.name?.toLowerCase().replace(/\s+/g, '-') || 'user'}-${getUniqueId()}`;
 
   const [recommendedJobs, setRecommendedJobs] = useState({});
   const [candidateProfile, setCandidateProfile] = useState(null);
@@ -261,7 +268,7 @@ export default function ProfileDashboard() {
   return (
     <div className="pd-root">
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-        <ResumeTemplate ref={resumeRef} />
+        <ResumeTemplate ref={resumeRef} user={user} />
       </div>
       <input ref={pfpInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePfpChange} />
       <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverChange} />
@@ -273,6 +280,11 @@ export default function ProfileDashboard() {
             <img src={mavenLogo} alt="MavenJobs" className="pd-navbar-logo-img" />
           </Link>
 
+          <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          </button>
+
+          <div className={`nav-menu-wrapper ${isMobileMenuOpen ? "mobile-open" : ""}`}>
           <nav className="pd-navbar-links">
             <Link to="/jobs" className="pd-nav-link">Jobs</Link>
             <div className="pd-nav-dropdown-wrapper"
@@ -318,6 +330,7 @@ export default function ProfileDashboard() {
             <button className="pd-navbar-logout" onClick={logout}>
               <FiLogOut size={15} /> Logout
             </button>
+          </div>
           </div>
         </div>
       </header>

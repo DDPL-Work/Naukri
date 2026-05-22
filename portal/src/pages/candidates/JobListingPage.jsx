@@ -8,7 +8,7 @@ import {
 import { FaRupeeSign, FaStar, FaFacebookF, FaLinkedinIn, FaInstagram } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../AuthContext";
-import { EXTENDED_JOBS as JOBS, TOP_CATEGORIES } from "../../data/jobs";
+import { TOP_CATEGORIES } from "../../data/jobs";
 import authService from "../../services/authService";
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
 import "./JobListingPage.css";
@@ -47,6 +47,7 @@ export default function JobListingPage() {
   const scrollRef = React.useRef(null);
   const [filters, setFilters] = useState({});
   const [search, setSearch] = useState("");
+  const [locSearch, setLocSearch] = useState("");
   const [scrolled, setScrolled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("relevance");
@@ -79,12 +80,13 @@ export default function JobListingPage() {
     setLoadingBackend(true);
     Promise.all([
       authService.getJobs({ search }).catch(() => null),
-      authService.getDashboard().catch(() => null)
-    ]).then(([resJobs, resDash]) => {
+      authService.getCompanies({ limit: 4 }).catch(() => null)
+    ]).then(([resJobs, resComps]) => {
       if (resJobs?.success && resJobs?.data?.jobs) {
         const formatted = resJobs.data.jobs.map((j, i) => {
           const title = j.title || 'Senior Engineer';
-          const company = j.companyId?.name || j.companyName || j.company || 'Enterprise Partner';
+          const companyObj = j.companyId || {};
+          const company = companyObj.name || j.companyName || j.company || 'Enterprise Partner';
           const minSal = j.salaryMin || 0;
           const maxSal = j.salaryMax || 0;
           const salStr = minSal && maxSal ? `${(minSal/100000).toFixed(0)}–${(maxSal/100000).toFixed(0)} Lakhs PA` : j.salary || '18–28 Lakhs PA';
@@ -94,45 +96,33 @@ export default function JobListingPage() {
             id: j._id || j.id || i,
             title,
             company,
-            rating: j.rating || (4.0 + Math.random() * 0.8).toFixed(1),
-            reviews: j.reviews || Math.floor(Math.random() * 800) + 50,
+            rating: j.rating || 4.1,
+            reviews: j.reviews || 105,
             exp: j.experience || j.exp || '1–4 Yrs',
             salary: salStr,
             location: j.location || 'Bengaluru',
             posted: j.lastUpdated || j.posted || '2 days ago',
             desc: j.description || j.desc || 'No description provided.',
-            tags: j.tags?.length > 0 ? j.tags : ['Full-Time', j.department || 'Engineering'],
+            tags: j.skills?.length > 0 ? j.skills : ['Full-Time', j.department || 'Engineering'],
             logo: company[0],
             featured: i < 3,
             dept: j.department || 'Engineering',
             mode: j.workplaceType || 'Remote',
             loc: j.location || 'Bengaluru',
             salaryRange: salCat,
-            type: 'Corporate',
+            type: companyObj.type || 'Corporate',
             date: new Date(j.createdAt || Date.now()).getTime()
           };
         });
         setBackendJobs(formatted);
+      } else {
+        setBackendJobs([]);
       }
 
-      if (resDash?.success && resDash?.data) {
-        const comps = [];
-        if (resDash.data.mappedCompany) {
-          comps.push({ name: resDash.data.mappedCompany.name || 'Accenture', jobs: 24 });
-        }
-        comps.push(
-          { name: "Virtusa", jobs: 12 },
-          { name: "Conduent", jobs: 8 },
-          { name: "DataPulse", jobs: 17 }
-        );
-        setBackendCompanies(comps);
+      if (resComps?.success && resComps?.data?.companies) {
+        setBackendCompanies(resComps.data.companies);
       } else {
-        setBackendCompanies([
-          { name: "Virtusa", jobs: 12 },
-          { name: "Accenture", jobs: 24 },
-          { name: "Conduent", jobs: 8 },
-          { name: "DataPulse", jobs: 17 },
-        ]);
+        setBackendCompanies([]);
       }
       setLoadingBackend(false);
     });
@@ -177,26 +167,69 @@ export default function JobListingPage() {
 
   const hasFilters = Object.values(filters).some(arr => arr.length > 0);
 
-  const activeJobsPool = backendJobs.length > 0 ? backendJobs : JOBS;
+  const activeJobsPool = backendJobs;
+
+  const normalizeWorkMode = (mode) => {
+    const m = String(mode || "").toLowerCase();
+    if (m.includes("remote")) return "remote";
+    if (m.includes("hybrid")) return "hybrid";
+    if (m.includes("office") || m.includes("on-site") || m.includes("onsite")) return "work from office";
+    return m;
+  };
 
   // Filter and Sort Logic
   const filteredJobs = activeJobsPool.filter(job => {
     // Search match
-    if (search && !job.title.toLowerCase().includes(search.toLowerCase()) && !job.company.toLowerCase().includes(search.toLowerCase())) {
-      return false;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const titleMatch = String(job.title || "").toLowerCase().includes(searchLower);
+      const companyMatch = String(job.company || "").toLowerCase().includes(searchLower);
+      const deptMatch = String(job.dept || "").toLowerCase().includes(searchLower);
+      const locMatch = String(job.location || "").toLowerCase().includes(searchLower);
+      if (!titleMatch && !companyMatch && !deptMatch && !locMatch) {
+        return false;
+      }
     }
+
+    // Location search field match
+    if (locSearch) {
+      const locSearchLower = locSearch.toLowerCase();
+      const locMatch = String(job.location || "").toLowerCase().includes(locSearchLower);
+      if (!locMatch) return false;
+    }
+
     // Category match
     for (const [catId, selectedOpts] of Object.entries(filters)) {
-      if (selectedOpts.length > 0) {
-        const jobVal = job[catId];
-        if (!selectedOpts.includes(jobVal)) return false;
+      if (selectedOpts && selectedOpts.length > 0) {
+        const jobVal = String(job[catId] || "").toLowerCase();
+        
+        if (catId === "dept") {
+          const match = selectedOpts.some(opt => String(opt || "").toLowerCase() === jobVal);
+          if (!match) return false;
+        } else if (catId === "mode") {
+          const normalizedJobMode = normalizeWorkMode(jobVal);
+          const match = selectedOpts.some(opt => normalizeWorkMode(opt) === normalizedJobMode);
+          if (!match) return false;
+        } else if (catId === "loc") {
+          const match = selectedOpts.some(opt => {
+            const optLower = String(opt || "").toLowerCase();
+            return jobVal.includes(optLower) || optLower.includes(jobVal);
+          });
+          if (!match) return false;
+        } else if (catId === "salaryRange") {
+          const match = selectedOpts.some(opt => String(opt || "").toLowerCase() === jobVal);
+          if (!match) return false;
+        } else if (catId === "type") {
+          const match = selectedOpts.some(opt => String(opt || "").toLowerCase() === jobVal);
+          if (!match) return false;
+        }
       }
     }
 
     // Experience match
     if (expRange > 0) {
-      // Parse job exp (e.g., "3–6 Yrs")
-      const minJobExp = parseInt(job.exp.split("–")[0]) || 0;
+      const matches = String(job.exp || "").match(/^(\d+)/);
+      const minJobExp = matches ? parseInt(matches[1]) : 0;
       if (minJobExp > expRange) return false;
     }
 
@@ -204,11 +237,10 @@ export default function JobListingPage() {
   }).sort((a, b) => {
     if (sortBy === "newest") return b.date - a.date;
     if (sortBy === "salary") {
-      // Very crude salary sort
       const getSal = s => parseInt(s.split("–")[0]) || 0;
       return getSal(b.salary) - getSal(a.salary);
     }
-    return a.id - b.id; // relevance/default
+    return 0; // default/relevance matches backend order
   });
 
   const totalPages = Math.ceil(filteredJobs.length / JOBS_PER_PAGE);
@@ -216,6 +248,12 @@ export default function JobListingPage() {
     (currentPage - 1) * JOBS_PER_PAGE,
     currentPage * JOBS_PER_PAGE
   );
+
+  const handleCategoryClick = (cat) => {
+    const term = cat.replace(/\s+Jobs$/i, "");
+    setSearch(term);
+  };
+
 
   return (
     <div className="jlp-root">
@@ -238,7 +276,15 @@ export default function JobListingPage() {
             </div>
             <div className="jlp-search-field">
               <FiMapPin size={16} />
-              <input type="text" placeholder="Location" />
+              <input 
+                type="text" 
+                placeholder="Location" 
+                value={locSearch}
+                onChange={e => {
+                  setLocSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
             <button className="jlp-search-btn" aria-label="Search">
               <FiSearch size={18} />
@@ -272,7 +318,12 @@ export default function JobListingPage() {
 
           <div className="jlp-top-categories-container" ref={scrollRef}>
             {TOP_CATEGORIES.map((cat, idx) => (
-              <div key={idx} className="jlp-top-category-chip">
+              <div 
+                key={idx} 
+                className="jlp-top-category-chip"
+                onClick={() => handleCategoryClick(cat)}
+                style={{ cursor: 'pointer' }}
+              >
                 {cat}
               </div>
             ))}
@@ -330,8 +381,6 @@ export default function JobListingPage() {
               </div>
             </div>
 
-            {/* Filter categories moved to data but let's keep them here for local logic if needed, 
-                but for simplicity we'll just use a local constant or import them */}
             {FILTER_CATEGORIES.map(cat => {
               const displayOptions = cat.options.slice(0, 5);
               const hasMore = cat.options.length > 5;
@@ -374,7 +423,9 @@ export default function JobListingPage() {
           <div className="jlp-results-bar">
             <div>
               <div className="jlp-results-title">
-                {filteredJobs.length > 0 ? (
+                {loadingBackend ? (
+                  <span>Loading Jobs...</span>
+                ) : filteredJobs.length > 0 ? (
                   <>
                     {Math.min((currentPage - 1) * JOBS_PER_PAGE + 1, filteredJobs.length)} – {Math.min(currentPage * JOBS_PER_PAGE, filteredJobs.length)} of {filteredJobs.length} <span>Jobs Found</span>
                   </>
@@ -401,103 +452,130 @@ export default function JobListingPage() {
             </div>
           </div>
 
-          {currentJobs.map(job => (
-            <div key={job.id} className={`jlp-job-card${job.featured ? " featured" : ""}`}>
-              {job.featured && <div className="jlp-featured-badge"><FaStar size={12} className="inline mr-1" /> Featured</div>}
+          {loadingBackend ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="jlp-job-card skeleton" style={{ minHeight: '180px', background: 'white', borderRadius: 20, border: '1px solid #E2E8F0', padding: '24px 28px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F1F5F9', opacity: 0.6 }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ width: '40%', height: 16, background: '#F1F5F9', borderRadius: 4 }} />
+                    <div style={{ width: '25%', height: 12, background: '#F1F5F9', borderRadius: 4 }} />
+                  </div>
+                </div>
+                <div style={{ width: '100%', height: 40, background: '#F1F5F9', borderRadius: 8 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ width: '30%', height: 20, background: '#F1F5F9', borderRadius: 6 }} />
+                  <div style={{ width: '20%', height: 28, background: '#F1F5F9', borderRadius: 8 }} />
+                </div>
+              </div>
+            ))
+          ) : currentJobs.length > 0 ? (
+            currentJobs.map(job => (
+              <div key={job.id} className={`jlp-job-card${job.featured ? " featured" : ""}`}>
+                {job.featured && <div className="jlp-featured-badge"><FaStar size={12} className="inline mr-1" /> Featured</div>}
 
-              <div className="jlp-card-top">
-                <div className="jlp-company-logo">{job.logo}</div>
-                <div className="jlp-card-meta">
-                  <div className="jlp-job-title">{job.title}</div>
-                  <div className="jlp-company-row">
-                    <span className="jlp-company-name">{job.company}</span>
-                    <div className="jlp-rating-badge">
-                      {job.rating} <FaStar size={9} />
+                <div className="jlp-card-top">
+                  <div className="jlp-company-logo">{job.logo}</div>
+                  <div className="jlp-card-meta">
+                    <div className="jlp-job-title">{job.title}</div>
+                    <div className="jlp-company-row">
+                      <span className="jlp-company-name">{job.company}</span>
+                      <div className="jlp-rating-badge">
+                        {job.rating} <FaStar size={9} />
+                      </div>
+                      <span className="jlp-reviews">{job.reviews} Reviews</span>
                     </div>
-                    <span className="jlp-reviews">{job.reviews} Reviews</span>
+                  </div>
+                </div>
+
+                <div className="jlp-card-details">
+                  <div className="jlp-detail-item">
+                    <div className="jlp-detail-icon"><FiBriefcase size={15} /></div>
+                    <span className="jlp-detail-text">{job.exp}</span>
+                  </div>
+                  <div className="jlp-detail-item">
+                    <div className="jlp-detail-icon"><FaRupeeSign size={13} /></div>
+                    <span className="jlp-detail-text">{job.salary}</span>
+                  </div>
+                  <div className="jlp-detail-item">
+                    <div className="jlp-detail-icon"><FiMapPin size={15} /></div>
+                    <span className="jlp-detail-text">{job.location}</span>
+                  </div>
+                  <div className="jlp-detail-item">
+                    <div className="jlp-detail-icon"><FiClock size={15} /></div>
+                    <span className="jlp-detail-text">{job.posted}</span>
+                  </div>
+                </div>
+
+                <p className="jlp-card-desc">{job.desc}</p>
+
+                <div className="jlp-card-footer">
+                  <div className="jlp-tags">
+                    {job.tags.map(tag => (
+                      <span key={tag} className="jlp-tag">{tag}</span>
+                    ))}
+                  </div>
+                  <div className="jlp-card-actions">
+                    <button className="jlp-save-btn" aria-label="Save job">
+                      <FiBookmark size={17} />
+                    </button>
+                    <button
+                      className="jlp-apply-btn"
+                      onClick={() => navigate(`/job/${job.id}`)}
+                    >
+                      Quick Apply <FiArrowRight size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
-
-              <div className="jlp-card-details">
-                <div className="jlp-detail-item">
-                  <div className="jlp-detail-icon"><FiBriefcase size={15} /></div>
-                  <span className="jlp-detail-text">{job.exp}</span>
-                </div>
-                <div className="jlp-detail-item">
-                  <div className="jlp-detail-icon"><FaRupeeSign size={13} /></div>
-                  <span className="jlp-detail-text">{job.salary}</span>
-                </div>
-                <div className="jlp-detail-item">
-                  <div className="jlp-detail-icon"><FiMapPin size={15} /></div>
-                  <span className="jlp-detail-text">{job.location}</span>
-                </div>
-                <div className="jlp-detail-item">
-                  <div className="jlp-detail-icon"><FiClock size={15} /></div>
-                  <span className="jlp-detail-text">{job.posted}</span>
-                </div>
-              </div>
-
-              <p className="jlp-card-desc">{job.desc}</p>
-
-              <div className="jlp-card-footer">
-                <div className="jlp-tags">
-                  {job.tags.map(tag => (
-                    <span key={tag} className="jlp-tag">{tag}</span>
-                  ))}
-                </div>
-                <div className="jlp-card-actions">
-                  <button className="jlp-save-btn" aria-label="Save job">
-                    <FiBookmark size={17} />
-                  </button>
-                  <button
-                    className="jlp-apply-btn"
-                    onClick={() => navigate(`/job/${job.id}`)}
-                  >
-                    Quick Apply <FiArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
+            ))
+          ) : (
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 20, border: '1px solid #E2E8F0', color: '#64748B' }}>
+              <FiBriefcase size={40} style={{ marginBottom: 12, color: '#94A3B8' }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0A1628', marginBottom: 6 }}>No matching jobs found</h3>
+              <p style={{ fontSize: '0.85rem' }}>Try adjusting your search terms or clearing the active filters.</p>
             </div>
-          ))}
+          )}
 
           {/* Pagination */}
-          <div className="jlp-pagination">
-            <button
-              className="jlp-page-btn nav-btn"
-              disabled={currentPage === 1}
-              onClick={() => {
-                setCurrentPage(prev => prev - 1);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            >
-              Previous
-            </button>
-            <div className="jlp-page-numbers">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
-                <button
-                  key={num}
-                  className={`jlp-page-btn num-btn${currentPage === num ? " active" : ""}`}
-                  onClick={() => {
-                    setCurrentPage(num);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                >
-                  {num}
-                </button>
-              ))}
+          {!loadingBackend && totalPages > 1 && (
+            <div className="jlp-pagination">
+              <button
+                className="jlp-page-btn nav-btn"
+                disabled={currentPage === 1}
+                onClick={() => {
+                  setCurrentPage(prev => prev - 1);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Previous
+              </button>
+              <div className="jlp-page-numbers">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
+                  <button
+                    key={num}
+                    className={`jlp-page-btn num-btn${currentPage === num ? " active" : ""}`}
+                    onClick={() => {
+                      setCurrentPage(num);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="jlp-page-btn nav-btn"
+                disabled={currentPage === totalPages}
+                onClick={() => {
+                  setCurrentPage(prev => prev + 1);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Next
+              </button>
             </div>
-            <button
-              className="jlp-page-btn nav-btn"
-              disabled={currentPage === totalPages}
-              onClick={() => {
-                setCurrentPage(prev => prev + 1);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            >
-              Next
-            </button>
-          </div>
+          )}
         </section>
 
         {/* Right: Companies & Trending */}
@@ -505,25 +583,46 @@ export default function JobListingPage() {
           <div className="jlp-right-card">
             <div className="jlp-right-card-title">Top Companies Hiring</div>
             <div className="jlp-company-list">
-              {(backendCompanies.length > 0 ? backendCompanies : [
-                { name: "Virtusa", jobs: 12 },
-                { name: "Accenture", jobs: 24 },
-                { name: "Conduent", jobs: 8 },
-                { name: "DataPulse", jobs: 17 },
-              ]).map(c => (
-                <div key={c.name} className="jlp-company-item">
-                  <div className="jlp-company-item-left">
-                    <div className="jlp-company-item-logo">{c.name[0]}</div>
-                    <div>
-                      <div className="jlp-company-item-name">{c.name}</div>
-                      <div className="jlp-company-item-jobs">{c.jobs} Open Roles</div>
+              {backendCompanies.length > 0 ? (
+                backendCompanies.map(c => (
+                  <div 
+                    key={c.id || c.name} 
+                    className="jlp-company-item"
+                    onClick={() => c.id && navigate(`/company/${c.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="jlp-company-item-left">
+                      <div 
+                        className="jlp-company-item-logo"
+                        style={{
+                          background: c.color || '#002366',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '1rem'
+                        }}
+                      >
+                        {c.logo || c.name[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="jlp-company-item-name">{c.name}</div>
+                        <div className="jlp-company-item-jobs">{c.activeJobCount || 0} Open Roles</div>
+                      </div>
                     </div>
+                    <div className="jlp-company-item-arrow"><FiArrowRight size={14} /></div>
                   </div>
-                  <div className="jlp-company-item-arrow"><FiArrowRight size={14} /></div>
+                ))
+              ) : (
+                <div style={{ padding: '20px 0', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
+                  No companies found
                 </div>
-              ))}
+              )}
             </div>
-            <button className="jlp-view-all-btn">View All Companies</button>
+            <button className="jlp-view-all-btn" onClick={() => navigate("/companies")}>
+              View All Companies
+            </button>
           </div>
 
           <div className="jlp-trending-card">
@@ -532,7 +631,7 @@ export default function JobListingPage() {
             <div className="jlp-trending-desc">Roles seeing 40%+ more hiring this quarter.</div>
             <div className="jlp-trending-paths">
               {["Data Engineering", "Cloud Architecture", "Product Operations", "AI / ML Engineering"].map(p => (
-                <div key={p} className="jlp-trending-path">
+                <div key={p} className="jlp-trending-path" onClick={() => setSearch(p)} style={{ cursor: 'pointer' }}>
                   <div className="jlp-trending-dot" />
                   {p}
                 </div>
@@ -543,7 +642,7 @@ export default function JobListingPage() {
 
       </div>
 
-      {/* ── Footer (same as NaukriLandingPage) ── */}
+      {/* ── Footer ── */}
       <footer className="jlp-footer">
         <div className="jlp-footer-grid">
           <div className="jlp-footer-brand">
@@ -618,7 +717,6 @@ export default function JobListingPage() {
               <div className="jlp-modal-grid">
                 {FILTER_CATEGORIES.find(c => c.id === activeModal)?.options.map(opt => {
                   const isChecked = (draftFilters[activeModal] || []).includes(opt);
-                  // Mock count for professional look
                   const mockCount = Math.floor(Math.random() * 900) + 15;
                   return (
                     <div
@@ -650,3 +748,4 @@ export default function JobListingPage() {
     </div>
   );
 }
+

@@ -2,25 +2,31 @@ import React, { forwardRef } from 'react';
 
 // Helper to generate mock details based on candidate
 const getMockData = (candidate) => {
-  const isDesign = candidate.role.toLowerCase().includes('design') || candidate.role.toLowerCase().includes('ui');
-  const isData = candidate.role.toLowerCase().includes('data') || candidate.role.toLowerCase().includes('analytics');
+  const isDesign = candidate.role?.toLowerCase().includes('design') || candidate.role?.toLowerCase().includes('ui');
+  const isData = candidate.role?.toLowerCase().includes('data') || candidate.role?.toLowerCase().includes('analytics');
   
   return {
-    email: `${candidate.name.split(' ')[0].toLowerCase()}@example.com`,
-    phone: '+91 98765 43210',
-    about: `Highly motivated ${candidate.role} with ${candidate.exp} of experience delivering high-quality results. Proven ability to leverage ${candidate.skills[0]} and ${candidate.skills[1] || 'modern tools'} to drive business value. Strong communicator and team player, ready to contribute immediately.`,
-    education: [
-      { degree: isData ? 'M.S. Data Science' : 'B.Tech Computer Science', school: 'National Institute of Technology', year: '2016 - 2020' },
-      { degree: 'Class XII (Science)', school: 'Delhi Public School', year: '2016' }
-    ],
-    experience: [
-      { role: candidate.role, company: 'TechCorp India', date: '2021 - Present', desc: `Leading the ${candidate.role.split(' ')[0]} initiatives. Mentoring junior members and standardizing workflows using ${candidate.skills[0]}. Improved team efficiency by 25%.` },
-      { role: `Associate ${candidate.role.split(' ').pop()}`, company: 'Innovate Solutions', date: '2020 - 2021', desc: `Assisted in key projects. Developed core features resulting in a 15% increase in user engagement.` }
-    ],
-    projects: [
-      { name: 'Enterprise Dashboard Redesign', desc: `Led the end-to-end delivery of a scalable dashboard utilizing ${candidate.skills.join(', ')}.` },
-      { name: 'Automation Workflow Engine', desc: `Built a robust engine reducing manual processing time by over 40 hours per week.` }
-    ]
+    email: candidate.email || `${candidate.name?.split(' ')[0].toLowerCase() || 'user'}@example.com`,
+    phone: candidate.phone || candidate.mobile || '+91 98765 43210',
+    about: candidate.about || candidate.summary || `Highly motivated ${candidate.role || 'Professional'} with ${candidate.exp || 'years'} of experience delivering high-quality results. Proven ability to leverage ${candidate.skills?.[0] || 'core skills'} and ${candidate.skills?.[1] || 'modern tools'} to drive business value. Strong communicator and team player, ready to contribute immediately.`,
+    education: candidate.education && Array.isArray(candidate.education) && candidate.education.length > 0 
+      ? candidate.education 
+      : [
+          { degree: isData ? 'M.S. Data Science' : 'B.Tech Computer Science', school: 'National Institute of Technology', year: '2016 - 2020' },
+          { degree: 'Class XII (Science)', school: 'Delhi Public School', year: '2016' }
+        ],
+    experience: candidate.experience && Array.isArray(candidate.experience) && candidate.experience.length > 0 
+      ? candidate.experience 
+      : [
+          { role: candidate.role || 'Senior Professional', company: 'TechCorp India', date: '2021 - Present', desc: `Leading the ${candidate.role?.split(' ')[0] || 'core'} initiatives. Mentoring junior members and standardizing workflows using ${candidate.skills?.[0] || 'best practices'}. Improved team efficiency by 25%.` },
+          { role: `Associate ${candidate.role?.split(' ').pop() || 'Professional'}`, company: 'Innovate Solutions', date: '2020 - 2021', desc: `Assisted in key projects. Developed core features resulting in a 15% increase in user engagement.` }
+        ],
+    projects: candidate.projects && Array.isArray(candidate.projects) && candidate.projects.length > 0 
+      ? candidate.projects 
+      : [
+          { name: 'Enterprise Dashboard Redesign', desc: `Led the end-to-end delivery of a scalable dashboard utilizing ${candidate.skills?.join(', ') || 'modern technologies'}.` },
+          { name: 'Automation Workflow Engine', desc: `Built a robust engine reducing manual processing time by over 40 hours per week.` }
+        ]
   };
 };
 

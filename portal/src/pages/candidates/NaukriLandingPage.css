@@ -3360,4 +3360,57 @@ footer {
 
 .employer-login-item:hover svg {
   transform: translateX(4px);
+}/* -- MOBILE MENU -- */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  padding: 5px;
+}
+.nav-menu-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+}
+@media (max-width: 1024px) {
+  .mobile-menu-btn {
+    display: block;
+  }
+  .nav-menu-wrapper {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 78px;
+    left: 0;
+    right: 0;
+    background: #fff;
+    padding: 20px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+  .nav-menu-wrapper.mobile-open {
+    display: flex;
+  }
+  .nav-links {
+    flex-direction: column;
+    width: 100%;
+    align-items: flex-start;
+  }
+  .nav-actions {
+    flex-direction: column;
+    width: 100%;
+    align-items: flex-start;
+    margin-top: 15px;
+  }
+  .nav-link-item {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  .nav-actions .btn-outline, .nav-actions .btn-filled {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 10px;
+  }
 }

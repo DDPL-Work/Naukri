@@ -504,7 +504,7 @@ export default function ExpertAssist() {
 
                         {/* Right — form */}
                         <div className="reveal" data-delay={0.1} style={{ background: '#fff', padding: '52px 44px', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderLeft: '1.5px solid #e2e8f0' }}>
-                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#002366,#10b981)', borderRadius: '0 0 0 0', position: 'relative' }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#002366,#10b981)', borderRadius: '0 0 0 0' }}>
                                 <div style={{ height: 3, background: 'linear-gradient(90deg,#002366,#10b981)', borderRadius: 3, marginBottom: 28 }} />
                             </div>
                             <h3 style={{ fontFamily: 'var(--fd)', fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 24, letterSpacing: '-0.02em' }}>Book your personalized demo</h3>
