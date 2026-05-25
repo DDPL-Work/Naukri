@@ -7,6 +7,8 @@ import {
   FiStar, FiUsers, FiBarChart2
 } from 'react-icons/fi';
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
+import { useAuth } from '../../AuthContext';
+import authService from '../../services/authService';
 
 const QUESTIONS = [
   {
@@ -52,7 +54,7 @@ const QUESTIONS = [
 ];
 
 /* ── Intro screen ─────────────────────────────── */
-function IntroScreen({ onStart }) {
+function IntroScreen({ onStart, quiz, ranking = [] }) {
   const cardRef = useRef(null);
   const leftRef = useRef(null);
   const rightRef = useRef(null);
@@ -253,8 +255,8 @@ function IntroScreen({ onStart }) {
               ))}
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,.8)', lineHeight: 1.2 }}>12,402 took today</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 1 }}>Avg score: 3.8 / 5</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,.8)', lineHeight: 1.2 }}>{ranking.length} ranked candidates</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', marginTop: 1 }}>Top XP: {ranking[0]?.totalXp || 0}</div>
             </div>
           </div>
         </div>
@@ -279,10 +281,10 @@ function IntroScreen({ onStart }) {
               fontSize: 'clamp(20px,2.8vw,26px)', fontWeight: 800,
               color: '#0f172a', letterSpacing: '-0.03em', marginBottom: 6,
             }}>
-              Full Stack Fundamentals
+              {quiz.title}
             </h2>
             <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.65 }}>
-              Test your knowledge across React, Node.js, MongoDB, and JavaScript.
+              {quiz.subtitle}
             </p>
           </div>
 
@@ -292,9 +294,9 @@ function IntroScreen({ onStart }) {
             gap: 10, marginBottom: 24,
           }}>
             {[
-              { icon: <FiTarget size={16} />, lbl: 'Questions', val: '5 Mixed', bg: '#EEF2FF', ic: '#002366' },
-              { icon: <FiClock size={16} />, lbl: 'Time Limit', val: '60 Seconds', bg: '#f5f3ff', ic: '#7c3aed' },
-              { icon: <FiAward size={16} />, lbl: 'Reward', val: '+50 XP', bg: '#ecfdf5', ic: '#059669' },
+              { icon: <FiTarget size={16} />, lbl: 'Questions', val: `${quiz.questions.length} Mixed`, bg: '#EEF2FF', ic: '#002366' },
+              { icon: <FiClock size={16} />, lbl: 'Time Limit', val: `${quiz.durationSeconds} Seconds`, bg: '#f5f3ff', ic: '#7c3aed' },
+              { icon: <FiAward size={16} />, lbl: 'Reward', val: `+${quiz.maxXp} XP`, bg: '#ecfdf5', ic: '#059669' },
               { icon: <FiTrendingUp size={16} />, lbl: 'Difficulty', val: 'Intermediate', bg: '#fff7ed', ic: '#d97706' },
             ].map((s, i) => (
               <div key={i} className="qi-stat" style={{ background: s.bg, border: '1px solid transparent' }}>
@@ -348,7 +350,7 @@ function IntroScreen({ onStart }) {
 }
 
 /* ── Quiz screen ──────────────────────────────── */
-function QuizScreen({ onFinish }) {
+function QuizScreen({ questions, onFinish }) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
   const [answers, setAnswers] = useState([]);
@@ -360,7 +362,7 @@ function QuizScreen({ onFinish }) {
   const timerTween = useRef(null);
   const intervalRef = useRef(null);
 
-  const q = QUESTIONS[current];
+  const q = questions[current];
 
   /* countdown per question */
   useEffect(() => {
@@ -401,19 +403,20 @@ function QuizScreen({ onFinish }) {
 
     const correct = choiceIdx === q.correct;
     setSelected(choiceIdx);
-    setAnswers(a => [...a, { q: q.id, choice: choiceIdx, correct }]);
+    setAnswers(a => [...a, { questionId: q.id, selectedIndex: choiceIdx, correct }]);
 
     setTimeout(() => {
-      if (current + 1 < QUESTIONS.length) {
+      if (current + 1 < questions.length) {
         setCurrent(c => c + 1);
       } else {
-        const score = [...answers, { correct }].filter(a => a.correct).length;
-        onFinish(score + (correct ? 1 : 0), QUESTIONS.length);
+        const finalAnswers = [...answers, { questionId: q.id, selectedIndex: choiceIdx, correct }];
+        const score = finalAnswers.filter(a => a.correct).length;
+        onFinish(score, questions.length, finalAnswers);
       }
     }, 900);
   };
 
-  const pct = ((current) / QUESTIONS.length) * 100;
+  const pct = ((current) / questions.length) * 100;
 
   return (
     <div style={{
@@ -515,7 +518,7 @@ function QuizScreen({ onFinish }) {
               fontFamily: "'Bricolage Grotesque',sans-serif",
               whiteSpace: 'nowrap',
             }}>
-              {current + 1} / {QUESTIONS.length}
+              {current + 1} / {questions.length}
             </span>
           </div>
         </div>
@@ -581,7 +584,7 @@ function QuizScreen({ onFinish }) {
 }
 
 /* ── Results screen ───────────────────────────── */
-function ResultsScreen({ score, total, onRetry }) {
+function ResultsScreen({ score, total, xpEarned, submitError, onRetry }) {
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -601,7 +604,7 @@ function ResultsScreen({ score, total, onRetry }) {
   const pct = Math.round((score / total) * 100);
   const grade = pct === 100 ? 'Perfect!' : pct >= 80 ? 'Excellent!' : pct >= 60 ? 'Good Job!' : pct >= 40 ? 'Keep Going!' : 'Try Again!';
   const color = pct >= 80 ? '#10b981' : pct >= 60 ? '#002366' : pct >= 40 ? '#d97706' : '#ef4444';
-  const xp = score * 10;
+  const xp = xpEarned ?? score * 10;
 
   /* donut */
   const R2 = 52; const circ2 = 2 * Math.PI * R2;
@@ -650,6 +653,12 @@ function ResultsScreen({ score, total, onRetry }) {
               <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, marginTop: 2 }}>{pct}%</span>
             </div>
           </div>
+
+          {submitError && (
+            <p className="qr-item" style={{ color: '#dc2626', fontSize: 12, marginBottom: 12, fontWeight: 700 }}>
+              {submitError}
+            </p>
+          )}
 
           <div className="qr-item" style={{
             fontFamily: "'Bricolage Grotesque',sans-serif",
@@ -739,18 +748,102 @@ function ResultsScreen({ score, total, onRetry }) {
 
 /* ── Main exported component ──────────────────── */
 export default function DailyQuiz() {
+  const navigate = useNavigate();
+  const { user, openLogin } = useAuth();
   const [phase, setPhase] = useState('intro');   // intro | quiz | results
+  const [quiz, setQuiz] = useState(null);
+  const [ranking, setRanking] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [score, setScore] = useState(0);
   const [total, setTotal] = useState(QUESTIONS.length);
+  const [xpEarned, setXpEarned] = useState(null);
+  const [submitError, setSubmitError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!user && !localStorage.getItem('token')) {
+      setLoading(false);
+      setError('Please log in to play the daily quiz.');
+      return undefined;
+    }
+
+    Promise.all([
+      authService.getTodayQuiz(),
+      authService.getQuizRanking().catch(() => ({ data: [] })),
+    ])
+      .then(([quizResponse, rankingResponse]) => {
+        if (!isMounted) return;
+        if (quizResponse?.success) {
+          setQuiz(quizResponse.data);
+          setTotal(quizResponse.data.questions.length);
+          if (quizResponse.data.hasSubmitted) {
+            setScore(quizResponse.data.previousResult?.score || 0);
+            setXpEarned(quizResponse.data.previousResult?.xpEarned || 0);
+            setPhase('results');
+          }
+        }
+        setRanking(rankingResponse?.data || []);
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(err.message || 'Unable to load today\'s quiz.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const handleFinish = async (finalScore, finalTotal, answers) => {
+    setScore(finalScore);
+    setTotal(finalTotal);
+    setSubmitError('');
+
+    try {
+      const response = await authService.submitTodayQuiz(
+        answers.map((answer) => ({
+          questionId: answer.questionId,
+          selectedIndex: answer.selectedIndex,
+        })),
+      );
+      setXpEarned(response.data?.xpEarned ?? finalScore * (quiz?.xpPerCorrect || 10));
+    } catch (err) {
+      setXpEarned(finalScore * (quiz?.xpPerCorrect || 10));
+      setSubmitError(err.message || 'Score saved locally, but server submission failed.');
+    } finally {
+      setPhase('results');
+    }
+  };
+
+  if (loading) {
+    return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: "'DM Sans',system-ui,sans-serif" }}>Loading quiz...</div>;
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, fontFamily: "'DM Sans',system-ui,sans-serif", textAlign: 'center' }}>
+        <div>
+          <p style={{ fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>{error}</p>
+          <button onClick={() => { openLogin?.(); navigate('/'); }} style={{ padding: '12px 18px', borderRadius: 12, border: 0, background: '#002366', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Log in</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      {phase === 'intro' && <IntroScreen onStart={() => setPhase('quiz')} />}
+      {phase === 'intro' && <IntroScreen quiz={quiz} ranking={ranking} onStart={() => setPhase('quiz')} />}
       {phase === 'quiz' && (
-        <QuizScreen onFinish={(s, t) => { setScore(s); setTotal(t); setPhase('results'); }} />
+        <QuizScreen questions={quiz.questions} onFinish={handleFinish} />
       )}
       {phase === 'results' && (
-        <ResultsScreen score={score} total={total} onRetry={() => setPhase('quiz')} />
+        <ResultsScreen score={score} total={total} xpEarned={xpEarned} submitError={submitError} onRetry={() => setPhase('quiz')} />
       )}
     </>
   );

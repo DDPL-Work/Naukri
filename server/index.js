@@ -8,6 +8,7 @@ const rateLimit = require("express-rate-limit");
 
 const app = require("./src/app");
 const connectDB = require("./src/config/db");
+const { initChatSocket } = require("./src/realtime/chat.socket");
 
 const APP_NAME = process.env.APP_NAME || "Application";
 const APP_VERSION = process.env.APP_VERSION || "1.0.0";
@@ -71,6 +72,7 @@ const startServer = async () => {
     const dbConnection = await connectDB();
 
     server = http.createServer(app);
+    initChatSocket(server);
 
     server.listen(PORT, () => {
       console.log("\n==================================================");

@@ -1,9 +1,13 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
+const crypto = require("crypto");
+const streamifier = require("streamifier");
+const cloudinary = require("../config/cloudinary");
 const asyncHandler = require("../middleware/async.middleware");
 const User = require("../models/User");
 const Company = require("../models/Company");
+const CompanyReview = require("../models/CompanyReview");
 const Job = require("../models/Job");
 const Application = require("../models/Application");
 const CandidateProfile = require("../models/CandidateProfile");
@@ -128,6 +132,7 @@ const formatCompanyForClient = (company, options = {}) => {
     id: String(company._id),
     name: company.name,
     logoUrl: company.logoUrl || "",
+    coverImageUrl: company.coverImageUrl || "",
     industry: company.industry || "",
     status: company.status || "ACTIVE",
     packageType: company.packageType || "STANDARD",
@@ -151,6 +156,19 @@ const formatCompanyForClient = (company, options = {}) => {
     lastUpdated: formatRelativeTime(company.updatedAt),
   };
 };
+
+const formatCompanyReview = (review) => ({
+  id: String(review._id),
+  candidateName: review.isAnonymous ? "Anonymous Candidate" : (review.candidateName || "Candidate"),
+  candidateTitle: review.isAnonymous ? "Verified employee" : (review.candidateTitle || "Verified employee"),
+  candidateCity: review.candidateCity || "",
+  rating: Number(review.rating || 0),
+  headline: review.headline || "",
+  review: review.review || "",
+  isAnonymous: Boolean(review.isAnonymous),
+  createdAt: review.createdAt || null,
+  lastUpdated: formatRelativeTime(review.updatedAt || review.createdAt),
+});
 
 const getCandidateIdFromApplication = (application) => {
   if (!application) {
@@ -195,6 +213,8 @@ const formatCompanyApplication = (application, profileMap = new Map()) => {
     statusLabel: formatApplicationStatusLabel(application.status || "APPLIED"),
     resumeUrl: application.resumeUrl || profile?.resume?.url || "",
     resumeFileName: application.resumeFileName || profile?.resume?.fileName || "",
+    sourceQrToken: application.sourceQrToken || "",
+    sourceJobId: application.sourceJobId?._id ? String(application.sourceJobId._id) : String(application.sourceJobId || ""),
     appliedAt: application.createdAt || null,
     updatedAt: application.updatedAt || null,
     lastUpdated: formatRelativeTime(application.updatedAt || application.createdAt),
@@ -223,6 +243,54 @@ const syncCompanyPackageContext = async (company) => {
     packageSnapshot,
     appliedPackageChange: appliedResult?.lastAppliedRequest || null,
   };
+};
+
+const uploadCompanyMedia = async (file, { ownerId, kind }) =>
+  new Promise((resolve, reject) => {
+    const safeKind = kind === "cover" ? "cover" : "logo";
+    const folder = safeKind === "cover" ? "company_cover_images" : "company_logo_images";
+    const publicId = `company_${safeKind}_${String(ownerId || "client")}_${crypto.randomUUID()}`;
+    const transformations =
+      safeKind === "cover"
+        ? [{ width: 1600, height: 420, crop: "fill", quality: "auto", fetch_format: "auto" }]
+        : [{ width: 420, height: 420, crop: "fill", gravity: "face", quality: "auto", fetch_format: "auto" }];
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: "image",
+        folder,
+        public_id: publicId,
+        overwrite: true,
+        invalidate: true,
+        transformation: transformations,
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve({
+          url: result?.secure_url || "",
+          publicId: result?.public_id || "",
+          kind: safeKind,
+        });
+      },
+    );
+
+    streamifier.createReadStream(file.buffer).pipe(uploadStream);
+  });
+
+const destroyCompanyMedia = async (publicId) => {
+  if (!publicId) {
+    return;
+  }
+
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: "image", invalidate: true });
+  } catch (error) {
+    console.warn("Company media cleanup failed:", error?.message || error);
+  }
 };
 
 exports.login = asyncHandler(async (req, res) => {
@@ -273,11 +341,98 @@ exports.login = asyncHandler(async (req, res) => {
   });
 });
 
+exports.register = asyncHandler(async (req, res) => {
+  const fullName = toTrimmedString(req.body.fullName || req.body.name);
+  const companyName = toTrimmedString(req.body.companyName);
+  const email = toTrimmedString(req.body.email).toLowerCase();
+  const password = toTrimmedString(req.body.password);
+  const phone = toTrimmedString(req.body.phone);
+  const hiringFor = toTrimmedString(req.body.hiringFor || "company");
+  const designation = toTrimmedString(req.body.designation);
+  const city = toTrimmedString(req.body.city);
+
+  if (!fullName || !companyName || !email || !password || !phone) {
+    throw createHttpError(400, "Full name, company name, email, phone, and password are required");
+  }
+
+  if (!/^\d{10}$/.test(phone)) {
+    throw createHttpError(400, "Enter a valid 10 digit mobile number");
+  }
+
+  if (password.length < 7 || password.length > 20) {
+    throw createHttpError(400, "Password must be between 7 and 20 characters");
+  }
+
+  const existingUser = await User.findOne({ email }).select("_id");
+  if (existingUser) {
+    throw createHttpError(409, "An account already exists for this email");
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  let user = null;
+  let company = null;
+
+  try {
+    user = await User.create({
+      name: fullName,
+      email,
+      password: hashedPassword,
+      role: "CLIENT",
+      accessStatus: "ACTIVE",
+      isActive: true,
+    });
+
+    company = await Company.create({
+      name: companyName,
+      tagline: designation || (hiringFor === "consultancy" ? "Consultancy hiring partner" : "Employer account"),
+      industry: hiringFor === "consultancy" ? "Consultancy" : "Company",
+      email,
+      phone,
+      location: {
+        city,
+      },
+      createdByCRM: user._id,
+      clientUserId: user._id,
+      packageType: "STANDARD",
+      jobLimit: 2,
+      status: "ACTIVE",
+      configurationNotes: designation ? `Primary contact title: ${designation}` : "",
+    });
+
+    user.companyId = company._id;
+    await user.save();
+  } catch (error) {
+    if (company?._id) {
+      await Company.deleteOne({ _id: company._id });
+    }
+    if (user?._id) {
+      await User.deleteOne({ _id: user._id });
+    }
+    throw error;
+  }
+
+  const { packageSnapshot } = await syncCompanyPackageContext(company);
+
+  res.status(201).json({
+    success: true,
+    token: generateUserToken(user._id),
+    user: {
+      id: String(user._id),
+      username: user.name || "",
+      email: user.email || "",
+      role: user.role || "CLIENT",
+      companyId: String(company._id),
+      companyName: company.name || "",
+    },
+    company: formatCompanyForClient(company, { jobLimit: packageSnapshot.jobLimit }),
+  });
+});
+
 exports.getDashboard = asyncHandler(async (req, res) => {
   const { company } = await resolveClientUserAndCompany(req.user._id);
   const { packageCatalog, packageSnapshot, appliedPackageChange } = await syncCompanyPackageContext(company);
 
-  const [jobs, applications, activePackageRequest, recentPackageRequests] = await Promise.all([
+  const [jobs, applications, activePackageRequest, recentPackageRequests, reviews] = await Promise.all([
     Job.find({ companyId: company._id }).sort({ updatedAt: -1 }),
     Application.find({ companyId: company._id })
       .sort({ updatedAt: -1 })
@@ -297,6 +452,10 @@ exports.getDashboard = asyncHandler(async (req, res) => {
       .select(
         "currentPackageType requestedPackageType currentJobLimit requestedJobLimit status isUpgrade reason decisionNote effectiveAt appliedAt reviewedAt createdAt updatedAt",
       ),
+    CompanyReview.find({ companyId: company._id, status: "PUBLISHED" })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .select("candidateName candidateTitle candidateCity rating headline review isAnonymous createdAt updatedAt"),
   ]);
 
   const candidateIds = [
@@ -338,6 +497,7 @@ exports.getDashboard = asyncHandler(async (req, res) => {
     createdBySource: job.createdBySource || "CLIENT",
     requiresPackageOverride: Boolean(job.requiresPackageOverride),
     applicantCount: Number(applicationCountByJob.get(String(job._id)) || 0),
+    createdAt: job.createdAt || null,
     updatedAt: job.updatedAt || null,
     lastUpdated: formatRelativeTime(job.updatedAt),
   }));
@@ -379,6 +539,7 @@ exports.getDashboard = asyncHandler(async (req, res) => {
           : null,
         canRequestNewChange: !activePackageRequest,
       },
+      reviews: reviews.map((item) => formatCompanyReview(item)),
       tracking: {
         totalJobs: jobs.length,
         activeApprovedJobs: approvedJobs.filter((job) => job.isActive).length,
@@ -390,6 +551,34 @@ exports.getDashboard = asyncHandler(async (req, res) => {
       },
       jobs: jobRows,
       applications: applicationRows,
+    },
+  });
+});
+
+exports.updateAbout = asyncHandler(async (req, res) => {
+  const { company } = await resolveClientUserAndCompany(req.user._id);
+  const about = toTrimmedString(req.body.about);
+  const website = toTrimmedString(req.body.website);
+  const companySize = toTrimmedString(req.body.companySize);
+  const industry = toTrimmedString(req.body.industry);
+
+  if (!about) {
+    throw createHttpError(400, "About text is required");
+  }
+
+  company.about = about;
+  if (website) company.website = website;
+  if (companySize) company.companySize = companySize;
+  if (industry) company.industry = industry;
+
+  await company.save();
+  const { packageSnapshot } = await syncCompanyPackageContext(company);
+
+  res.status(200).json({
+    success: true,
+    message: "About section updated successfully",
+    data: {
+      company: formatCompanyForClient(company, { jobLimit: packageSnapshot.jobLimit }),
     },
   });
 });
@@ -850,6 +1039,8 @@ exports.updateProfile = asyncHandler(async (req, res) => {
   company.industry = toTrimmedString(req.body.industry) || company.industry;
   company.website = toTrimmedString(req.body.website) || company.website;
   company.linkedIn = toTrimmedString(req.body.linkedIn) || company.linkedIn;
+  company.about = toTrimmedString(req.body.about) || company.about;
+  company.companySize = toTrimmedString(req.body.companySize) || company.companySize;
 
   company.location = {
     ...(company.location || {}),
@@ -873,6 +1064,42 @@ exports.updateProfile = asyncHandler(async (req, res) => {
         username: user.name || "",
         email: user.email || "",
       },
+      company: formatCompanyForClient(company, { jobLimit: packageSnapshot.jobLimit }),
+    },
+  });
+});
+
+exports.updateCompanyMedia = asyncHandler(async (req, res) => {
+  const { company } = await resolveClientUserAndCompany(req.user._id);
+  const kind = String(req.body.kind || "").trim().toLowerCase() === "cover" ? "cover" : "logo";
+
+  if (!req.file) {
+    throw createHttpError(400, "Please upload an image file");
+  }
+
+  const previousPublicId = kind === "cover" ? company.coverImagePublicId : company.logoPublicId;
+  const uploaded = await uploadCompanyMedia(req.file, { ownerId: company._id, kind });
+
+  if (kind === "cover") {
+    company.coverImageUrl = uploaded.url;
+    company.coverImagePublicId = uploaded.publicId;
+  } else {
+    company.logoUrl = uploaded.url;
+    company.logoPublicId = uploaded.publicId;
+  }
+
+  await company.save();
+
+  if (previousPublicId && previousPublicId !== uploaded.publicId) {
+    await destroyCompanyMedia(previousPublicId);
+  }
+
+  const { packageSnapshot } = await syncCompanyPackageContext(company);
+
+  res.status(200).json({
+    success: true,
+    message: `${kind === "cover" ? "Cover" : "Profile"} image updated successfully`,
+    data: {
       company: formatCompanyForClient(company, { jobLimit: packageSnapshot.jobLimit }),
     },
   });

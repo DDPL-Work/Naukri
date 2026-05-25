@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import {
     FiBriefcase, FiUsers, FiEye, FiTrendingUp, FiBarChart2,
     FiBell, FiSearch, FiPlus, FiChevronRight, FiArrowUp,
@@ -17,6 +18,7 @@ import {
     FiSliders, FiPercent, FiCreditCard, FiHeart
 } from "react-icons/fi";
 import mavenLogo from "../../../assets/maven-logo-BdiSsfJk.svg";
+import authService from "../../services/authService";
 
 /* ── Tokens ─────────────────────────────────────────────── */
 const C = {
@@ -100,6 +102,99 @@ const MESSAGES_DATA = [
     },
 ];
 
+const CONVERSATION_COLORS = [C.navy, "#0D9488", C.purple, "#DC2626", C.indigo, C.amber, C.sky, C.greenD];
+
+const getInitialsFromName = (name = "Candidate") =>
+    String(name || "Candidate")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0] || "")
+        .join("")
+        .toUpperCase() || "C";
+
+const buildConversationMessages = (application) => {
+    const candidateName = application.candidateName || "Candidate";
+    const jobTitle = application.jobTitle || "the role";
+    const statusLabel = application.statusLabel || "Applied";
+    const candidateContext = application.candidateCurrentTitle
+        ? `${application.candidateCurrentTitle}${application.candidateCity ? ` from ${application.candidateCity}` : ""}`
+        : application.candidateExperience
+            ? `${application.candidateExperience} of experience`
+            : "a candidate";
+
+    return [
+        {
+            from: "them",
+            text: `Hi, I have applied for ${jobTitle}. I am ${candidateContext}.`,
+            time: application.lastUpdated || "Just now",
+        },
+        {
+            from: "me",
+            text: `Thanks ${candidateName}. Your application is currently ${statusLabel.toLowerCase()} for ${jobTitle}. We will update you soon.`,
+            time: "System",
+        },
+        {
+            from: "them",
+            text: `Perfect, thank you for the update. Please let me know if anything else is needed from my side.`,
+            time: "Auto",
+        },
+    ];
+};
+
+const buildConversationThreads = (applications = []) => {
+    const threadsByCandidate = new Map();
+
+    (applications || []).forEach((application, index) => {
+        const candidateId = application.candidateId || application.id || `candidate-${index}`;
+        const candidateName = application.candidateName || "Candidate";
+        const avatar = getInitialsFromName(candidateName);
+        const color = CONVERSATION_COLORS[index % CONVERSATION_COLORS.length];
+        const updatedAt = application.updatedAt || application.appliedAt || null;
+        const preview =
+            application.status === "SHORTLISTED"
+                ? `${candidateName} has been shortlisted for ${application.jobTitle}.`
+                : application.status === "OFFERED"
+                    ? `An offer has been sent to ${candidateName}.`
+                    : application.status === "INTERVIEW"
+                        ? `Interview discussion in progress for ${application.jobTitle}.`
+                        : `Application received for ${application.jobTitle}.`;
+
+        const existing = threadsByCandidate.get(candidateId) || {
+            id: candidateId,
+            from: candidateName,
+            avatar,
+            color,
+            role: application.candidateCurrentTitle || application.jobTitle || "Candidate",
+            time: application.lastUpdated || "Just now",
+            preview,
+            unread: application.status !== "HIRED" && application.status !== "REJECTED",
+            updatedAt: updatedAt ? new Date(updatedAt).getTime() : 0,
+            messages: buildConversationMessages(application),
+            candidateId,
+            jobId: application.jobId || "",
+            jobTitle: application.jobTitle || "",
+            status: application.status || "APPLIED",
+        };
+
+        if (!existing.messages.length) {
+            existing.messages = buildConversationMessages(application);
+        }
+
+        if ((updatedAt ? new Date(updatedAt).getTime() : 0) >= existing.updatedAt) {
+            existing.preview = preview;
+            existing.time = application.lastUpdated || existing.time;
+            existing.role = application.candidateCurrentTitle || application.jobTitle || existing.role;
+            existing.messages = buildConversationMessages(application);
+            existing.updatedAt = updatedAt ? new Date(updatedAt).getTime() : existing.updatedAt;
+        }
+
+        threadsByCandidate.set(candidateId, existing);
+    });
+
+    return Array.from(threadsByCandidate.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+};
+
 const ANALYTICS_DATA = {
     profileViews: [320, 410, 380, 520, 490, 610, 580, 720, 680, 840, 800, 960],
     applications: [40, 62, 55, 78, 70, 95, 88, 112, 105, 130, 122, 148],
@@ -123,6 +218,88 @@ const ANALYTICS_DATA = {
 
 /* ── Tiny helpers ────────────────────────────────────────── */
 const fmt = n => n >= 1000 ? (n / 1000).toFixed(1) + "K" : n;
+const formatCompactNumber = (value) => {
+    const num = Number(value || 0);
+    if (!Number.isFinite(num)) return "0";
+    if (num >= 1000) {
+        return `${(num / 1000).toFixed(num >= 10000 ? 0 : 1)}K`;
+    }
+    return `${num}`;
+};
+const getMonthKey = (date) => `${date.getFullYear()}-${date.getMonth()}`;
+const getTrailingMonths = (count = 12) => {
+    const now = new Date();
+    return Array.from({ length: count }, (_, index) => {
+        const date = new Date(now.getFullYear(), now.getMonth() - (count - 1 - index), 1);
+        return {
+            key: getMonthKey(date),
+            label: date.toLocaleString("en-US", { month: "short" }),
+        };
+    });
+};
+const buildMonthlySeries = (items, accessor) => {
+    const months = getTrailingMonths();
+    const monthIndex = new Map(months.map((month, index) => [month.key, index]));
+    const values = Array(months.length).fill(0);
+
+    items.forEach((item) => {
+        const rawDate = accessor(item);
+        const date = rawDate ? new Date(rawDate) : null;
+        if (!date || Number.isNaN(date.getTime())) return;
+        const idx = monthIndex.get(getMonthKey(date));
+        if (idx === undefined) return;
+        values[idx] += 1;
+    });
+
+    return {
+        labels: months.map((month) => month.label),
+        values,
+    };
+};
+const buildStatusCounts = (applications) => {
+    const statuses = ["APPLIED", "SCREENING", "SHORTLISTED", "INTERVIEW", "OFFERED", "HIRED"];
+    const counts = statuses.map((status) => applications.filter((application) => application.status === status).length);
+    return { statuses, counts };
+};
+const buildSourceBreakdown = (applications) => {
+    const sourceCounts = {
+        "QR Campaign": 0,
+        "Job Share": 0,
+        "Direct Apply": 0,
+        "Other": 0,
+    };
+
+    applications.forEach((application) => {
+        if (application.sourceQrToken) {
+            sourceCounts["QR Campaign"] += 1;
+            return;
+        }
+
+        if (application.sourceJobId) {
+            sourceCounts["Job Share"] += 1;
+            return;
+        }
+
+        sourceCounts["Direct Apply"] += 1;
+    });
+
+    const total = Object.values(sourceCounts).reduce((sum, value) => sum + value, 0);
+    const palette = [
+        { label: "QR Campaign", color: C.navy },
+        { label: "Job Share", color: C.green },
+        { label: "Direct Apply", color: C.indigo },
+        { label: "Other", color: C.amber },
+    ];
+
+    if (total === 0) {
+        return [{ label: "Direct Apply", pct: 100, color: C.indigo }];
+    }
+
+    return palette.map((entry) => ({
+        ...entry,
+        pct: Math.max(0, Math.round((sourceCounts[entry.label] / total) * 100)),
+    })).filter((entry) => entry.pct > 0);
+};
 
 function Avatar({ initials, color, size = 38, radius = 12, fontSize = 13 }) {
     return (
@@ -238,7 +415,7 @@ function BarChart({ data, colors, labels, height = 120 }) {
 
 /* ── Funnel Chart ────────────────────────────────────────── */
 function FunnelChart({ data }) {
-    const max = data[0].val;
+    const max = Math.max(data[0]?.val || 0, 1);
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {data.map((d, i) => (
@@ -335,7 +512,13 @@ function SectionHead({ title, action }) {
 export default function EmployerProfile() {
     const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
-    const [activeTab, setActiveTab] = useState("overview");
+    const [topNavTab, setTopNavTab] = useState("home");
+    const [activeTab, setActiveTab] = useState("Overview");
+    const [dashboard, setDashboard] = useState(null);
+    const [dashboardLoading, setDashboardLoading] = useState(true);
+    const [mediaLoading, setMediaLoading] = useState({ logo: false, cover: false });
+    const logoInputRef = useRef(null);
+    const coverInputRef = useRef(null);
     const [showMsg, setShowMsg] = useState(false);
     const [showAna, setShowAna] = useState(false);
     const [showPro, setShowPro] = useState(false);
@@ -352,9 +535,20 @@ export default function EmployerProfile() {
     const [showEditJob, setShowEditJob] = useState(false);
     const [selectedJob, setSelectedJob] = useState(null);
     const [reviewPage, setReviewPage] = useState(0);
+    const [showAboutEditor, setShowAboutEditor] = useState(false);
+    const [aboutDraft, setAboutDraft] = useState({ about: "", website: "", companySize: "", industry: "" });
+    const [savingAbout, setSavingAbout] = useState(false);
     const [likedReviews, setLikedReviews] = useState({}); // Stores the selected reaction type
     const [showReactionFor, setShowReactionFor] = useState(null);
+    const [showCall, setShowCall] = useState(false);
+    const [callMode, setCallMode] = useState("AUDIO");
+    const [callStatus, setCallStatus] = useState("idle");
+    const [localCallStream, setLocalCallStream] = useState(null);
+    const callPreviewRef = useRef(null);
     const chatEndRef = useRef(null);
+    const chatSocketRef = useRef(null);
+    const activeConversationIdRef = useRef("");
+    const employerSession = useRef(null);
 
     useEffect(() => {
         const fn = () => setScrolled(window.scrollY > 10);
@@ -363,8 +557,269 @@ export default function EmployerProfile() {
     }, []);
 
     useEffect(() => {
+        if (!dashboard?.company) return;
+        setAboutDraft({
+            about: dashboard.company.about || "",
+            website: dashboard.company.website || "",
+            companySize: dashboard.company.companySize || dashboard.company.size || "",
+            industry: dashboard.company.industry || "",
+        });
+    }, [dashboard?.company]);
+
+    const conversationSeed = useMemo(
+        () => {
+            const liveThreads = buildConversationThreads(dashboard?.applications || []);
+            return liveThreads.length ? liveThreads : MESSAGES_DATA;
+        },
+        [dashboard?.applications],
+    );
+
+    useEffect(() => {
+        setMessages(conversationSeed);
+        setActiveConv(0);
+    }, [conversationSeed]);
+
+    const activeConversation = useMemo(
+        () => messages[activeConv] || messages[0] || null,
+        [messages, activeConv],
+    );
+
+    useEffect(() => {
+        activeConversationIdRef.current = activeConversation?.id || "";
+    }, [activeConversation?.id]);
+
+    useEffect(() => {
+        if (!showMsg) {
+            return;
+        }
+
+        const hydrateThreads = async () => {
+            try {
+                const response = await authService.getEmployerChats();
+                const backendThreads = response?.data?.threads || [];
+                if (!backendThreads.length) {
+                    return;
+                }
+
+                setMessages((current) => {
+                    const currentById = new Map(current.map((conversation) => [String(conversation.id), conversation]));
+                    return backendThreads.map((thread, index) => {
+                        const previous = currentById.get(String(thread.id));
+                        const color = previous?.color || CONVERSATION_COLORS[index % CONVERSATION_COLORS.length];
+                        const avatar = thread.candidateAvatar || previous?.avatar || getInitialsFromName(thread.candidateName);
+                        return {
+                            ...previous,
+                            ...thread,
+                            avatar,
+                            color,
+                            from: thread.candidateName || previous?.from || "Candidate",
+                            role: thread.candidateTitle || previous?.role || thread.jobTitle || "Candidate",
+                            preview: previous?.preview || thread.lastMessageText || "No messages yet",
+                            time: thread.time || previous?.time || "Just now",
+                            messages: previous?.messages || [],
+                        };
+                    });
+                });
+            } catch {
+                // Keep the locally derived list when the chat endpoint is unavailable.
+            }
+        };
+
+        hydrateThreads();
+    }, [showMsg]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadDashboard = async () => {
+            const savedSession = (() => {
+                try {
+                    return JSON.parse(localStorage.getItem("employerUser") || "null");
+                } catch {
+                    return null;
+                }
+            })();
+
+            employerSession.current = savedSession;
+
+            if (!localStorage.getItem("employerToken")) {
+                if (active) setDashboardLoading(false);
+                return;
+            }
+
+            try {
+                const response = await authService.getEmployerDashboard();
+                if (!active) return;
+                setDashboard(response?.data || null);
+
+                const nextSession = {
+                    ...(savedSession || {}),
+                    companyName: response?.data?.company?.name || savedSession?.companyName || "",
+                    companyId: response?.data?.company?.id || savedSession?.companyId || "",
+                };
+                employerSession.current = nextSession;
+                localStorage.setItem("employerUser", JSON.stringify(nextSession));
+            } catch (error) {
+                if (active) {
+                    setDashboard(null);
+                }
+                if ((error?.statusCode || error?.response?.status) === 401) {
+                    localStorage.removeItem("employerToken");
+                    localStorage.removeItem("employerUser");
+                }
+            } finally {
+                if (active) setDashboardLoading(false);
+            }
+        };
+
+        loadDashboard();
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
         if (showMsg) setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     }, [showMsg, activeConv]);
+
+    useEffect(() => {
+        if (!showMsg) {
+            return;
+        }
+
+        const token = localStorage.getItem("employerToken");
+        if (!token) {
+            return;
+        }
+
+        const socketUrl = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || "http://localhost:5000")
+            .replace(/\/api\/v\d+$/, "");
+
+        if (chatSocketRef.current) {
+            return;
+        }
+
+        const socket = io(socketUrl, {
+            auth: { token },
+            transports: ["websocket"],
+            withCredentials: true,
+        });
+
+        socket.on("connect", () => {
+            if (activeConversation?.id) {
+                socket.emit("thread:join", { threadId: activeConversation.id });
+            }
+        });
+
+        socket.on("chat:message", ({ threadId, message, thread }) => {
+            setMessages((current) => current.map((conversation) => {
+                if (String(conversation.id) !== String(threadId)) {
+                    return conversation;
+                }
+
+                const nextMessages = Array.isArray(conversation.messages) ? [...conversation.messages] : [];
+                nextMessages.push({
+                    from: message.senderRole === "COMPANY" ? "me" : "them",
+                    text: message.text || "",
+                    time: message.lastUpdated || "Just now",
+                });
+
+                return {
+                    ...conversation,
+                    ...thread,
+                    messages: nextMessages,
+                    preview: message.text || conversation.preview,
+                    time: thread?.time || conversation.time,
+                    unread: message.senderRole !== "COMPANY",
+                };
+            }));
+        });
+
+            socket.on("call:state", ({ threadId, activeCall }) => {
+                setMessages((current) => current.map((conversation) => (
+                    String(conversation.id) === String(threadId)
+                        ? { ...conversation, activeCall }
+                        : conversation
+                )));
+                if (String(activeConversationIdRef.current || "") === String(threadId || "")) {
+                    setCallStatus(activeCall?.state === "IN_CALL" ? "in-call" : activeCall?.state === "RINGING" ? "ringing" : "idle");
+                }
+            });
+
+        socket.on("disconnect", () => {
+            chatSocketRef.current = null;
+        });
+
+        chatSocketRef.current = socket;
+
+        return () => {
+            socket.disconnect();
+            chatSocketRef.current = null;
+        };
+    }, [showMsg]);
+
+    useEffect(() => {
+        if (!showMsg || !activeConversation?.id || !chatSocketRef.current?.connected) {
+            return;
+        }
+
+        chatSocketRef.current.emit("thread:join", { threadId: activeConversation.id });
+    }, [showMsg, activeConversation?.id]);
+
+    useEffect(() => {
+        if (callPreviewRef.current && localCallStream) {
+            callPreviewRef.current.srcObject = localCallStream;
+        }
+
+        return () => {
+            if (callPreviewRef.current) {
+                callPreviewRef.current.srcObject = null;
+            }
+        };
+    }, [localCallStream, showCall]);
+
+    useEffect(() => {
+        if (!showMsg || !activeConversation?.id) {
+            return;
+        }
+
+        const loadThreadMessages = async () => {
+            try {
+                const response = await authService.getEmployerChatMessages(activeConversation.id);
+                const threadMessages = response?.data?.messages || [];
+                setMessages((current) => current.map((conversation) => {
+                    if (String(conversation.id) !== String(activeConversation.id)) {
+                        return conversation;
+                    }
+
+                    return {
+                        ...conversation,
+                        ...response?.data?.thread,
+                        avatar: response?.data?.thread?.candidateAvatar || conversation.avatar,
+                        from: response?.data?.thread?.candidateName || conversation.from,
+                        role: response?.data?.thread?.candidateTitle || conversation.role,
+                        messages: threadMessages.map((message) => ({
+                            from: message.senderRole === "COMPANY" ? "me" : "them",
+                            text: message.text || "",
+                            time: message.lastUpdated || "Just now",
+                        })),
+                        unread: false,
+                    };
+                }));
+                await authService.markEmployerChatRead(activeConversation.id);
+            } catch {
+                // Fall back to locally generated thread content if the chat endpoint is not available yet.
+            }
+        };
+
+        loadThreadMessages();
+    }, [activeConversation?.id, showMsg]);
+
+    useEffect(() => {
+        if (activeConv >= messages.length) {
+            setActiveConv(0);
+        }
+    }, [activeConv, messages.length]);
 
     /* GSAP */
     useEffect(() => {
@@ -376,22 +831,245 @@ export default function EmployerProfile() {
         })();
     }, []);
 
-    const sendMessage = () => {
-        if (!msgInput.trim()) return;
-        const updated = messages.map((conv, i) => {
-            if (i !== activeConv) return conv;
-            return { ...conv, messages: [...conv.messages, { from: "me", text: msgInput.trim(), time: "Just now" }] };
-        });
-        setMessages(updated);
+    const sendMessage = async () => {
+        if (!msgInput.trim() || !activeConversation?.id) return;
+        const outgoing = msgInput.trim();
         setMsgInput("");
+        try {
+            const response = await authService.sendEmployerChatMessage(activeConversation.id, { text: outgoing });
+            const sentMessage = response?.data?.message;
+            if (!chatSocketRef.current?.connected) {
+                setMessages((current) => current.map((conversation, index) => {
+                    if (index !== activeConv) {
+                        return conversation;
+                    }
+
+                    return {
+                        ...conversation,
+                        messages: [
+                            ...(conversation.messages || []),
+                            {
+                                from: sentMessage?.senderRole === "COMPANY" ? "me" : "them",
+                                text: sentMessage?.text || outgoing,
+                                time: sentMessage?.lastUpdated || "Just now",
+                            },
+                        ],
+                        preview: outgoing,
+                        unread: false,
+                    };
+                }));
+            }
+        } catch {
+            setMessages((current) => current.map((conversation, index) => {
+                if (index !== activeConv) {
+                    return conversation;
+                }
+
+                return {
+                    ...conversation,
+                    messages: [...(conversation.messages || []), { from: "me", text: outgoing, time: "Just now" }],
+                };
+            }));
+        }
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
     };
+
+    const startCall = useCallback(async (mode) => {
+        if (!activeConversation?.id) {
+            return;
+        }
+
+        const callType = String(mode || "AUDIO").toUpperCase() === "VIDEO" ? "VIDEO" : "AUDIO";
+        setCallMode(callType);
+        setCallStatus("connecting");
+
+        try {
+            if (!navigator?.mediaDevices?.getUserMedia) {
+                throw new Error("Media devices are not available in this browser");
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: callType === "VIDEO",
+            });
+
+            setLocalCallStream(stream);
+            setShowCall(true);
+
+            const socket = chatSocketRef.current;
+            if (socket?.connected) {
+                socket.emit("call:join", { threadId: activeConversation.id, mediaType: callType }, (ack) => {
+                    if (ack?.ok) {
+                        setCallStatus("ringing");
+                        return;
+                    }
+                    setCallStatus("failed");
+                });
+            } else {
+                setCallStatus("waiting");
+            }
+        } catch (error) {
+            setShowCall(false);
+            setCallStatus("failed");
+            alert(error?.message || "Unable to start the call");
+        }
+    }, [activeConversation?.id]);
+
+    const endCall = useCallback(() => {
+        const socket = chatSocketRef.current;
+        if (socket?.connected && activeConversation?.id) {
+            socket.emit("call:end", { threadId: activeConversation.id });
+        }
+
+        if (localCallStream) {
+            localCallStream.getTracks().forEach((track) => track.stop());
+        }
+
+        setLocalCallStream(null);
+        setShowCall(false);
+        setCallStatus("idle");
+    }, [activeConversation?.id, localCallStream]);
 
     const filteredJobs = JOBS.filter(j =>
         jobFilter === "all" || (jobFilter === "urgent" && j.urgent) || j.dept.toLowerCase() === jobFilter
     );
 
-    const NAV_TABS = ["overview", "jobs", "people", "updates", "analytics"];
+    const NAV_TABS = ["Overview", "Jobs", "People", "Updates", "Analytics"];
+    const company = {
+        ...COMPANY,
+        ...(dashboard?.company || {}),
+        name: dashboard?.company?.name || employerSession.current?.companyName || COMPANY.name,
+        tagline: dashboard?.company?.tagline || COMPANY.tagline,
+        location: dashboard?.company?.location?.city
+            ? [dashboard.company.location.city, dashboard.company.location.region, dashboard.company.location.zone].filter(Boolean).join(", ")
+            : COMPANY.location,
+        website: dashboard?.company?.website || COMPANY.website,
+        about: dashboard?.company?.about || COMPANY.about,
+        type: dashboard?.company?.type || COMPANY.type,
+        followers: dashboard?.company?.followers || COMPANY.followers,
+        connections: dashboard?.company?.connections || COMPANY.connections,
+        plan: dashboard?.company?.packageType || COMPANY.plan,
+        logoUrl: dashboard?.company?.logoUrl || "",
+        coverImageUrl: dashboard?.company?.coverImageUrl || "",
+        industry: dashboard?.company?.industry || COMPANY.industry,
+        size: dashboard?.company?.companySize || COMPANY.size,
+        founded: dashboard?.company?.foundedYear || COMPANY.founded,
+        specialties: dashboard?.company?.specialties || COMPANY.specialties,
+    };
+    const companyReviews = dashboard?.reviews?.length ? dashboard.reviews : REVIEWS;
+
+    const tracking = dashboard?.tracking || {};
+    const overviewCards = [
+        { label: "Active Jobs", val: Number(tracking.activeApprovedJobs ?? dashboard?.company?.activeJobCount ?? 0), icon: FiBriefcase, color: C.navy },
+        { label: "Applications", val: Number(tracking.totalApplications ?? 0), icon: FiUsers, color: C.green },
+        { label: "Shortlisted", val: Number((dashboard?.applications || []).filter((application) => application.status === "SHORTLISTED").length || 0), icon: FiTarget, color: C.indigo },
+        { label: "Offers Sent", val: Number((dashboard?.applications || []).filter((application) => application.status === "OFFERED").length || 0), icon: FiAward, color: C.amber },
+    ];
+    const analytics = useMemo(() => {
+        const jobs = dashboard?.jobs || [];
+        const applications = dashboard?.applications || [];
+        const jobSeries = buildMonthlySeries(jobs, (job) => job.createdAt || job.updatedAt);
+        const applicationSeries = buildMonthlySeries(applications, (application) => application.appliedAt || application.updatedAt);
+        const statusCounts = buildStatusCounts(applications);
+        const sourceBreakdown = buildSourceBreakdown(applications);
+        const totalApplications = Number(tracking.totalApplications ?? applications.length ?? 0);
+        const activeJobs = Number(tracking.activeApprovedJobs ?? dashboard?.company?.activeJobCount ?? 0);
+        const shortlisted = applications.filter((application) => application.status === "SHORTLISTED").length;
+        const offersSent = applications.filter((application) => application.status === "OFFERED").length;
+
+        return {
+            monthLabels: applicationSeries.labels,
+            monthlyJobs: jobSeries.values,
+            monthlyApplications: applicationSeries.values,
+            sourceBreakdown,
+            funnelData: [
+                { stage: "Applied", val: statusCounts.counts[0] || 0, color: C.navy },
+                { stage: "Screening", val: statusCounts.counts[1] || 0, color: C.sky },
+                { stage: "Shortlisted", val: statusCounts.counts[2] || 0, color: C.amber },
+                { stage: "Interview", val: statusCounts.counts[3] || 0, color: C.indigo },
+                { stage: "Offered", val: statusCounts.counts[4] || 0, color: C.green },
+                { stage: "Hired", val: statusCounts.counts[5] || 0, color: C.greenD },
+            ],
+            kpis: [
+                { label: "Active Jobs", val: activeJobs, change: `${activeJobs} live`, up: true, color: C.navy },
+                { label: "Applications", val: totalApplications, change: `${totalApplications} total`, up: true, color: C.green },
+                { label: "Shortlisted", val: shortlisted, change: `${shortlisted} shortlisted`, up: shortlisted > 0, color: C.amber },
+                { label: "Offers Sent", val: offersSent, change: `${offersSent} offers`, up: offersSent > 0, color: C.indigo },
+            ],
+        };
+    }, [dashboard, tracking]);
+
+    const handleGoHome = useCallback(() => {
+        if (localStorage.getItem("employerToken")) {
+            window.location.assign("https://company.mavenjobs.in/");
+            return;
+        }
+        navigate("/employer-login");
+    }, [navigate]);
+
+    const handleMediaUpload = useCallback(async (kind, file) => {
+        if (!file) {
+            return;
+        }
+
+        setMediaLoading((current) => ({ ...current, [kind]: true }));
+        try {
+            const response = await authService.uploadEmployerMedia(kind, file);
+            const nextCompany = response?.data?.company || {};
+            setDashboard((current) => ({
+                ...(current || {}),
+                company: {
+                    ...(current?.company || {}),
+                    ...nextCompany,
+                },
+            }));
+
+            const savedSession = (() => {
+                try {
+                    return JSON.parse(localStorage.getItem("employerUser") || "null");
+                } catch {
+                    return null;
+                }
+            })();
+
+            localStorage.setItem("employerUser", JSON.stringify({
+                ...(savedSession || {}),
+                companyName: nextCompany.name || savedSession?.companyName || "",
+                companyId: nextCompany.id || savedSession?.companyId || "",
+                logoUrl: nextCompany.logoUrl || savedSession?.logoUrl || "",
+                coverImageUrl: nextCompany.coverImageUrl || savedSession?.coverImageUrl || "",
+            }));
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setMediaLoading((current) => ({ ...current, [kind]: false }));
+        }
+    }, []);
+
+    const handleSaveAbout = useCallback(async () => {
+        setSavingAbout(true);
+        try {
+            const response = await authService.updateEmployerProfile({
+                about: aboutDraft.about,
+                website: aboutDraft.website,
+                companySize: aboutDraft.companySize,
+                industry: aboutDraft.industry,
+            });
+            const nextCompany = response?.data?.company || {};
+            setDashboard((current) => ({
+                ...(current || {}),
+                company: {
+                    ...(current?.company || {}),
+                    ...nextCompany,
+                },
+            }));
+            setShowAboutEditor(false);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSavingAbout(false);
+        }
+    }, [aboutDraft]);
 
     /* ═══ RENDER ═══ */
     return (
@@ -479,10 +1157,7 @@ export default function EmployerProfile() {
                     }}>
 
                         {/* Logo */}
-                        <div 
-                            style={{ display: "flex", alignItems: "center", marginRight: 28, flexShrink: 0, cursor: "pointer" }}
-                            onClick={() => navigate("/employer-login")}
-                        >
+                        <div style={{ display: "flex", alignItems: "center", marginRight: 28, flexShrink: 0 }}>
                             <img src={mavenLogo} alt="MavenJobs" style={{ height: 26, width: "auto" }} />
                         </div>
 
@@ -493,8 +1168,20 @@ export default function EmployerProfile() {
                                 { id: "jobs", icon: FiBriefcase, label: "Post a Job" },
                                 { id: "report", icon: FiBarChart2, label: "Report" },
                             ].map(n => (
-                                <button key={n.id} className={`ep-nav-link${activeTab === n.id ? " active" : ""}`}
-                                    onClick={() => setActiveTab(n.id)} style={{ flexDirection: "column", gap: 2, fontSize: 11, padding: "8px 14px" }}>
+                                <button key={n.id} className={`ep-nav-link${topNavTab === n.id ? " active" : ""}`}
+                                    onClick={() => {
+                                        if (n.id === "home") {
+                                            setTopNavTab("home");
+                                            handleGoHome();
+                                            return;
+                                        }
+                                        setTopNavTab(n.id);
+                                        if (n.id === "jobs") {
+                                            navigate("/post-job");
+                                            return;
+                                        }
+                                        setShowAna(true);
+                                    }} style={{ flexDirection: "column", gap: 2, fontSize: 11, padding: "8px 14px" }}>
                                     <n.icon size={17} />
                                     {n.label}
                                 </button>
@@ -568,7 +1255,10 @@ export default function EmployerProfile() {
             <Card className="ep-card ep-cover">
                 {/* Cover */}
                 <div style={{
-                    height: 140, background: `url("https://i.pinimg.com/736x/1d/5b/a0/1d5ba0f8288cd496cdb9714d6456b097.jpg") center/cover no-repeat`,
+                    height: 140,
+                    background: company.coverImageUrl
+                        ? `url("${company.coverImageUrl}") center/cover no-repeat`
+                        : "linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #020617 100%)",
                     position: "relative", overflow: "hidden"
                 }}>
                     <div style={{
@@ -581,9 +1271,20 @@ export default function EmployerProfile() {
                         borderRadius: 8, background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         cursor: "pointer", color: "#fff", backdropFilter: "blur(8px)"
-                    }}>
+                    }} onClick={() => coverInputRef.current?.click()} disabled={mediaLoading.cover}>
                         <FiEdit2 size={13} />
                     </button>
+                    <input
+                        ref={coverInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        hidden
+                        onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) handleMediaUpload("cover", file);
+                            event.target.value = "";
+                        }}
+                    />
                 </div>
 
                 {/* Profile info */}
@@ -591,12 +1292,52 @@ export default function EmployerProfile() {
                     {/* Logo bubble */}
                     <div style={{
                         width: 88, height: 88, borderRadius: 18,
-                        background: `url("https://i.pinimg.com/736x/59/d5/de/59d5deb71f0608503a43a356cffa81a7.jpg") center/cover no-repeat`,
+                        background: company.logoUrl
+                            ? `url("${company.logoUrl}") center/cover no-repeat`
+                            : "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
                         border: "4px solid #fff", display: "flex", alignItems: "center",
                         justifyContent: "center", marginTop: -44, marginBottom: 12,
                         boxShadow: "0 4px 16px rgba(0,35,102,.2)"
                     }}>
+                        {!company.logoUrl && (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: C.s400 }}>
+                                <FiUser size={18} />
+                                <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>Empty profile</span>
+                            </div>
+                        )}
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={mediaLoading.logo}
+                        style={{
+                            position: "absolute",
+                            top: -28,
+                            left: 94,
+                            border: `1px solid ${C.s200}`,
+                            borderRadius: 999,
+                            background: "#fff",
+                            color: C.s600,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            padding: "6px 10px",
+                            cursor: "pointer",
+                            boxShadow: "0 6px 16px rgba(15,23,42,.08)"
+                        }}
+                    >
+                        {mediaLoading.logo ? "Uploading..." : "Change logo"}
+                    </button>
+                    <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        hidden
+                        onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) handleMediaUpload("logo", file);
+                            event.target.value = "";
+                        }}
+                    />
 
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                         <div>
@@ -604,18 +1345,18 @@ export default function EmployerProfile() {
                                 fontFamily: C.fd, fontSize: 22, fontWeight: 800,
                                 color: C.s900, letterSpacing: "-0.01em", margin: "0 0 4px"
                             }}>
-                                {COMPANY.name}
+                                {company.name}
                             </h1>
-                            <p style={{ fontSize: 14, color: C.s600, fontWeight: 500, margin: "0 0 8px" }}>{COMPANY.tagline}</p>
+                            <p style={{ fontSize: 14, color: C.s600, fontWeight: 500, margin: "0 0 8px" }}>{company.tagline}</p>
                             <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: C.s500 }}>
-                                    <FiMapPin size={12} />{COMPANY.location}
+                                    <FiMapPin size={12} />{company.location}
                                 </span>
                                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: C.sky }}>
-                                    <FiGlobe size={12} />{COMPANY.website}
+                                    <FiGlobe size={12} />{company.website}
                                 </span>
                                 <span style={{ fontSize: 12.5, color: C.s500, fontWeight: 600 }}>
-                                    {COMPANY.followers} followers · {COMPANY.connections}
+                                    {company.followers} followers · {company.connections}
                                 </span>
                             </div>
                         </div>
@@ -630,10 +1371,10 @@ export default function EmployerProfile() {
                     {/* Quick chips */}
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
                         {[
-                            { icon: FiBriefcase, label: `${COMPANY.industry}`, color: C.navy },
-                            { icon: FiUsers, label: COMPANY.size, color: C.indigo },
-                            { icon: FiCalendar, label: `Founded ${COMPANY.founded}`, color: C.green },
-                            { icon: FiAward, label: COMPANY.plan, color: C.amber },
+                            { icon: FiBriefcase, label: `${company.industry}`, color: C.navy },
+                            { icon: FiUsers, label: company.size, color: C.indigo },
+                            { icon: FiCalendar, label: `Founded ${company.founded}`, color: C.green },
+                            { icon: FiAward, label: company.plan, color: C.amber },
                         ].map((chip, i) => (
                             <div key={i} style={{
                                 display: "flex", alignItems: "center", gap: 6,
@@ -654,7 +1395,7 @@ export default function EmployerProfile() {
                     {NAV_TABS.map(t => (
                         <button key={t} className={`ep-nav-link${activeTab === t ? " active" : ""}`}
                             onClick={() => setActiveTab(t)}
-                            style={{ textTransform: "capitalize" }}>
+                            style={{ textTransform: "none" }}>
                             {t}
                         </button>
                     ))}
@@ -662,18 +1403,24 @@ export default function EmployerProfile() {
             </Card>
 
             {/* ─ About ─ */}
+            {activeTab === "Overview" && (
             <Card className="ep-card" style={{ padding: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                     <div style={{ fontFamily: C.fd, fontSize: 16, fontWeight: 800, color: C.s900 }}>About</div>
-                    <button style={{ background: "none", border: "none", cursor: "pointer", color: C.s400, padding: 4, borderRadius: 7, display: "flex" }}><FiEdit2 size={15} /></button>
+                    <button
+                        onClick={() => setShowAboutEditor(true)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: C.s400, padding: 4, borderRadius: 7, display: "flex" }}
+                    >
+                        <FiEdit2 size={15} />
+                    </button>
                 </div>
-                <div style={{ fontSize: 14, color: C.s700, lineHeight: 1.75, whiteSpace: "pre-line" }}>{COMPANY.about}</div>
+                <div style={{ fontSize: 14, color: C.s700, lineHeight: 1.75, whiteSpace: "pre-line" }}>{company.about}</div>
                 <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
                     {[
-                        { icon: FiGlobe, label: "Website", val: COMPANY.website, color: C.sky },
-                        { icon: FiUsers, label: "Company size", val: COMPANY.size, color: C.indigo },
-                        { icon: FiBriefcase, label: "Industry", val: COMPANY.industry, color: C.navy },
-                        { icon: FiLayers, label: "Type", val: COMPANY.type, color: C.green },
+                        { icon: FiGlobe, label: "Website", val: company.website, color: C.sky },
+                        { icon: FiUsers, label: "Company size", val: company.size, color: C.indigo },
+                        { icon: FiBriefcase, label: "Industry", val: company.industry, color: C.navy },
+                        { icon: FiLayers, label: "Type", val: company.type, color: C.green },
                     ].map((r, i) => (
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{
@@ -694,14 +1441,53 @@ export default function EmployerProfile() {
                         textTransform: "uppercase", marginBottom: 10
                     }}>Specialties</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {COMPANY.specialties.map((s, i) => (
+                        {company.specialties.map((s, i) => (
                             <Tag key={i} color={[C.navy, C.green, C.indigo, C.amber, C.sky, C.purple, C.green, C.navy][i % 8]}>{s}</Tag>
                         ))}
                     </div>
                 </div>
             </Card>
 
-            {/* ─ Open Roles ─ */}
+            )}
+
+            {activeTab === "People" && (
+                <Card className="ep-card" style={{ padding: "18px" }}>
+                    <div style={{ fontFamily: C.fd, fontSize: 16, fontWeight: 800, color: C.s900, marginBottom: 14 }}>People</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 12 }}>
+                        {TEAM.map((person) => (
+                            <div key={person.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, background: C.s50, border: `1px solid ${C.s100}` }}>
+                                <Avatar initials={person.avatar} color={person.color} size={42} radius={12} />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontFamily: C.fd, fontSize: 13.5, fontWeight: 800, color: C.s900 }}>{person.name}</div>
+                                    <div style={{ fontSize: 12, color: C.s500 }}>{person.role}</div>
+                                </div>
+                                <button onClick={() => setShowMsg(true)} style={{ width: 32, height: 32, borderRadius: 9, border: "none", background: "#EEF2FF", color: C.navy, cursor: "pointer", flexShrink: 0 }}>
+                                    <FiMail size={13} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            )}
+
+            {activeTab === "Analytics" && (
+                <Card className="ep-card" style={{ padding: "18px" }}>
+                    <div style={{ fontFamily: C.fd, fontSize: 16, fontWeight: 800, color: C.s900, marginBottom: 14 }}>Analytics Snapshot</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
+                        {analytics.kpis.map((item, index) => (
+                            <div key={index} style={{ padding: 14, borderRadius: 12, background: item.color + "08", border: `1px solid ${item.color}18` }}>
+                                <div style={{ fontSize: 11, fontWeight: 800, color: item.color, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{item.label}</div>
+                                <div style={{ fontFamily: C.fd, fontSize: 24, fontWeight: 800, color: C.s900 }}>{formatCompactNumber(item.val)}</div>
+                            </div>
+                        ))}
+                    </div>
+                    <Btn variant="ghost" onClick={() => setShowAna(true)} style={{ width: "100%", justifyContent: "center" }}>
+                        <FiBarChart2 size={13} /> Open analytics dashboard
+                    </Btn>
+                </Card>
+            )}
+
+            {activeTab === "Jobs" && (
             <Card className="ep-card">
                 <SectionHead title="Open Roles"
                     action={
@@ -780,22 +1566,24 @@ export default function EmployerProfile() {
                     <Btn variant="ghost" onClick={() => navigate("/jobs")} style={{ fontSize: 12, padding: "6px 13px" }}>View all jobs <FiChevronRight size={12} /></Btn>
                 </div>
             </Card>
+            )}
 
             {/* ─ Reviews ─ */}
+            {activeTab === "Updates" && (
             <Card className="ep-card">
                 <SectionHead title="Reviews by Candidates" />
-                {REVIEWS.slice(reviewPage * 5, (reviewPage + 1) * 5).map((u, i) => {
+                {companyReviews.slice(reviewPage * 5, (reviewPage + 1) * 5).map((u, i) => {
                     const isLiked = likedReviews[u.id];
                     return (
                         <div key={u.id} className="ep-update">
                             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                                <Avatar initials={u.avatar} color={u.color} size={42} radius={12} />
+                                <Avatar initials={(u.candidateName || "A").slice(0, 2).toUpperCase()} color={[C.navy, C.green, C.indigo, C.amber, C.purple][i % 5]} size={42} radius={12} />
                                 <div>
-                                    <div style={{ fontFamily: C.fd, fontSize: 13.5, fontWeight: 800, color: C.s900 }}>Anonymous Candidate</div>
-                                    <div style={{ fontSize: 12, color: C.s400 }}>{u.time}</div>
+                                    <div style={{ fontFamily: C.fd, fontSize: 13.5, fontWeight: 800, color: C.s900 }}>{u.candidateName}</div>
+                                    <div style={{ fontSize: 12, color: C.s400 }}>{u.candidateTitle || "Candidate"}</div>
                                 </div>
                             </div>
-                            <p style={{ fontSize: 14, color: C.s700, lineHeight: 1.7, marginBottom: 14 }}>"{u.text}"</p>
+                            <p style={{ fontSize: 14, color: C.s700, lineHeight: 1.7, marginBottom: 14 }}>"{u.review}"</p>
                             {/* Engagement bar */}
                             <div style={{
                                 display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -805,7 +1593,7 @@ export default function EmployerProfile() {
                                     {[{icon: FiSmile, color: C.amber}, {icon: FiHeart, color: C.red}, {icon: FiAward, color: C.indigo}, {icon: FiStar, color: C.purple}].map((e, ei) => (
                                         <span key={ei} style={{ fontSize: 13, color: e.color, display: "flex", alignItems: "center" }}><e.icon size={13} /></span>
                                     ))}
-                                    <span style={{ fontSize: 12.5, color: C.s400, marginLeft: 6 }}>{u.likes + (isLiked ? 1 : 0)} helpful</span>
+                                    <span style={{ fontSize: 12.5, color: C.s400, marginLeft: 6 }}>{Math.round((u.rating || 0) * 17) + (isLiked ? 1 : 0)} helpful</span>
                                 </div>
                                 <div style={{ display: "flex", gap: 8, position: "relative" }}>
                                     {/* Reaction Picker Popover */}
@@ -871,13 +1659,13 @@ export default function EmployerProfile() {
                 <div style={{ padding: "16px 20px", borderTop: `1px solid ${C.s100}`, background: C.s50 + "50" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 12.5, color: C.s500, fontWeight: 600 }}>
-                            Showing page {reviewPage + 1} of {Math.ceil(REVIEWS.length / 5)}
+                            Showing page {reviewPage + 1} of {Math.ceil(companyReviews.length / 5)}
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                             <Btn variant="ghost" onClick={() => setReviewPage(p => Math.max(0, p - 1))} disabled={reviewPage === 0} style={{ padding: "5px 10px", opacity: reviewPage === 0 ? 0.5 : 1 }}>
                                 <FiChevronDown style={{ transform: "rotate(90deg)" }} size={14} />
                             </Btn>
-                            <Btn variant="ghost" onClick={() => setReviewPage(p => Math.min(Math.ceil(REVIEWS.length / 5) - 1, p + 1))} disabled={reviewPage >= Math.ceil(REVIEWS.length / 5) - 1} style={{ padding: "5px 10px", opacity: reviewPage >= Math.ceil(REVIEWS.length / 5) - 1 ? 0.5 : 1 }}>
+                            <Btn variant="ghost" onClick={() => setReviewPage(p => Math.min(Math.ceil(companyReviews.length / 5) - 1, p + 1))} disabled={reviewPage >= Math.ceil(companyReviews.length / 5) - 1} style={{ padding: "5px 10px", opacity: reviewPage >= Math.ceil(companyReviews.length / 5) - 1 ? 0.5 : 1 }}>
                                 <FiChevronDown style={{ transform: "rotate(-90deg)" }} size={14} />
                             </Btn>
                         </div>
@@ -893,6 +1681,7 @@ export default function EmployerProfile() {
                     </div>
                 </div>
             </Card>
+            )}
         </div>
 
         {/* ── RIGHT SIDEBAR ───────────────────────────────── */}
@@ -902,12 +1691,7 @@ export default function EmployerProfile() {
             <Card className="ep-card" style={{ padding: "18px 18px 14px" }}>
                 <div style={{ fontFamily: C.fd, fontSize: 15, fontWeight: 800, color: C.s900, marginBottom: 14 }}>Hiring Overview</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                    {[
-                        { label: "Active Jobs", val: "24", icon: FiBriefcase, color: C.navy },
-                        { label: "Applications", val: "1.2K", icon: FiUsers, color: C.green },
-                        { label: "Profile Views", val: "8.4K", icon: FiEye, color: C.indigo },
-                        { label: "Shortlisted", val: "142", icon: FiTarget, color: C.amber },
-                    ].map((s, i) => (
+                    {overviewCards.map((s, i) => (
                         <div key={i} style={{
                             padding: "12px 14px", borderRadius: 12, background: s.color + "08",
                             border: `1px solid ${s.color}18`
@@ -916,7 +1700,7 @@ export default function EmployerProfile() {
                                 <s.icon size={13} color={s.color} />
                                 <span style={{ fontSize: 10.5, fontWeight: 700, color: s.color, textTransform: "uppercase", letterSpacing: ".08em", fontFamily: C.fd }}>{s.label}</span>
                             </div>
-                            <div style={{ fontFamily: C.fd, fontSize: 22, fontWeight: 800, color: C.s900, lineHeight: 1 }}>{s.val}</div>
+                            <div style={{ fontFamily: C.fd, fontSize: 22, fontWeight: 800, color: C.s900, lineHeight: 1 }}>{formatCompactNumber(s.val)}</div>
                         </div>
                     ))}
                 </div>
@@ -1001,10 +1785,10 @@ export default function EmployerProfile() {
             <Card className="ep-card" style={{ padding: "18px" }}>
                 <div style={{ fontFamily: C.fd, fontSize: 14, fontWeight: 800, color: C.s900, marginBottom: 12 }}>Company Information</div>
                 {[
-                    { label: "Founded", val: COMPANY.founded },
-                    { label: "Size", val: COMPANY.size },
-                    { label: "Type", val: COMPANY.type },
-                    { label: "Industry", val: COMPANY.industry },
+                    { label: "Founded", val: company.founded || "N/A" },
+                    { label: "Size", val: company.size || "N/A" },
+                    { label: "Type", val: company.type || "N/A" },
+                    { label: "Industry", val: company.industry || "N/A" },
                 ].map((r, i) => (
                     <div key={i} style={{
                         display: "flex", justifyContent: "space-between",
@@ -1019,6 +1803,61 @@ export default function EmployerProfile() {
         </div>{/* end right sidebar */}
     </div>
         </main >
+
+        <Modal open={showAboutEditor} onClose={() => setShowAboutEditor(false)} title="Edit About Section" width={640}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                    <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.s700, marginBottom: 6 }}>About</label>
+                    <textarea
+                        value={aboutDraft.about}
+                        onChange={(e) => setAboutDraft((current) => ({ ...current, about: e.target.value }))}
+                        rows={5}
+                        style={{
+                            width: "100%",
+                            padding: "12px 14px",
+                            borderRadius: 12,
+                            border: `1.5px solid ${C.s200}`,
+                            fontSize: 13.5,
+                            color: C.s900,
+                            fontFamily: C.dm,
+                            resize: "vertical",
+                        }}
+                    />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                        <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.s700, marginBottom: 6 }}>Website</label>
+                        <input
+                            value={aboutDraft.website}
+                            onChange={(e) => setAboutDraft((current) => ({ ...current, website: e.target.value }))}
+                            style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.s200}` }}
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.s700, marginBottom: 6 }}>Company Size</label>
+                        <input
+                            value={aboutDraft.companySize}
+                            onChange={(e) => setAboutDraft((current) => ({ ...current, companySize: e.target.value }))}
+                            style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.s200}` }}
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: C.s700, marginBottom: 6 }}>Industry</label>
+                    <input
+                        value={aboutDraft.industry}
+                        onChange={(e) => setAboutDraft((current) => ({ ...current, industry: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.s200}` }}
+                    />
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                    <Btn variant="ghost" onClick={() => setShowAboutEditor(false)}>Cancel</Btn>
+                    <Btn variant="primary" onClick={handleSaveAbout} disabled={savingAbout}>
+                        {savingAbout ? "Saving..." : "Save Changes"}
+                    </Btn>
+                </div>
+            </div>
+        </Modal>
 
 {/* ════════════════════════════════════════════════════
             MODAL: MESSAGES
@@ -1038,7 +1877,16 @@ export default function EmployerProfile() {
                 </div>
                 {messages.map((conv, i) => (
                     <div key={conv.id} className={`ep-msg-row${i === activeConv ? " active" : ""}`}
-                        onClick={() => { setActiveConv(i); setMessages(m => m.map((c, j) => j === i ? { ...c, unread: false } : c)); }}>
+                        onClick={() => {
+                            setActiveConv(i);
+                            setMessages((current) => current.map((conversation, index) => (
+                                index === i ? { ...conversation, unread: false } : conversation
+                            )));
+                            if (chatSocketRef.current?.connected) {
+                                chatSocketRef.current.emit("thread:join", { threadId: conv.id });
+                            }
+                            authService.markEmployerChatRead(conv.id).catch(() => {});
+                        }}>
                         <div style={{ position: "relative" }}>
                             <Avatar initials={conv.avatar} color={conv.color} size={40} radius={12} />
                             {conv.unread && (
@@ -1070,33 +1918,43 @@ export default function EmployerProfile() {
                     padding: "14px 18px", borderBottom: `1px solid ${C.s100}`,
                     display: "flex", alignItems: "center", gap: 12
                 }}>
-                    <Avatar initials={messages[activeConv].avatar} color={messages[activeConv].color} size={38} radius={11} />
+                    <Avatar initials={activeConversation?.avatar || "C"} color={activeConversation?.color || C.navy} size={38} radius={11} />
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: C.fd, fontSize: 14, fontWeight: 800, color: C.s900 }}>{messages[activeConv].from}</div>
-                        <div style={{ fontSize: 12, color: C.s400 }}>{messages[activeConv].role}</div>
+                        <div style={{ fontFamily: C.fd, fontSize: 14, fontWeight: 800, color: C.s900 }}>{activeConversation?.from || "Conversation"}</div>
+                        <div style={{ fontSize: 12, color: C.s400 }}>{activeConversation?.role || "Candidate"}</div>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                        <button style={{ width: 32, height: 32, borderRadius: 8, background: C.s50, border: `1px solid ${C.s200}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.s500 }}><FiPhone size={13} /></button>
+                        <button onClick={() => startCall("AUDIO")} style={{ width: 32, height: 32, borderRadius: 8, background: C.s50, border: `1px solid ${C.s200}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.s500 }}><FiPhone size={13} /></button>
+                        <button onClick={() => startCall("VIDEO")} style={{ width: 32, height: 32, borderRadius: 8, background: C.s50, border: `1px solid ${C.s200}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.s500 }}><FiVideo size={13} /></button>
                         <button style={{ width: 32, height: 32, borderRadius: 8, background: C.s50, border: `1px solid ${C.s200}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.s500 }}><FiMoreVertical size={13} /></button>
                     </div>
                 </div>
 
                 {/* Messages area */}
                 <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12, background: C.s50 }}>
-                    {messages[activeConv].messages.map((m, i) => (
-                        <div key={i} style={{ display: "flex", justifyContent: m.from === "me" ? "flex-end" : "flex-start" }}>
-                            <div style={{
-                                maxWidth: "72%", padding: "10px 14px", borderRadius: 14,
-                                background: m.from === "me" ? C.navy : "#fff",
-                                border: m.from === "me" ? "none" : `1px solid ${C.s200}`,
-                                borderBottomRightRadius: m.from === "me" ? 4 : 14,
-                                borderBottomLeftRadius: m.from === "me" ? 14 : 4
-                            }}>
-                                <div style={{ fontSize: 13.5, color: m.from === "me" ? "#fff" : C.s800, lineHeight: 1.55 }}>{m.text}</div>
-                                <div style={{ fontSize: 10.5, color: m.from === "me" ? "rgba(255,255,255,.55)" : C.s400, marginTop: 4, textAlign: "right" }}>{m.time}</div>
-                            </div>
+                    {(activeConversation?.messages || []).length === 0 ? (
+                        <div style={{
+                            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                            color: C.s400, fontSize: 13.5, fontWeight: 600
+                        }}>
+                            No messages yet. Start the conversation here.
                         </div>
-                    ))}
+                    ) : (
+                        (activeConversation?.messages || []).map((m, i) => (
+                            <div key={i} style={{ display: "flex", justifyContent: m.from === "me" ? "flex-end" : "flex-start" }}>
+                                <div style={{
+                                    maxWidth: "72%", padding: "10px 14px", borderRadius: 14,
+                                    background: m.from === "me" ? C.navy : "#fff",
+                                    border: m.from === "me" ? "none" : `1px solid ${C.s200}`,
+                                    borderBottomRightRadius: m.from === "me" ? 4 : 14,
+                                    borderBottomLeftRadius: m.from === "me" ? 14 : 4
+                                }}>
+                                    <div style={{ fontSize: 13.5, color: m.from === "me" ? "#fff" : C.s800, lineHeight: 1.55 }}>{m.text}</div>
+                                    <div style={{ fontSize: 10.5, color: m.from === "me" ? "rgba(255,255,255,.55)" : C.s400, marginTop: 4, textAlign: "right" }}>{m.time}</div>
+                                </div>
+                            </div>
+                        ))
+                    )}
                     <div ref={chatEndRef} />
                 </div>
 
@@ -1140,6 +1998,64 @@ export default function EmployerProfile() {
             </div>
         </div>
         </Modal >
+        <Modal open={showCall} onClose={endCall} title={`${callMode === "VIDEO" ? "Video" : "Audio"} Call`} width={560} noPad>
+            <div style={{ padding: 20, display: "grid", gap: 16 }}>
+                <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "14px 16px", borderRadius: 14, background: C.s50, border: `1px solid ${C.s200}`
+                }}>
+                    <div>
+                        <div style={{ fontFamily: C.fd, fontWeight: 800, color: C.s900, marginBottom: 4 }}>
+                            {activeConversation?.from || "Candidate"}
+                        </div>
+                        <div style={{ fontSize: 12.5, color: C.s500 }}>
+                            {callStatus === "ringing" ? "Waiting for the candidate to join" : callStatus === "connecting" ? "Connecting secure call session" : "Call ready"}
+                        </div>
+                    </div>
+                    <Tag color={callMode === "VIDEO" ? C.indigo : C.green}>{callMode}</Tag>
+                </div>
+
+                <div style={{
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    background: "#0f172a",
+                    minHeight: 220,
+                    position: "relative",
+                    border: `1px solid ${C.s200}`,
+                }}>
+                    {callMode === "VIDEO" ? (
+                        <video ref={callPreviewRef} autoPlay muted playsInline style={{ width: "100%", height: 320, objectFit: "cover", background: "#111827" }} />
+                    ) : (
+                        <div style={{
+                            minHeight: 220,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fff",
+                            flexDirection: "column",
+                            gap: 10,
+                            padding: 20,
+                            textAlign: "center",
+                        }}>
+                            <Avatar initials={activeConversation?.avatar || "C"} color={activeConversation?.color || C.navy} size={64} radius={20} fontSize={20} />
+                            <div style={{ fontFamily: C.fd, fontSize: 18, fontWeight: 800 }}>{activeConversation?.from || "Candidate"}</div>
+                            <div style={{ color: "rgba(255,255,255,.72)", fontSize: 13 }}>
+                                Secure audio call in progress
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <div style={{ fontSize: 12.5, color: C.s500 }}>
+                        The call is negotiated through Socket.IO signaling and browser media permissions.
+                    </div>
+                    <Btn variant="danger" onClick={endCall}>
+                        <FiPhone size={13} /> End Call
+                    </Btn>
+                </div>
+            </div>
+        </Modal>
 
 {/* ════════════════════════════════════════════════════
             MODAL: ANALYTICS
@@ -1164,10 +2080,10 @@ export default function EmployerProfile() {
     < div style = {{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
     {
         [
-        { label: "Profile Views", val: "8,420", change: "+12%", up: true, color: C.indigo },
-        { label: "Applications", val: "1,284", change: "+187", up: true, color: C.navy },
-        { label: "Shortlisted", val: "142", change: "−8", up: false, color: C.amber },
-        { label: "Offers Sent", val: "12", change: "+3", up: true, color: C.green },
+        { label: "Active Jobs", val: analytics.kpis[0].val, change: analytics.kpis[0].change, up: analytics.kpis[0].up, color: C.navy },
+        { label: "Applications", val: analytics.kpis[1].val, change: analytics.kpis[1].change, up: analytics.kpis[1].up, color: C.green },
+        { label: "Shortlisted", val: analytics.kpis[2].val, change: analytics.kpis[2].change, up: analytics.kpis[2].up, color: C.amber },
+        { label: "Offers Sent", val: analytics.kpis[3].val, change: analytics.kpis[3].change, up: analytics.kpis[3].up, color: C.indigo },
             ].map((k, i) => (
             <div key={i} style={{
                 padding: "14px 16px", borderRadius: 13,
@@ -1198,8 +2114,8 @@ export default function EmployerProfile() {
             {/* Line charts */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
                 {[
-                    { label: "Profile Views", data: ANALYTICS_DATA.profileViews, color: C.indigo },
-                    { label: "Applications Received", data: ANALYTICS_DATA.applications, color: C.navy },
+                    { label: "Job Posts by Month", data: analytics.monthlyJobs, color: C.navy },
+                    { label: "Applications by Month", data: analytics.monthlyApplications, color: C.green },
                 ].map((chart, i) => (
                     <div key={i} style={{ padding: "16px", borderRadius: 14, border: `1px solid ${C.s200}`, background: "#fff" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1219,7 +2135,7 @@ export default function EmployerProfile() {
                         <LineChart data={chart.data} color={chart.color} height={130} />
                         {/* Month labels */}
                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                            {ANALYTICS_DATA.months.map((m, mi) => (
+                            {analytics.monthLabels.map((m, mi) => (
                                 <span key={mi} style={{ fontSize: 9.5, color: C.s400, fontFamily: C.dm }}>{m}</span>
                             ))}
                         </div>
@@ -1229,11 +2145,11 @@ export default function EmployerProfile() {
 
             {/* Bar chart - Hire rate */}
             <div style={{ padding: "16px", borderRadius: 14, border: `1px solid ${C.s200}`, background: "#fff", marginBottom: 24 }}>
-                <div style={{ fontFamily: C.fd, fontSize: 14, fontWeight: 800, color: C.s900, marginBottom: 12 }}>Monthly Hire Rate</div>
+                <div style={{ fontFamily: C.fd, fontSize: 14, fontWeight: 800, color: C.s900, marginBottom: 12 }}>Monthly Applications</div>
                 <BarChart
-                    data={ANALYTICS_DATA.hireRate}
-                    colors={ANALYTICS_DATA.months.map((_, i) => i === 11 ? C.green : C.navy + "99")}
-                    labels={ANALYTICS_DATA.months}
+                    data={analytics.monthlyApplications}
+                    colors={analytics.monthLabels.map((_, i) => i === analytics.monthLabels.length - 1 ? C.green : C.navy + "99")}
+                    labels={analytics.monthLabels}
                     height={130} />
             </div>
         </>
@@ -1250,7 +2166,7 @@ export default function EmployerProfile() {
                         <circle cx="80" cy="80" r="62" fill="none" stroke={C.s100} strokeWidth="14" />
                         {(() => {
                             const circ = 2 * Math.PI * 62; let off = 0;
-                            return ANALYTICS_DATA.topSources.map((s, i) => {
+                            return analytics.sourceBreakdown.map((s, i) => {
                                 const dash = (s.pct / 100) * circ;
                                 const el = <circle key={i} cx="80" cy="80" r="62" fill="none"
                                     stroke={s.color} strokeWidth="14" strokeLinecap="butt"
@@ -1261,13 +2177,13 @@ export default function EmployerProfile() {
                         })()}
                     </svg>
                     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                        <div style={{ fontFamily: C.fd, fontSize: 22, fontWeight: 800, color: C.s900 }}>1.2K</div>
+                        <div style={{ fontFamily: C.fd, fontSize: 22, fontWeight: 800, color: C.s900 }}>{formatCompactNumber(tracking.totalApplications ?? dashboard?.applications?.length ?? 0)}</div>
                         <div style={{ fontSize: 10, color: C.s400, fontWeight: 700, textTransform: "uppercase" }}>Total</div>
                     </div>
                 </div>
                 {/* Legend + bars */}
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-                    {ANALYTICS_DATA.topSources.map((s, i) => (
+                    {analytics.sourceBreakdown.map((s, i) => (
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             <div style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
                             <span style={{ fontSize: 13, fontWeight: 600, color: C.s700, width: 100, flexShrink: 0 }}>{s.label}</span>
@@ -1287,7 +2203,7 @@ export default function EmployerProfile() {
     (anaTab === "pipeline") && (
         <div style={{ padding: "16px", borderRadius: 14, border: `1px solid ${C.s200}`, background: "#fff", marginBottom: 24 }}>
             <div style={{ fontFamily: C.fd, fontSize: 14, fontWeight: 800, color: C.s900, marginBottom: 16 }}>Hiring Funnel</div>
-            <FunnelChart data={ANALYTICS_DATA.funnelData} />
+            <FunnelChart data={analytics.funnelData} />
             <div style={{
                 marginTop: 20, padding: "14px 16px", borderRadius: 12,
                 background: `linear-gradient(135deg,rgba(0,35,102,.04),rgba(16,185,129,.04))`,

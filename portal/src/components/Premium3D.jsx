@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { gsap } from "gsap";
 import { FiSend, FiMinus, FiChevronDown, FiZap, FiStar, FiX } from "react-icons/fi";
 import mavenLogo from "../../assets/maven-logo-BdiSsfJk.svg";
+import authService from "../services/authService";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_URL = `${import.meta.env.VITE_GEMINI_BASE_URL}:generateContent`;
@@ -348,6 +349,8 @@ const Premium3D = () => {
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const [apiError, setApiError] = useState(null);
+    const [ranking, setRanking] = useState([]);
+    const [rankingLoading, setRankingLoading] = useState(false);
     const [history, setHistory] = useState([{
         role: "ai",
         isGreeting: true,
@@ -361,14 +364,14 @@ const Premium3D = () => {
     const MODES = [
         { name: "Discovery", color: "#2563EB" },
         { name: "Connect", color: "#10b981" },
-        { name: "Match AI", color: "#8B5CF6" },
+        { name: "Ranking", color: "#8B5CF6" },
     ];
     const LABELS = [
         "Mapping premium talent in real-time",
         "Reaching candidates across all channels",
-        "AI scoring 14+ profile dimensions",
+        "Top 10 candidates by quiz XP",
     ];
-    const QUICK_REPLIES = ["Find matching jobs", "Review my resume", "Salary insights", "Interview tips"];
+    const QUICK_REPLIES = ["Find matching jobs", "Review my resume", "Quiz ranking", "Interview tips"];
 
     useEffect(() => {
         if (scrollRef.current)
@@ -385,6 +388,27 @@ const Premium3D = () => {
         setGlobeMode(activeMode, i);
         setActiveMode(i);
     };
+
+    useEffect(() => {
+        if (!chatOpen || minimized || activeMode !== 2) return;
+
+        let cancelled = false;
+        setRankingLoading(true);
+        authService.getQuizRanking()
+            .then((response) => {
+                if (!cancelled && response?.success) setRanking(response.data || []);
+            })
+            .catch((err) => {
+                if (!cancelled) setApiError(err.message || "Unable to fetch rankings");
+            })
+            .finally(() => {
+                if (!cancelled) setRankingLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeMode, chatOpen, minimized]);
 
     const sendMessage = async (overrideText) => {
         const text = (typeof overrideText === "string" ? overrideText : input).trim();
@@ -422,6 +446,10 @@ const Premium3D = () => {
     };
 
     const handleQuickReply = (q) => {
+        if (q.toLowerCase().includes("ranking")) {
+            handleModeSwitch(2);
+            return;
+        }
         setInput("");
         setTimeout(() => sendMessage(q), 50);
     };
@@ -659,6 +687,14 @@ const Premium3D = () => {
         .mvn-sep { display:flex; align-items:center; gap:10px; margin:2px 0; }
         .mvn-sep span { font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:0.06em; text-transform:uppercase; white-space:nowrap; }
         .mvn-sep::before,.mvn-sep::after { content:''; flex:1; height:1px; background:#E2E8F0; }
+        .mvn-rank-table { border:1px solid #E2E8F0; border-radius:16px; overflow:hidden; background:#fff; box-shadow:0 8px 24px rgba(0,35,102,.06); }
+        .mvn-rank-row { display:grid; grid-template-columns:38px minmax(0,1fr) 58px 46px; gap:8px; align-items:center; padding:10px 12px; border-top:1px solid #EEF2F7; font-size:11px; color:#334155; }
+        .mvn-rank-row:first-child { border-top:0; }
+        .mvn-rank-head { background:#F8FAFC; color:#64748B; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        .mvn-rank-name { min-width:0; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .mvn-rank-sub { margin-top:2px; font-size:9.5px; color:#94A3B8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .mvn-rank-xp { font-weight:900; color:#002366; text-align:right; }
+        .mvn-rank-empty { padding:18px; text-align:center; color:#64748B; font-size:12px; line-height:1.5; }
       `}</style>
 
             <div className="mvn-wrap">
@@ -711,7 +747,28 @@ const Premium3D = () => {
                         <div className="mvn-msgs" ref={scrollRef}>
                             <div className="mvn-sep"><span>Today</span></div>
 
-                            {history.map((msg, i) => (
+                            {activeMode === 2 ? (
+                                <div className="mvn-rank-table">
+                                    <div className="mvn-rank-row mvn-rank-head">
+                                        <span>#</span><span>Candidate</span><span style={{ textAlign: "right" }}>XP</span><span style={{ textAlign: "right" }}>Quiz</span>
+                                    </div>
+                                    {rankingLoading ? (
+                                        <div className="mvn-rank-empty">Loading rankings...</div>
+                                    ) : ranking.length ? ranking.map((row) => (
+                                        <div className="mvn-rank-row" key={row.candidateId}>
+                                            <span style={{ fontWeight: 900, color: row.rank <= 3 ? "#d97706" : "#64748b" }}>{row.rank}</span>
+                                            <div style={{ minWidth: 0 }}>
+                                                <div className="mvn-rank-name">{row.name}</div>
+                                                <div className="mvn-rank-sub">{row.headline}</div>
+                                            </div>
+                                            <span className="mvn-rank-xp">{row.totalXp}</span>
+                                            <span style={{ textAlign: "right", color: "#64748b", fontWeight: 800 }}>{row.quizzesPlayed}</span>
+                                        </div>
+                                    )) : (
+                                        <div className="mvn-rank-empty">No quiz XP yet. Play today's quiz to enter the top 10.</div>
+                                    )}
+                                </div>
+                            ) : history.map((msg, i) => (
                                 <div key={i} className={`mvn-row ${msg.role === "user" ? "usr" : ""}`}>
                                     {msg.role === "ai" && (
                                         <div className="mvn-ai-avatar">
@@ -733,7 +790,7 @@ const Premium3D = () => {
                                 </div>
                             ))}
 
-                            {isTyping && (
+                            {activeMode !== 2 && isTyping && (
                                 <div className="mvn-row">
                                     <div className="mvn-ai-avatar"><img src={mavenLogo} alt="MavenAI" /></div>
                                     <div className="mvn-bubble-ai" style={{ padding: "13px 16px" }}>

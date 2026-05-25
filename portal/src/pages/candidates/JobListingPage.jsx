@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import {
   FiSearch, FiMapPin, FiBriefcase, FiChevronDown, FiFilter,
   FiCheck, FiClock, FiBookmark, FiArrowRight, FiTrendingUp, FiAward,
@@ -44,17 +44,22 @@ const FILTER_CATEGORIES = [
 
 export default function JobListingPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const scrollRef = React.useRef(null);
   const [filters, setFilters] = useState({});
-  const [search, setSearch] = useState("");
-  const [locSearch, setLocSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") || searchParams.get("search") || "");
+  const [locSearch, setLocSearch] = useState(() => searchParams.get("location") || "");
   const [scrolled, setScrolled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("relevance");
   const [showSort, setShowSort] = useState(false);
   const [activeModal, setActiveModal] = useState(null); // stores catId if modal is open
   const [draftFilters, setDraftFilters] = useState({}); // local state for modal
-  const [expRange, setExpRange] = useState(0);
+  const [expRange, setExpRange] = useState(() => {
+    const value = searchParams.get("experience") || "";
+    const match = value.match(/\d+/);
+    return match ? Number(match[0]) : 0;
+  });
   const [backendJobs, setBackendJobs] = useState([]);
   const [backendCompanies, setBackendCompanies] = useState([]);
   const [loadingBackend, setLoadingBackend] = useState(true);
@@ -78,19 +83,38 @@ export default function JobListingPage() {
 
   useEffect(() => {
     setLoadingBackend(true);
+    const requestTimer = window.setTimeout(() => {
     Promise.all([
-      authService.getJobs({ search }).catch(() => null),
+      authService.searchPublicJobs({
+        search,
+        location: locSearch,
+        experience: expRange ? `${expRange} years` : "",
+        limit: 100,
+      }).catch(() => null),
       authService.getCompanies({ limit: 4 }).catch(() => null)
     ]).then(([resJobs, resComps]) => {
       if (resJobs?.success && resJobs?.data?.jobs) {
         const formatted = resJobs.data.jobs.map((j, i) => {
           const title = j.title || 'Senior Engineer';
-          const companyObj = j.companyId || {};
+          const companyObj = j.company || j.companyId || {};
           const company = companyObj.name || j.companyName || j.company || 'Enterprise Partner';
           const minSal = j.salaryMin || 0;
           const maxSal = j.salaryMax || 0;
           const salStr = minSal && maxSal ? `${(minSal/100000).toFixed(0)}–${(maxSal/100000).toFixed(0)} Lakhs PA` : j.salary || '18–28 Lakhs PA';
           const salCat = minSal >= 5000000 ? "50+ Lakhs" : minSal >= 2500000 ? "25+ Lakhs" : minSal >= 1500000 ? "15+ Lakhs" : minSal >= 1000000 ? "10–15 Lakhs" : minSal >= 600000 ? "6–10 Lakhs" : minSal >= 300000 ? "3–6 Lakhs" : "0–3 Lakhs";
+
+          const skills = Array.isArray(j.skills) ? j.skills : [];
+          const normalizedSkills = skills.map((skill) => String(skill || "").toLowerCase());
+          const hasSkillAny = (aliases) => aliases.some((alias) => normalizedSkills.some((skill) => skill.includes(alias)));
+          const stackTags = [];
+
+          if (hasSkillAny(["mongodb", "mongo"]) && hasSkillAny(["express", "express.js"]) && hasSkillAny(["react", "react.js"]) && hasSkillAny(["node", "node.js"])) {
+            stackTags.push("MERN Stack");
+          }
+
+          if (hasSkillAny(["mongodb", "mongo"]) && hasSkillAny(["express", "express.js"]) && hasSkillAny(["angular"]) && hasSkillAny(["node", "node.js"])) {
+            stackTags.push("MEAN Stack");
+          }
 
           return {
             id: j._id || j.id || i,
@@ -103,14 +127,14 @@ export default function JobListingPage() {
             location: j.location || 'Bengaluru',
             posted: j.lastUpdated || j.posted || '2 days ago',
             desc: j.description || j.desc || 'No description provided.',
-            tags: j.skills?.length > 0 ? j.skills : ['Full-Time', j.department || 'Engineering'],
+            tags: skills.length > 0 ? [...stackTags, ...skills] : ['Full-Time', j.department || 'Engineering'],
             logo: company[0],
             featured: i < 3,
             dept: j.department || 'Engineering',
             mode: j.workplaceType || 'Remote',
             loc: j.location || 'Bengaluru',
             salaryRange: salCat,
-            type: companyObj.type || 'Corporate',
+            type: companyObj.type || companyObj.industry || 'Corporate',
             date: new Date(j.createdAt || Date.now()).getTime()
           };
         });
@@ -126,7 +150,31 @@ export default function JobListingPage() {
       }
       setLoadingBackend(false);
     });
-  }, [search]);
+    }, 250);
+
+    return () => window.clearTimeout(requestTimer);
+  }, [search, locSearch, expRange]);
+
+  useEffect(() => {
+    const nextSearch = searchParams.get("q") || searchParams.get("search") || "";
+    const nextLocation = searchParams.get("location") || "";
+    const nextExperience = searchParams.get("experience") || "";
+    const nextExperienceNumber = Number(nextExperience.match(/\d+/)?.[0] || 0);
+
+    setSearch(nextSearch);
+    setLocSearch(nextLocation);
+    setExpRange(nextExperienceNumber);
+    setCurrentPage(1);
+  }, [searchParams]);
+
+  const syncSearchParams = () => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("q", search.trim());
+    if (locSearch.trim()) params.set("location", locSearch.trim());
+    if (expRange > 0) params.set("experience", `${expRange} years`);
+    setSearchParams(params);
+    setCurrentPage(1);
+  };
 
   const toggleFilter = (catId, option) => {
     setFilters(prev => {
@@ -181,12 +229,17 @@ export default function JobListingPage() {
   const filteredJobs = activeJobsPool.filter(job => {
     // Search match
     if (search) {
-      const searchLower = search.toLowerCase();
-      const titleMatch = String(job.title || "").toLowerCase().includes(searchLower);
-      const companyMatch = String(job.company || "").toLowerCase().includes(searchLower);
-      const deptMatch = String(job.dept || "").toLowerCase().includes(searchLower);
-      const locMatch = String(job.location || "").toLowerCase().includes(searchLower);
-      if (!titleMatch && !companyMatch && !deptMatch && !locMatch) {
+      const terms = search.toLowerCase().split(/[\s,]+/).map((term) => term.trim()).filter(Boolean);
+      const searchableText = [
+        job.title,
+        job.company,
+        job.dept,
+        job.location,
+        job.exp,
+        ...(job.tags || []),
+      ].join(" ").toLowerCase();
+
+      if (!terms.every((term) => searchableText.includes(term))) {
         return false;
       }
     }
@@ -252,6 +305,10 @@ export default function JobListingPage() {
   const handleCategoryClick = (cat) => {
     const term = cat.replace(/\s+Jobs$/i, "");
     setSearch(term);
+    const params = new URLSearchParams(searchParams);
+    params.set("q", term);
+    setSearchParams(params);
+    setCurrentPage(1);
   };
 
 
@@ -271,7 +328,13 @@ export default function JobListingPage() {
                 type="text"
                 placeholder="Job title, skills, or company"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") syncSearchParams();
+                }}
               />
             </div>
             <div className="jlp-search-field">
@@ -284,9 +347,12 @@ export default function JobListingPage() {
                   setLocSearch(e.target.value);
                   setCurrentPage(1);
                 }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") syncSearchParams();
+                }}
               />
             </div>
-            <button className="jlp-search-btn" aria-label="Search">
+            <button className="jlp-search-btn" aria-label="Search" onClick={syncSearchParams}>
               <FiSearch size={18} />
             </button>
           </div>
@@ -346,7 +412,7 @@ export default function JobListingPage() {
                 <FiFilter size={16} /> All Filters
               </div>
               {hasFilters || expRange > 0 ? (
-                <button className="jlp-clear-btn" onClick={() => { setFilters({}); setExpRange(0); }}>Clear All</button>
+                <button className="jlp-clear-btn" onClick={() => { setFilters({}); setExpRange(0); setSearchParams({}); }}>Clear All</button>
               ) : null}
             </div>
 

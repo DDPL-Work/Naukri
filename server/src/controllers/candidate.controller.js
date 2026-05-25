@@ -5,11 +5,13 @@ const asyncHandler = require("../middleware/async.middleware");
 const User = require("../models/User");
 const Job = require("../models/Job");
 const Company = require("../models/Company");
+const CompanyReview = require("../models/CompanyReview");
 const QRCode = require("../models/QRCode");
 const Application = require("../models/Application");
 const CandidateProfile = require("../models/CandidateProfile");
 const CandidateProfileHistory = require("../models/CandidateProfileHistory");
 const CandidateNotification = require("../models/CandidateNotification");
+const CandidateQuizResult = require("../models/CandidateQuizResult");
 const { uploadResumeFile } = require("../services/resume-storage.service");
 const { replaceCandidateImage } = require("../services/candidate-image-storage.service");
 
@@ -38,11 +40,91 @@ const generateToken = (id) =>
     expiresIn: "7d",
   });
 
+const formatCompanyReview = (review) => ({
+  id: String(review._id),
+  candidateName: review.isAnonymous ? "Anonymous Candidate" : (review.candidateName || "Candidate"),
+  candidateTitle: review.candidateTitle || "Verified candidate",
+  candidateCity: review.candidateCity || "",
+  rating: Number(review.rating || 0),
+  headline: review.headline || "",
+  review: review.review || "",
+  isAnonymous: Boolean(review.isAnonymous),
+  createdAt: review.createdAt || null,
+  lastUpdated: review.updatedAt || review.createdAt || null,
+});
+
 const generateTemporaryPassword = () =>
   `Mvn!${crypto.randomBytes(8).toString("hex")}`;
 
 const DASHBOARD_PIPELINE_LIMIT = 24;
 const DASHBOARD_ALERTS_LIMIT = 1;
+const DAILY_QUIZ_XP_PER_CORRECT = 10;
+
+const DAILY_QUIZ_BANK = [
+  {
+    id: "react-effect",
+    topic: "React",
+    q: "Which hook should you use to run a side effect after render?",
+    options: ["useMemo", "useEffect", "useCallback", "useRef"],
+    correct: 1,
+  },
+  {
+    id: "node-event-loop",
+    topic: "Node.js",
+    q: "What does the event loop in Node.js primarily handle?",
+    options: ["Compiling JavaScript", "Managing async I/O callbacks", "Allocating memory", "Bundling modules"],
+    correct: 1,
+  },
+  {
+    id: "mongo-in",
+    topic: "MongoDB",
+    q: "Which MongoDB operator finds documents where a field value is in a list?",
+    options: ["$exists", "$in", "$all", "$elemMatch"],
+    correct: 1,
+  },
+  {
+    id: "js-null-type",
+    topic: "JavaScript",
+    q: "What is the output of typeof null?",
+    options: ['"null"', '"undefined"', '"object"', '"boolean"'],
+    correct: 2,
+  },
+  {
+    id: "css-z-index",
+    topic: "CSS",
+    q: "Which CSS property controls the stacking order of elements?",
+    options: ["position", "z-index", "display", "overflow"],
+    correct: 1,
+  },
+];
+
+const getDailyQuizKey = (date = new Date()) => date.toISOString().slice(0, 10);
+
+const getDailyQuiz = () => ({
+  key: getDailyQuizKey(),
+  title: "Full Stack Fundamentals",
+  subtitle: "Test your knowledge across React, Node.js, MongoDB, JavaScript, and CSS.",
+  durationSeconds: DAILY_QUIZ_BANK.length * 12,
+  xpPerCorrect: DAILY_QUIZ_XP_PER_CORRECT,
+  maxXp: DAILY_QUIZ_BANK.length * DAILY_QUIZ_XP_PER_CORRECT,
+  questions: DAILY_QUIZ_BANK.map(({ correct, ...question }) => question),
+});
+
+const calculateCandidateXp = async (candidateId) => {
+  const rows = await CandidateQuizResult.aggregate([
+    { $match: { candidateId } },
+    {
+      $group: {
+        _id: "$candidateId",
+        totalXp: { $sum: "$xpEarned" },
+        quizzesPlayed: { $sum: 1 },
+        bestScore: { $max: "$score" },
+      },
+    },
+  ]);
+
+  return rows[0] || { totalXp: 0, quizzesPlayed: 0, bestScore: 0 };
+};
 
 const normalizeIndianPhoneNumber = (value = "") => {
   const digits = String(value || "").replace(/\D/g, "");
@@ -185,6 +267,58 @@ const parseExperienceRange = (expStr) => {
 };
 
 const normalizeStr = (s) => String(s || "").toLowerCase().trim();
+
+const normalizeSearchTerms = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .map((term) => term.trim())
+    .filter(Boolean);
+
+const jobMatchesKeywordSearch = (job, search = "") => {
+  const terms = normalizeSearchTerms(search);
+  if (!terms.length) return true;
+
+  const skills = (Array.isArray(job.skills) ? job.skills : []).map((skill) => String(skill || "").toLowerCase());
+  const stackAliases = [];
+  const hasSkillAny = (aliases) => aliases.some((alias) =>
+    skills.some((candidateSkill) => candidateSkill.includes(alias)),
+  );
+
+  if (
+    hasSkillAny(["mongodb", "mongo"]) &&
+    hasSkillAny(["express", "express.js"]) &&
+    hasSkillAny(["react", "react.js"]) &&
+    hasSkillAny(["node", "node.js"])
+  ) {
+    stackAliases.push("mern", "mern stack");
+  }
+
+  if (
+    hasSkillAny(["mongodb", "mongo"]) &&
+    hasSkillAny(["express", "express.js"]) &&
+    hasSkillAny(["angular"]) &&
+    hasSkillAny(["node", "node.js"])
+  ) {
+    stackAliases.push("mean", "mean stack");
+  }
+
+  const searchableText = [
+    job.title,
+    job.department,
+    job.location,
+    job.experience,
+    job.companyId?.name,
+    job.companyId?.industry,
+    ...(Array.isArray(job.skills) ? job.skills : []),
+    ...stackAliases,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return terms.every((term) => searchableText.includes(term));
+};
 
 const computeMatchScore = (job, profile) => {
   if (!job || !profile) {
@@ -813,7 +947,8 @@ exports.getLanding = asyncHandler(async (req, res) => {
 
 exports.getDashboard = asyncHandler(async (req, res) => {
   const profile = await ensureCandidateProfile(req.user);
-  const [applications, notifications, recommended, applicationStats, companyIds, extraJobs] = await Promise.all([
+  const quizKey = getDailyQuizKey();
+  const [applications, notifications, recommended, applicationStats, companyIds, extraJobs, todayQuizResult, quizXp] = await Promise.all([
     Application.find({ candidateId: req.user._id })
       .sort({ updatedAt: -1 })
       .limit(DASHBOARD_PIPELINE_LIMIT)
@@ -829,6 +964,8 @@ exports.getDashboard = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10)
       .populate("companyId", "name"),
+    CandidateQuizResult.findOne({ candidateId: req.user._id, quizKey }),
+    calculateCandidateXp(req.user._id),
   ]);
 
   const unreadAlerts = await CandidateNotification.countDocuments({
@@ -862,6 +999,20 @@ exports.getDashboard = asyncHandler(async (req, res) => {
         ).length,
         companiesApplied: companyIds.filter(Boolean).length,
         unreadAlerts,
+        quizXp: Number(quizXp.totalXp || 0),
+      },
+      quiz: {
+        isAvailable: !todayQuizResult,
+        hasPlayedToday: Boolean(todayQuizResult),
+        title: "Your Daily Quiz is Ready!",
+        subtitle: todayQuizResult
+          ? "You have completed today's challenge. Come back tomorrow for more XP."
+          : "Sharpen your skills with today's challenge and earn XP.",
+        xpReward: DAILY_QUIZ_BANK.length * DAILY_QUIZ_XP_PER_CORRECT,
+        questionCount: DAILY_QUIZ_BANK.length,
+        durationSeconds: DAILY_QUIZ_BANK.length * 12,
+        totalXp: Number(quizXp.totalXp || 0),
+        quizzesPlayed: Number(quizXp.quizzesPlayed || 0),
       },
       mappedCompany: recommended.mappedCompany,
       recommendedJobs: recommended.jobs,
@@ -910,23 +1061,19 @@ exports.getJobs = asyncHandler(async (req, res) => {
       );
     }
   } else {
-    const query = {
+    jobs = await Job.find({
       isActive: true,
       approvalStatus: "APPROVED",
-    };
+    })
+      .sort({ updatedAt: -1 })
+      .limit(300)
+      .populate("companyId", "name industry");
 
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { department: { $regex: search, $options: "i" } },
-        { location: { $regex: search, $options: "i" } },
-      ];
+      jobs = jobs.filter((job) => jobMatchesKeywordSearch(job, search));
     }
 
-    jobs = await Job.find(query)
-      .sort({ updatedAt: -1 })
-      .limit(24)
-      .populate("companyId", "name");
+    jobs = jobs.slice(0, 48);
   }
 
   const applicationMap = await buildApplicationMap(
@@ -1252,6 +1399,137 @@ exports.getNotifications = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getTodayQuiz = asyncHandler(async (req, res) => {
+  const quiz = getDailyQuiz();
+  const existing = await CandidateQuizResult.findOne({
+    candidateId: req.user._id,
+    quizKey: quiz.key,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      ...quiz,
+      hasSubmitted: Boolean(existing),
+      previousResult: existing
+        ? {
+          score: existing.score,
+          totalQuestions: existing.totalQuestions,
+          xpEarned: existing.xpEarned,
+          submittedAt: existing.createdAt,
+        }
+        : null,
+    },
+  });
+});
+
+exports.submitTodayQuiz = asyncHandler(async (req, res) => {
+  const quiz = getDailyQuiz();
+  const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
+
+  const existing = await CandidateQuizResult.findOne({
+    candidateId: req.user._id,
+    quizKey: quiz.key,
+  });
+
+  if (existing) {
+    throw createHttpError(409, "Today's quiz has already been submitted");
+  }
+
+  const answerMap = new Map(
+    answers.map((answer) => [String(answer.questionId || ""), Number(answer.selectedIndex)]),
+  );
+
+  const evaluatedAnswers = DAILY_QUIZ_BANK.map((question) => {
+    const selectedIndex = answerMap.has(question.id) ? answerMap.get(question.id) : -1;
+    return {
+      questionId: question.id,
+      selectedIndex,
+      isCorrect: selectedIndex === question.correct,
+    };
+  });
+
+  const score = evaluatedAnswers.filter((answer) => answer.isCorrect).length;
+  const xpEarned = score * DAILY_QUIZ_XP_PER_CORRECT;
+
+  const result = await CandidateQuizResult.create({
+    candidateId: req.user._id,
+    quizKey: quiz.key,
+    score,
+    totalQuestions: DAILY_QUIZ_BANK.length,
+    xpEarned,
+    answers: evaluatedAnswers,
+  });
+
+  await CandidateNotification.create({
+    candidateId: req.user._id,
+    title: `${xpEarned} XP earned`,
+    message: `You scored ${score}/${DAILY_QUIZ_BANK.length} in today's quiz.`,
+    category: "SYSTEM",
+    actionUrl: "/daily-quiz",
+    metadata: { type: "QUIZ_RESULT", quizKey: quiz.key, xpEarned },
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      score: result.score,
+      totalQuestions: result.totalQuestions,
+      xpEarned: result.xpEarned,
+      answers: result.answers,
+      submittedAt: result.createdAt,
+    },
+  });
+});
+
+exports.getQuizRanking = asyncHandler(async (req, res) => {
+  const rows = await CandidateQuizResult.aggregate([
+    {
+      $group: {
+        _id: "$candidateId",
+        totalXp: { $sum: "$xpEarned" },
+        quizzesPlayed: { $sum: 1 },
+        bestScore: { $max: "$score" },
+        lastPlayedAt: { $max: "$createdAt" },
+      },
+    },
+    { $sort: { totalXp: -1, bestScore: -1, lastPlayedAt: 1 } },
+    { $limit: 10 },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "candidate",
+      },
+    },
+    { $unwind: "$candidate" },
+    {
+      $lookup: {
+        from: "candidateprofiles",
+        localField: "_id",
+        foreignField: "userId",
+        as: "profile",
+      },
+    },
+    { $unwind: { path: "$profile", preserveNullAndEmptyArrays: true } },
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: rows.map((row, index) => ({
+      rank: index + 1,
+      candidateId: String(row._id),
+      name: row.candidate?.name || "Candidate",
+      headline: row.profile?.headline || row.candidate?.department || "MavenJobs candidate",
+      totalXp: Number(row.totalXp || 0),
+      quizzesPlayed: Number(row.quizzesPlayed || 0),
+      bestScore: Number(row.bestScore || 0),
+      lastPlayedAt: row.lastPlayedAt,
+    })),
+  });
+});
+
 exports.markNotificationRead = asyncHandler(async (req, res) => {
   const notification = await CandidateNotification.findOne({
     _id: req.params.id,
@@ -1459,6 +1737,13 @@ exports.getCompanyDetail = asyncHandler(async (req, res) => {
     isActive: true,
     approvalStatus: "APPROVED",
   }).sort({ createdAt: -1 });
+  const reviews = await CompanyReview.find({
+    companyId: company._id,
+    status: "PUBLISHED",
+  })
+    .sort({ createdAt: -1 })
+    .limit(12)
+    .select("candidateName candidateTitle candidateCity rating headline review isAnonymous createdAt updatedAt");
 
   const applicationMap = await buildApplicationMap(req.user._id, jobs.map((j) => j._id));
 
@@ -1506,12 +1791,57 @@ exports.getCompanyDetail = asyncHandler(async (req, res) => {
         color: companyColor(company._id),
         logo: (company.name || "M")[0].toUpperCase(),
         logoUrl: company.logoUrl || "",
+        coverImageUrl: company.coverImageUrl || "",
         about: company.about || "",
         mission: company.mission || "",
         vision: company.vision || "",
         whyJoinUs: Array.isArray(company.whyJoinUs) ? company.whyJoinUs : [],
       },
       jobs: formattedJobs,
+      reviews: reviews.map((review) => formatCompanyReview(review)),
+    },
+  });
+});
+
+exports.submitCompanyReview = asyncHandler(async (req, res) => {
+  const company = await Company.findById(req.params.id);
+  if (!company || company.status !== "ACTIVE") {
+    throw createHttpError(404, "Company not found");
+  }
+
+  const rating = Number.parseInt(req.body.rating, 10);
+  const reviewText = String(req.body.review || "").trim();
+  const headline = String(req.body.headline || "").trim();
+  const isAnonymous = String(req.body.isAnonymous || "true").toLowerCase() !== "false";
+
+  if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+    throw createHttpError(400, "Rating must be between 1 and 5");
+  }
+
+  if (!reviewText) {
+    throw createHttpError(400, "Review text is required");
+  }
+
+  const profile = await CandidateProfile.findOne({ userId: req.user._id }).select("currentTitle currentCity");
+
+  const savedReview = await CompanyReview.create({
+    companyId: company._id,
+    candidateId: req.user._id,
+    candidateName: req.user.name || "",
+    candidateTitle: profile?.currentTitle || "",
+    candidateCity: profile?.currentCity || "",
+    rating,
+    headline,
+    review: reviewText,
+    isAnonymous,
+    status: "PUBLISHED",
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Review submitted successfully",
+    data: {
+      review: formatCompanyReview(savedReview),
     },
   });
 });

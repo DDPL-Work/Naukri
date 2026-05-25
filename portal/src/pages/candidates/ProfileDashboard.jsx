@@ -644,39 +644,41 @@ export default function ProfileDashboard() {
 
           {/* Match Card */}
           {(() => {
-            const appsWithScores = (recentApplications || []).filter(app => app && typeof app.matchScore === 'number');
-            const hasRealScores = appsWithScores.length > 0;
+            const safeApps = recentApplications || [];
+            const appsWithScores = safeApps.filter(app => app && typeof app.matchScore === 'number');
+            const hasApps = appsWithScores.length > 0;
             const getAvg = (field, fallback) => {
-              if (!hasRealScores) return fallback;
+              if (!hasApps) return fallback;
               const sum = appsWithScores.reduce((acc, curr) => acc + (curr[field] ?? fallback), 0);
               return Math.round(sum / appsWithScores.length);
             };
 
-            const totalApps = dashboardSummary?.totalApplications || recentApplications?.length || 49;
-            const matchedAppsCount = hasRealScores
+            const totalApps = dashboardSummary?.totalApplications || safeApps.length || 0;
+            const matchedAppsCount = hasApps
               ? appsWithScores.filter(app => app.matchScore >= 75).length
-              : (dashboardSummary?.shortlisted || Math.max(1, Math.floor(totalApps * 0.35)));
+              : 0;
             const matchRateRatio = totalApps > 0 ? (matchedAppsCount / totalApps) : 0;
             const matchRateStatus = matchRateRatio > 0.5 ? 'HIGH' : matchRateRatio > 0.25 ? 'MED' : 'LOW';
 
-            const userExp = candidateProfile?.totalExperience || '0.08 yr';
+            const userExp = candidateProfile?.totalExperience || user?.experience || '1 yr';
             const userExpNum = parseFloat(userExp) || 1;
-            const expMatchPct = getAvg('experienceMatch', Math.min(98, Math.round(75 + (userExpNum * 5))));
+            const expMatchPct = getAvg('experienceMatch', hasApps ? 75 : 0);
 
-            const userCity = candidateProfile?.currentCity || candidateProfile?.preferredLocations?.[0] || 'Dehradun';
-            const locMatchPct = getAvg('locationMatch', candidateProfile?.currentCity ? 92 : 86);
+            const userCity = candidateProfile?.currentCity || candidateProfile?.preferredLocations?.[0] || user?.currentCity || 'Remote';
+            const locMatchPct = getAvg('locationMatch', hasApps ? 82 : 0);
 
-            const userSkillsStr = candidateProfile?.skills?.length > 0 ? candidateProfile.skills.slice(0, 2).join(', ') : 'Ui/Ux, Redux…';
-            const skillsMatchPct = getAvg('skillMatch', candidateProfile?.skills?.length > 0 ? Math.min(95, 50 + candidateProfile.skills.length * 8) : 37);
+            const userSkills = candidateProfile?.skills || user?.skills || [];
+            const userSkillsStr = userSkills.length > 0 ? userSkills.slice(0, 2).join(', ') : 'Add Skills';
+            const skillsMatchPct = getAvg('skillMatch', hasApps ? 65 : 0);
 
-            const userIndustry = candidateProfile?.currentCompany ? 'IT Services' : 'Tech & Software';
-            const industryMatchPct = getAvg('roleMatch', candidateProfile?.currentCompany ? 82 : 57);
+            const userIndustry = candidateProfile?.currentCompany || user?.company || 'IT & Services';
+            const industryMatchPct = getAvg('roleMatch', hasApps ? 80 : 0);
 
-            const userDept = candidateProfile?.currentTitle || 'Engineering';
-            const deptMatchPct = getAvg('roleMatch', candidateProfile?.currentTitle ? 88 : 67);
+            const userDept = candidateProfile?.currentTitle || user?.headline || 'Professional';
+            const deptMatchPct = getAvg('roleMatch', hasApps ? 78 : 0);
 
             const earlyAppVal = 'Fresh jobs';
-            const earlyAppPct = 74;
+            const earlyAppPct = hasApps ? getAvg('matchScore', 75) + 4 : 0;
 
             const dynamicMatchMetrics = [
               { label: 'Work Experience', val: `${userExp}${userExp.toLowerCase().includes('yr') ? '' : ' Yrs'}`, pct: expMatchPct, icon: <FiBriefcase /> },
@@ -1080,39 +1082,41 @@ export default function ProfileDashboard() {
       />
       {/* ─── Apply Match Analytics Modal ─── */}
       {showApplyMatchModal && (() => {
-        const appsWithScores = (recentApplications || []).filter(app => app && typeof app.matchScore === 'number');
-        const hasRealScores = appsWithScores.length > 0;
+        const safeApps = recentApplications || [];
+        const appsWithScores = safeApps.filter(app => app && typeof app.matchScore === 'number');
+        const hasApps = appsWithScores.length > 0;
         const getAvg = (field, fallback) => {
-          if (!hasRealScores) return fallback;
+          if (!hasApps) return fallback;
           const sum = appsWithScores.reduce((acc, curr) => acc + (curr[field] ?? fallback), 0);
           return Math.round(sum / appsWithScores.length);
         };
 
-        const totalApps = dashboardSummary?.totalApplications || recentApplications?.length || 49;
-        const matchedAppsCount = hasRealScores
+        const totalApps = dashboardSummary?.totalApplications || safeApps.length || 0;
+        const matchedAppsCount = hasApps
           ? appsWithScores.filter(app => app.matchScore >= 75).length
-          : (dashboardSummary?.shortlisted || Math.max(1, Math.floor(totalApps * 0.35)));
+          : 0;
         const matchRateRatio = totalApps > 0 ? (matchedAppsCount / totalApps) : 0;
         const matchRatePct = Math.round(matchRateRatio * 100);
 
-        const userExp = candidateProfile?.totalExperience || '0.08 yr';
+        const userExp = candidateProfile?.totalExperience || user?.experience || '1 yr';
         const userExpNum = parseFloat(userExp) || 1;
-        const expMatchPct = getAvg('experienceMatch', Math.min(98, Math.round(75 + (userExpNum * 5))));
+        const expMatchPct = getAvg('experienceMatch', hasApps ? 75 : 0);
 
-        const userCity = candidateProfile?.currentCity || candidateProfile?.preferredLocations?.[0] || 'Dehradun';
-        const locMatchPct = getAvg('locationMatch', candidateProfile?.currentCity ? 92 : 86);
+        const userCity = candidateProfile?.currentCity || candidateProfile?.preferredLocations?.[0] || user?.currentCity || 'Remote';
+        const locMatchPct = getAvg('locationMatch', hasApps ? 82 : 0);
 
-        const userSkillsStr = candidateProfile?.skills?.length > 0 ? candidateProfile.skills.slice(0, 2).join(', ') : 'Ui/Ux, Redux…';
-        const skillsMatchPct = getAvg('skillMatch', candidateProfile?.skills?.length > 0 ? Math.min(95, 50 + candidateProfile.skills.length * 8) : 37);
+        const userSkills = candidateProfile?.skills || user?.skills || [];
+        const userSkillsStr = userSkills.length > 0 ? userSkills.slice(0, 2).join(', ') : 'Add Skills';
+        const skillsMatchPct = getAvg('skillMatch', hasApps ? 65 : 0);
 
-        const userIndustry = candidateProfile?.currentCompany ? 'IT Services' : 'Tech & Software';
-        const industryMatchPct = getAvg('roleMatch', candidateProfile?.currentCompany ? 82 : 57);
+        const userIndustry = candidateProfile?.currentCompany || user?.company || 'IT & Services';
+        const industryMatchPct = getAvg('roleMatch', hasApps ? 80 : 0);
 
-        const userDept = candidateProfile?.currentTitle || 'Engineering';
-        const deptMatchPct = getAvg('roleMatch', candidateProfile?.currentTitle ? 88 : 67);
+        const userDept = candidateProfile?.currentTitle || user?.headline || 'Professional';
+        const deptMatchPct = getAvg('roleMatch', hasApps ? 78 : 0);
 
         const earlyAppVal = 'Fresh jobs';
-        const earlyAppPct = 74;
+        const earlyAppPct = hasApps ? getAvg('matchScore', 75) + 4 : 0;
 
         const dimensions = [
           { title: 'Work Experience Match', desc: `Your experience (${userExp}) aligns with ${expMatchPct}% of applied role requirements. E.g. senior roles require 3+ years.`, tip: 'Tip: Add recent freelance projects to boost score', pct: expMatchPct },
@@ -1123,11 +1127,8 @@ export default function ProfileDashboard() {
           { title: 'Early Applicant Advantage', desc: `Applying within first 48 hours (${earlyAppVal}) puts you in the top ${earlyAppPct}% of candidate visibility.`, tip: 'Tip: Turn on instant job match alerts', pct: earlyAppPct }
         ];
 
-        const appsList = recentApplications?.length > 0 ? recentApplications : [
-          { companyName: 'Finvin Advisor', jobTitle: 'Process Coordinator', status: 'SHORTLISTED', matchScore: 92 },
-          { companyName: 'Ignitefortune Tech', jobTitle: 'Java Developer', status: 'APPLIED', matchScore: 84 },
-          { companyName: 'Siana International', jobTitle: 'Sales Coordinator', status: 'INTERVIEW', matchScore: 88 },
-          { companyName: 'Jugla Technologies', jobTitle: 'Java Developer', status: 'APPLIED', matchScore: 78 }
+        const appsList = hasApps ? appsWithScores : [
+          { companyName: 'No recent applications', jobTitle: 'Apply to jobs to see your match scores!', status: '-', matchScore: 0 }
         ];
 
         return (

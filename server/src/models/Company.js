@@ -20,6 +20,8 @@ const companySchema = new mongoose.Schema(
     linkedIn: String,
     logoUrl: { type: String, default: "" },
     logoPublicId: { type: String, default: "" },
+    coverImageUrl: { type: String, default: "" },
+    coverImagePublicId: { type: String, default: "" },
     activelyHiring: { type: Boolean, default: true },
     openRoles: Number,
 

@@ -12,6 +12,9 @@ const DailyQuizNotification = ({
     onTakeQuiz = () => { },
     quizTitle = "Your Daily Quiz is Ready!",
     quizSubtitle = "Sharpen your skills with today's challenge. Only 60 seconds.",
+    questionCount = 5,
+    xpReward = 50,
+    quizDurationSeconds = 60,
 }) => {
     const cardRef = useRef(null);
     const progressRef = useRef(null);
@@ -331,10 +334,10 @@ const DailyQuizNotification = ({
                                 <div className="dqn-title">{quizTitle}</div>
                                 <div className="dqn-badges">
                                     <span className="dqn-badge" style={{ background: '#EEF2FF', color: '#002366' }}>
-                                        <FiZap size={9} fill="currentColor" /> +50 XP
+                                        <FiZap size={9} fill="currentColor" /> +{xpReward} XP
                                     </span>
                                     <span className="dqn-badge" style={{ background: '#ecfdf5', color: '#059669' }}>
-                                        <FiClock size={9} /> 60 sec
+                                        <FiClock size={9} /> {quizDurationSeconds} sec
                                     </span>
                                     <span className="dqn-badge" style={{ background: '#fffbeb', color: '#d97706' }}>
                                         <FiStar size={9} fill="currentColor" /> Daily
@@ -349,9 +352,9 @@ const DailyQuizNotification = ({
                         {/* stats */}
                         <div className="dqn-stats">
                             {[
-                                { icon: <FiTarget size={14} color="#002366" />, val: '5', lbl: 'Questions' },
-                                { icon: <FiAward size={14} color="#059669" />, val: '+50 XP', lbl: 'Reward' },
-                                { icon: <FiClock size={14} color="#d97706" />, val: '60s', lbl: 'Time' },
+                                { icon: <FiTarget size={14} color="#002366" />, val: String(questionCount), lbl: 'Questions' },
+                                { icon: <FiAward size={14} color="#059669" />, val: `+${xpReward} XP`, lbl: 'Reward' },
+                                { icon: <FiClock size={14} color="#d97706" />, val: `${quizDurationSeconds}s`, lbl: 'Time' },
                             ].map((s, i) => (
                                 <div className="dqn-stat" key={i}>
                                     <div className="dqn-stat-icon">{s.icon}</div>

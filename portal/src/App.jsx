@@ -30,23 +30,38 @@ import EmployerDashboard from "./pages/employer/Dashboards";
 import Premium3D from "./components/Premium3D";
 import { AuthProvider, useAuth } from "./AuthContext";
 import ScrollToTop from "./components/ScrollToTop";
+import authService from "./services/authService";
 
 function AppContent() {
   const [showQuizPopup, setShowQuizPopup] = useState(false);
+  const [quizNotification, setQuizNotification] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
   useEffect(() => {
-    // Trigger only once per login session
     const isLoggedIn = user || localStorage.getItem("user");
     const alreadyShown = sessionStorage.getItem("dailyQuizShown");
 
     if (isLoggedIn && !alreadyShown) {
-      const timer = setTimeout(() => {
-        setShowQuizPopup(true);
-        sessionStorage.setItem("dailyQuizShown", "true");
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+        try {
+          const quiz = await authService.getQuizNotification();
+          if (!cancelled && quiz?.isAvailable) {
+            setQuizNotification(quiz);
+            setShowQuizPopup(true);
+            sessionStorage.setItem("dailyQuizShown", "true");
+          }
+        } catch {
+          if (!cancelled) {
+            setQuizNotification(null);
+          }
+        }
       }, 1500);
-      return () => clearTimeout(timer);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
     }
   }, [user]);
 
@@ -87,6 +102,11 @@ function AppContent() {
         duration={20}
         onClose={() => setShowQuizPopup(false)}
         onTakeQuiz={() => navigate("/daily-quiz")}
+        quizTitle={quizNotification?.title || "Your Daily Quiz is Ready!"}
+        quizSubtitle={quizNotification?.subtitle || "Sharpen your skills with today's challenge."}
+        questionCount={quizNotification?.questionCount || 5}
+        xpReward={quizNotification?.xpReward || 50}
+        quizDurationSeconds={quizNotification?.durationSeconds || 60}
       />
       <Premium3D />
     </>

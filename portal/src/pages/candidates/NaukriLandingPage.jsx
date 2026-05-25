@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import {
   FiArrowRight, FiBarChart2, FiBookOpen, FiBriefcase, FiChevronDown,
@@ -19,6 +19,7 @@ import "./NaukriLandingPage.css";
 import SignUp from "../../auth/SignUp";
 import Login from "../../auth/Login";
 import { useAuth } from "../../AuthContext";
+import authService from "../../services/authService";
 
 const topCategories = ["All", "MNCs", "Fintech", "FMCG & Retail", "Startups", "Edtech", "IT Services"];
 
@@ -125,7 +126,11 @@ const socialLinks = [
 const trustedBrands = ["TechCorp India", "FinEdge", "CloudNine AI", "NovaSec", "DataPulse"];
 
 export default function NaukriLandingPage() {
+  const navigate = useNavigate();
   const { user, logout, openLogin, openRegister } = useAuth();
+  const [landingData, setLandingData] = useState(null);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchLocation, setSearchLocation] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTopCat, setActiveTopCat] = useState("All");
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -144,13 +149,87 @@ export default function NaukriLandingPage() {
 
   const pageRef = useRef(null);
 
+  const goToJobs = ({ keyword = searchKeyword, location = searchLocation, experience = experienceValue } = {}) => {
+    const params = new URLSearchParams();
+    const cleanedKeyword = String(keyword || "").trim();
+    const cleanedLocation = String(location || "").trim();
+    const cleanedExperience = String(experience || "").trim();
+
+    if (cleanedKeyword) params.set("q", cleanedKeyword);
+    if (cleanedLocation) params.set("location", cleanedLocation);
+    if (cleanedExperience) params.set("experience", cleanedExperience);
+
+    navigate(`/jobs${params.toString() ? `?${params.toString()}` : ""}`);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event?.preventDefault();
+    goToJobs();
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    authService.getLandingHome()
+      .then((response) => {
+        if (isMounted && response?.success) {
+          setLandingData(response.data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setLandingData(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const dynamicTopCategories = landingData?.topCategories?.length
+    ? ["All", ...new Set(landingData.topCategories.filter((category) => String(category || "").trim().toLowerCase() !== "all"))]
+    : ["All"];
+  const dynamicCompanies = landingData?.companies?.length
+    ? landingData.companies
+    : [];
+  const dynamicCategories = landingData?.categories?.length
+    ? landingData.categories.map((category, index) => ({
+      ...category,
+      icon: [FiMonitor, FiBarChart2, FiHeart, FiBookOpen, FiTrendingUp, FiTool, FiShoppingBag, FiCompass][index % 8],
+    }))
+    : [];
+  const dynamicPopularSearches = landingData?.popularSearches?.length
+    ? landingData.popularSearches
+    : [];
+  const dynamicJobRoles = landingData?.jobRoles?.length
+    ? landingData.jobRoles
+    : [];
+  const dynamicStats = landingData?.stats?.length
+    ? landingData.stats
+    : [
+      { num: "0", label: "Active Job Listings" },
+      { num: "0", label: "Registered Job Seekers" },
+      { num: "0", label: "Companies Hiring" },
+      { num: "0", label: "Offers This Month" },
+    ];
+  const dynamicTrustedBrands = landingData?.trustedBrands?.length
+    ? landingData.trustedBrands
+    : [];
+
   const filteredCompanies = activeTopCat === "All"
-    ? companies
-    : companies.filter((c) => c.category === activeTopCat);
+    ? dynamicCompanies
+    : dynamicCompanies.filter((c) => c.category === activeTopCat);
   const visibleCompanies = filteredCompanies;
-  const maxCompanyPage = Math.ceil(visibleCompanies.length / 4) - 1;
+  const companiesPerPage = 4;
+  const maxCompanyPage = Math.max(Math.ceil(visibleCompanies.length / companiesPerPage) - 1, 0);
 
   useEffect(() => { setCompanyPage(0); }, [activeTopCat]);
+  useEffect(() => {
+    if (!dynamicTopCategories.includes(activeTopCat)) {
+      setActiveTopCat("All");
+    }
+  }, [activeTopCat, dynamicTopCategories]);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -413,15 +492,25 @@ export default function NaukriLandingPage() {
               </p>
 
               {/* Search Bar */}
-              <div className="search-bar" id="jobs" data-hero-intro>
+              <form className="search-bar" id="jobs" data-hero-intro onSubmit={handleSearchSubmit}>
                 <div className="search-field">
                   <FiSearch className="search-field-icon" />
-                  <input type="text" placeholder="Job title, skills or company" />
+                  <input
+                    type="text"
+                    placeholder="Job title, skills or company"
+                    value={searchKeyword}
+                    onChange={(event) => setSearchKeyword(event.target.value)}
+                  />
                 </div>
 
                 <div className="search-field search-field-divider">
                   <FiMapPin className="search-field-icon" />
-                  <input type="text" placeholder="City, state or remote" />
+                  <input
+                    type="text"
+                    placeholder="City, state or remote"
+                    value={searchLocation}
+                    onChange={(event) => setSearchLocation(event.target.value)}
+                  />
                 </div>
 
                 <div
@@ -449,16 +538,16 @@ export default function NaukriLandingPage() {
                   )}
                 </div>
 
-                <button type="button" className="search-btn">
+                <button type="submit" className="search-btn">
                   <FiSearch /> Search Jobs
                 </button>
-              </div>
+              </form>
 
               {/* Popular searches */}
               <div className="hero-tags" data-hero-intro>
                 <span className="hero-tags-label">Trending:</span>
-                {popularSearches.slice(0, 6).map((s) => (
-                  <button key={s} type="button" className="pop-chip">{s}</button>
+                {dynamicPopularSearches.slice(0, 6).map((s) => (
+                  <button key={s} type="button" className="pop-chip" onClick={() => goToJobs({ keyword: s })}>{s}</button>
                 ))}
               </div>
 
@@ -482,7 +571,7 @@ export default function NaukriLandingPage() {
               <div className="trusted-strip" data-hero-intro>
                 <span className="trusted-label">Trusted by teams at</span>
                 <div className="trusted-row">
-                  {trustedBrands.map((b) => (
+                  {dynamicTrustedBrands.map((b) => (
                     <span key={b} className="trusted-item">{b}</span>
                   ))}
                 </div>
@@ -495,7 +584,7 @@ export default function NaukriLandingPage() {
         <div className="stats-strip">
           <div className="section-shell">
             <div className="stats-grid">
-              {statItems.map((s) => (
+              {dynamicStats.map((s) => (
                 <div key={s.label} className="stat-item">
                   <div className="stat-num">{s.num}</div>
                   <div className="stat-label">{s.label}</div>
@@ -519,7 +608,7 @@ export default function NaukriLandingPage() {
             </div>
 
             <div className="top-cats-row">
-              {topCategories.map((cat) => (
+              {dynamicTopCategories.map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -531,36 +620,70 @@ export default function NaukriLandingPage() {
               ))}
             </div>
 
-            <div className="companies-grid">
-              {visibleCompanies.slice(companyPage * 4, companyPage * 4 + 4).map((company) => (
+            <div className="companies-carousel-head">
+              <span>{visibleCompanies.length} verified companies</span>
+              {maxCompanyPage > 0 && (
+                <div className="companies-carousel-controls">
+                  <button
+                    type="button"
+                    className="company-page-icon"
+                    disabled={companyPage === 0}
+                    onClick={() => setCompanyPage((p) => Math.max(0, p - 1))}
+                    aria-label="Previous companies"
+                  >
+                    ←
+                  </button>
+                  <span>{companyPage + 1} / {maxCompanyPage + 1}</span>
+                  <button
+                    type="button"
+                    className="company-page-icon"
+                    disabled={companyPage === maxCompanyPage}
+                    onClick={() => setCompanyPage((p) => Math.min(maxCompanyPage, p + 1))}
+                    aria-label="Next companies"
+                  >
+                    →
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="companies-grid companies-row">
+              {visibleCompanies.slice(companyPage * companiesPerPage, companyPage * companiesPerPage + companiesPerPage).map((company) => (
                 <div key={company.name} className="company-card">
                   <div className="company-card-header">
                     <div className="company-logo" style={{ background: company.color }}>
-                      {company.logo}
+                      {company.logoUrl ? <img src={company.logoUrl} alt="" /> : company.logo}
                     </div>
                     <div className="company-card-meta">
                       <h3 className="company-name">{company.name}</h3>
                       <div className="company-rating">
                         <FaStar className="star-icon" />
-                        <span className="rating-val">{company.rating}</span>
-                        <span className="rating-reviews">({company.reviews} reviews)</span>
+                        <span className="rating-val">{Number(company.rating || 4.1).toFixed(1)}</span>
+                        <span className="rating-reviews">({company.reviews || "0"} reviews)</span>
                       </div>
                     </div>
                   </div>
-                  <p className="company-desc">{company.desc}</p>
+                  <p className="company-desc">{company.desc || "Verified employer hiring on MavenJobs."}</p>
                   <div className="company-card-footer">
                     <span className="company-jobs-badge">
-                      <FiBriefcase /> {company.jobs} open roles
+                      <FiBriefcase /> {Number(company.jobs || 0)} open roles
                     </span>
-                    <button type="button" className="company-btn">
+                    <div className="company-card-actions">
+                    {company.id ? (
+                      <Link to={`/company/${company.id}`} className="company-profile-btn">
+                        Profile
+                      </Link>
+                    ) : null}
+                    <Link to={`/jobs?q=${encodeURIComponent(company.name || "")}`} className="company-btn">
                       View Jobs <FiArrowRight />
-                    </button>
+                    </Link>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {maxCompanyPage > 0 && (
+            {false && maxCompanyPage > 0 && (
               <div className="pagination-row">
                 <button
                   type="button"
@@ -598,7 +721,7 @@ export default function NaukriLandingPage() {
             </div>
 
             <div className="cat-grid">
-              {categories.map((cat) => {
+              {dynamicCategories.map((cat) => {
                 const Icon = cat.icon;
                 return (
                   <div key={cat.label} className="cat-card">
@@ -628,7 +751,7 @@ export default function NaukriLandingPage() {
             </div>
 
             <div className="roles-grid">
-              {jobRoles.map((role) => (
+              {dynamicJobRoles.map((role) => (
                 <Link to="/jobs" key={role.name} className="role-chip">
                   <span className="role-name">{role.name}</span>
                   <span className="role-count">{role.count}</span>

@@ -1,6 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const candidateController = require("../controllers/candidate.controller");
+const chatController = require("../controllers/chat.controller");
 const {
   protectCandidate,
   protectCandidateManagers,
@@ -21,13 +22,21 @@ router.get("/landing/:token", candidateController.getLanding);
 
 router.get("/auth/me", protectCandidate, candidateController.me);
 router.get("/dashboard", protectCandidate, candidateController.getDashboard);
+router.get("/quiz/ranking", candidateController.getQuizRanking);
+router.get("/quiz/today", protectCandidate, candidateController.getTodayQuiz);
+router.post("/quiz/today/submit", protectCandidate, candidateController.submitTodayQuiz);
 router.get("/jobs", protectCandidate, candidateController.getJobs);
 router.get("/jobs/:id", protectCandidate, candidateController.getJobDetail);
 router.get("/jobs/:id/similar", protectCandidate, candidateController.getSimilarJobs);
 router.get("/companies", protectCandidate, candidateController.getCompanies);
 router.get("/companies/:id", protectCandidate, candidateController.getCompanyDetail);
+router.post("/companies/:id/reviews", protectCandidate, candidateController.submitCompanyReview);
 router.get("/applications", protectCandidate, candidateController.getApplications);
 router.post("/applications", protectCandidate, candidateController.createApplication);
+router.get("/chats", protectCandidate, chatController.getCandidateThreads);
+router.get("/chats/:threadId/messages", protectCandidate, chatController.getCandidateThreadMessages);
+router.post("/chats/:threadId/messages", protectCandidate, chatController.sendCandidateMessage);
+router.patch("/chats/:threadId/read", protectCandidate, chatController.markCandidateThreadRead);
 router.get("/profile", protectCandidate, candidateController.getProfile);
 router.patch("/profile", protectCandidate, candidateController.updateProfile);
 router.get("/profile/history", protectCandidate, candidateController.getProfileHistory);

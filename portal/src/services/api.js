@@ -7,7 +7,10 @@ const api = axios.create({
 // Add a request interceptor to include the auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const candidateToken = localStorage.getItem('token');
+    const employerToken = localStorage.getItem('employerToken');
+    const isEmployerRoute = typeof window !== 'undefined' && window.location?.pathname?.startsWith('/employer');
+    const token = isEmployerRoute ? (employerToken || candidateToken) : (candidateToken || employerToken);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -26,6 +29,8 @@ api.interceptors.response.use(
       // Handle unauthorized error (e.g., redirect to login or logout)
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('employerToken');
+      localStorage.removeItem('employerUser');
     }
     return Promise.reject(error);
   }

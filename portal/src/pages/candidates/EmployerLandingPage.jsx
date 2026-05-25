@@ -11,14 +11,23 @@ import { FaBuilding, FaQuoteLeft } from 'react-icons/fa';
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
 import promoImg from '../../../assets/free-job-posting-promo.png';
 import { useAuth } from '../../AuthContext';
+import authService from '../../services/authService';
 import './EmployerLandingPage.css';
 
 const EmployerLandingPage = () => {
   const navigate = useNavigate();
-  const { user, login } = useAuth();
-  const [activeTab, setActiveTab] = useState('sales');
+  useAuth();
+  const [employerSession, setEmployerSession] = useState(() => {
+    try {
+      const savedUser = JSON.parse(localStorage.getItem("employerUser") || "null");
+      return savedUser ? { ...savedUser, companyName: savedUser.companyName || savedUser.company || "" } : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeTab, setActiveTab] = useState('signup');
 
-  const [hiringFor, setHiringFor] = useState('');
+  const [hiringFor, setHiringFor] = useState('company');
   const [scrolled, setScrolled] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showOfferings, setShowOfferings] = useState(false);
@@ -26,15 +35,44 @@ const EmployerLandingPage = () => {
   const [selectedRange, setSelectedRange] = useState('Select range');
   const [activeOfferingTab, setActiveOfferingTab] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("godslayer@gmail.com");
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [formStatus, setFormStatus] = useState({ loading: false, message: "", error: "" });
+  const [employerData, setEmployerData] = useState({ stats: [], partners: [] });
+  const [enquiry, setEnquiry] = useState({
+    fullName: "",
+    phone: "",
+    email: "",
+    companyName: "",
+    designation: "",
+    city: "",
+    password: "",
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    authService.getEmployerLanding()
+      .then((response) => {
+        if (isMounted && response?.success) {
+          setEmployerData(response.data || { stats: [], partners: [] });
+        }
+      })
+      .catch(() => {
+        if (isMounted) setEmployerData({ stats: [], partners: [] });
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const offerings = [
@@ -46,12 +84,23 @@ const EmployerLandingPage = () => {
     { title: 'Talent Planning', desc: 'Get deep insights into market trends and salary benchmarks to plan hiring with precision.', icon: <FiBarChart2 />, color: '#e11d48', bg: '#fff1f2', path: '/talent-pulse' },
   ];
 
-  const stats = [
+  const fallbackStats = [
     { value: '10Cr+', label: 'Registered jobseekers' },
     { value: '1.5L+', label: 'Companies trust us' },
     { value: '98%', label: 'Placement success rate' },
     { value: '48hrs', label: 'Average time-to-hire' },
   ];
+  const fallbackPartners = [
+    { id: 'mavenjobs', name: 'Maven Jobs' },
+    { id: 'mks-industrial-solutions', name: 'MKS Industrial Solutions' },
+    { id: 'hello-ltd', name: 'HELLO LTD' },
+    { id: 'godslayer', name: 'GODSLAYER' },
+  ];
+  const stats = employerData.stats?.length ? employerData.stats : fallbackStats;
+  const partners = employerData.partners?.length
+    ? employerData.partners
+    : fallbackPartners;
+  const marqueePartners = [...partners, ...partners];
 
   const testimonials = [
     { name: 'Priya Sharma', role: 'VP Talent, Flipkart', text: 'MavenJobs helped us cut our hiring cycle by 40%. The AI-matching is genuinely impressive.', initials: 'PS', color: '#2563eb' },
@@ -90,6 +139,138 @@ const EmployerLandingPage = () => {
     { num: '03', title: 'Review & shortlist', desc: 'Get ranked applications with AI insights straight to your dashboard.' },
     { num: '04', title: 'Hire with confidence', desc: 'Interview, select, and onboard — all tracked in one place.' },
   ];
+
+  const updateEnquiry = (field, value) => {
+    const nextValue = field === "phone"
+      ? String(value || "").replace(/\D/g, "").slice(0, 10)
+      : value;
+    setEnquiry((current) => ({ ...current, [field]: nextValue }));
+    setFormStatus({ loading: false, message: "", error: "" });
+  };
+
+  const submitEmployerSignup = async (event) => {
+    event.preventDefault();
+    const companyName = enquiry.companyName.trim();
+    const email = enquiry.email.trim();
+    const phone = enquiry.phone.trim();
+    const fullName = enquiry.fullName.trim();
+    const password = enquiry.password.trim();
+
+    if (!fullName || !companyName || !email || !phone || !password) {
+      setFormStatus({ loading: false, message: "", error: "Please enter your name, company, work email, mobile number, and password." });
+      return;
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      setFormStatus({ loading: false, message: "", error: "Enter a valid 10 digit mobile number." });
+      return;
+    }
+
+    if (password.length < 7 || password.length > 20) {
+      setFormStatus({ loading: false, message: "", error: "Password must be between 7 and 20 characters." });
+      return;
+    }
+
+    setFormStatus({ loading: true, message: "", error: "" });
+    try {
+      const response = await authService.employerRegister({
+        fullName,
+        companyName,
+        email,
+        phone,
+        password,
+        hiringFor,
+        designation: enquiry.designation.trim() || (hiringFor === "consultancy" ? "Consultancy" : "Company"),
+        city: enquiry.city.trim(),
+      });
+
+      const employerUser = {
+        ...(response?.user || {}),
+        companyName: response?.company?.name || response?.user?.companyName || companyName,
+      };
+
+      localStorage.setItem("employerToken", response.token);
+      localStorage.setItem("employerUser", JSON.stringify(employerUser));
+      setEmployerSession(employerUser);
+
+      setFormStatus({
+        loading: false,
+        message: "Account created successfully. Redirecting to your dashboard...",
+        error: "",
+      });
+      setEnquiry({ fullName: "", phone: "", email: "", companyName: "", designation: "", city: "", password: "" });
+      setTimeout(() => navigate("/employer-dashboard"), 650);
+    } catch (error) {
+      setFormStatus({ loading: false, message: "", error: error.message || "Unable to submit request right now." });
+    }
+  };
+
+  const submitCallbackRequest = async (event) => {
+    event.preventDefault();
+    const companyName = enquiry.companyName.trim();
+    const email = enquiry.email.trim();
+    const phone = enquiry.phone.trim();
+    const roleTitle = enquiry.designation.trim() || `Employer signup for ${enquiry.fullName.trim() || companyName}`;
+
+    if (!companyName || !email || !phone || !roleTitle) {
+      setFormStatus({ loading: false, message: "", error: "Please enter company, work email, phone, and designation." });
+      return;
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      setFormStatus({ loading: false, message: "", error: "Enter a valid 10 digit mobile number." });
+      return;
+    }
+
+    setFormStatus({ loading: true, message: "", error: "" });
+    try {
+      const response = await authService.submitEmployerEnquiry({
+        companyName,
+        email,
+        phone: `+91${phone}`,
+        roleTitle,
+        roleDescription: [
+          enquiry.fullName ? `Contact: ${enquiry.fullName}` : "",
+          hiringFor ? `Hiring for: ${hiringFor}` : "",
+          enquiry.city ? `City: ${enquiry.city}` : "",
+          selectedRange !== "Select range" ? `Hiring range: ${selectedRange}` : "",
+        ].filter(Boolean).join("\n"),
+        budget: selectedRange !== "Select range" ? selectedRange : "",
+      });
+
+      setFormStatus({
+        loading: false,
+        message: response?.referenceId
+          ? `Sign up submitted. Reference ID: ${response.referenceId}`
+          : "Sign up submitted. Our team will contact you shortly.",
+        error: "",
+      });
+      setEnquiry({ fullName: "", phone: "", email: "", companyName: "", designation: "", city: "", password: "" });
+      setSelectedRange("Select range");
+    } catch (error) {
+      setFormStatus({ loading: false, message: "", error: error.message || "Unable to submit request right now." });
+    }
+  };
+
+  const submitEmployerLogin = async (event) => {
+    event.preventDefault();
+    setLoginError("");
+    try {
+      const response = await authService.employerLogin(loginEmail, loginPassword);
+      if (response?.token) {
+        localStorage.setItem("employerToken", response.token);
+        const employerUser = {
+          ...(response.user || {}),
+          companyName: response?.company?.name || response?.user?.companyName || "",
+        };
+        localStorage.setItem("employerUser", JSON.stringify(employerUser));
+        setEmployerSession(employerUser);
+      }
+      navigate("/employer-dashboard");
+    } catch (error) {
+      setLoginError(error.message || "Invalid employer credentials.");
+    }
+  };
 
   return (
     <div className="elp-root">
@@ -243,25 +424,27 @@ const EmployerLandingPage = () => {
           </div>
 
           {/* Callback Card / Profile Modal */}
-          <div className="elp-callback-card" style={user ? { padding: 0, overflow: 'hidden' } : {}}>
-            {!user && (
+          <div className="elp-callback-card" style={employerSession ? { padding: 0, overflow: 'hidden' } : {}}>
+            {!employerSession && (
               <div className="elp-callback-tabs">
                 <button
-                  className={`elp-callback-tab ${activeTab === 'sales' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('sales')}
+                  type="button"
+                  className={`elp-callback-tab ${activeTab === 'signup' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('signup')}
                 >
-                  Sales enquiry
+                  Sign Up
                 </button>
                 <button
+                  type="button"
                   className={`elp-callback-tab ${activeTab === 'login' ? 'active' : ''}`}
                   onClick={() => setActiveTab('login')}
                 >
-                  Register / Log in
+                  Login
                 </button>
               </div>
             )}
 
-            {user ? (
+            {employerSession ? (
               <div className="elp-profile-modal">
                 {/* Cover Image */}
                 <div style={{
@@ -287,8 +470,8 @@ const EmployerLandingPage = () => {
                     backdropFilter: 'blur(10px)'
                   }} />
                   
-                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: '800', marginBottom: '4px', fontFamily: 'inherit' }}>TechCorp India</h3>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '20px' }}>AI-Powered Hiring · Bengaluru</p>
+                  <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: '800', marginBottom: '4px', fontFamily: 'inherit' }}>{employerSession.companyName || employerSession.username || "Employer workspace"}</h3>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '20px' }}>{employerSession.email || "Verified employer account"}</p>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                     <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -310,26 +493,56 @@ const EmployerLandingPage = () => {
                   </button>
                 </div>
               </div>
-            ) : activeTab === 'sales' ? (
-              <form className="elp-callback-form" onSubmit={e => e.preventDefault()}>
+            ) : activeTab === 'signup' ? (
+              <form className="elp-callback-form" onSubmit={submitEmployerSignup}>
                 <div className="elp-form-group">
                   <label>Full name</label>
-                  <input type="text" placeholder="Enter your full name" />
+                  <input type="text" placeholder="Enter your full name" value={enquiry.fullName} onChange={(event) => updateEnquiry("fullName", event.target.value)} />
                 </div>
                 <div className="elp-form-group">
                   <label>Mobile number</label>
-                  <input type="tel" placeholder="Enter mobile number" />
+                  <div className="elp-phone-input">
+                    <span>+91</span>
+                    <input type="tel" inputMode="numeric" placeholder="10 digit mobile number" value={enquiry.phone} onChange={(event) => updateEnquiry("phone", event.target.value)} />
+                  </div>
                 </div>
                 <div className="elp-form-group">
                   <label>Work email</label>
-                  <input type="email" placeholder="Enter your work email" />
+                  <input type="email" placeholder="Enter your work email" value={enquiry.email} onChange={(event) => updateEnquiry("email", event.target.value)} />
+                </div>
+                <div className="elp-form-group">
+                  <label>Company / consultancy name</label>
+                  <input type="text" placeholder="Enter organisation name" value={enquiry.companyName} onChange={(event) => updateEnquiry("companyName", event.target.value)} />
+                </div>
+                <div className="elp-form-group">
+                  <label>Password</label>
+                  <div className="elp-password-input">
+                    <input
+                      type={showSignupPassword ? "text" : "password"}
+                      placeholder="Create a password"
+                      value={enquiry.password}
+                      onChange={(event) => updateEnquiry("password", event.target.value)}
+                      minLength={7}
+                      maxLength={20}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="elp-password-toggle"
+                      onClick={() => setShowSignupPassword((current) => !current)}
+                      aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                    >
+                      {showSignupPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </button>
+                  </div>
+                  <div className="elp-password-hint">Use 7 to 20 characters.</div>
                 </div>
                 <div className="elp-form-group">
                   <label>Hiring for</label>
                   <div className="elp-hiring-opts">
                     <div
                       className={`elp-hiring-opt ${hiringFor === 'company' ? 'active' : ''}`}
-                      onClick={() => { setHiringFor('company'); setIsModalOpen(true); }}
+                      onClick={() => setHiringFor('company')}
                     >
                       Your company
                     </div>
@@ -341,27 +554,17 @@ const EmployerLandingPage = () => {
                     </div>
                   </div>
                 </div>
-                <button type="submit" className="elp-btn-callback">
-                  Request callback <FiArrowRight size={16} />
+                {formStatus.error && <div className="elp-form-error">{formStatus.error}</div>}
+                {formStatus.message && <div className="elp-form-success">{formStatus.message}</div>}
+                <button type="submit" className="elp-btn-callback" disabled={formStatus.loading}>
+                  {formStatus.loading ? "Creating account..." : "Sign Up"} <FiArrowRight size={16} />
                 </button>
                 <p className="elp-callback-note">
                   <FiShield size={12} /> Your data is safe. No spam, ever.
                 </p>
               </form>
             ) : (
-              <form className="elp-callback-form elp-login-form" onSubmit={e => {
-                e.preventDefault();
-                if (loginEmail === "godslayer@gmail.com" && loginPassword === "GodSlayer003!") {
-                  login({
-                    name: "TechCorp India",
-                    email: loginEmail,
-                    role: "employer"
-                  });
-                  navigate("/employer-dashboard");
-                } else {
-                  setLoginError("Invalid credentials. Use godslayer@gmail.com / GodSlayer003!");
-                }
-              }}>
+              <form className="elp-callback-form elp-login-form" onSubmit={submitEmployerLogin}>
                 <div className="elp-form-group">
                   <label>Work Email ID</label>
                   <input
@@ -409,7 +612,14 @@ const EmployerLandingPage = () => {
                 </button>
                 
                 <div className="elp-login-footer">
-                  Don't have a registered email? <a href="#" className="elp-signup-link">Create account</a>
+                  Don't have a registered email?{" "}
+                  <button
+                    type="button"
+                    className="elp-signup-link"
+                    onClick={() => setActiveTab('signup')}
+                  >
+                    Create account
+                  </button>
                 </div>
               </form>
             )}
@@ -421,10 +631,22 @@ const EmployerLandingPage = () => {
       <div className="elp-partners">
         <div className="elp-partners-inner">
           <span className="elp-partners-label">Trusted by India's leading companies</span>
-          <div className="elp-partners-logos">
-            {['TCS', 'Flipkart', 'Amazon', 'Microsoft', 'Google', 'Byju\'s', 'Infosys', 'Wipro'].map(name => (
-              <span key={name} className="elp-partner-logo">{name}</span>
-            ))}
+          <div className="elp-partners-marquee" aria-label="Trusted company logos marquee">
+            <div className="elp-partners-track">
+              {marqueePartners.map((partner, index) => {
+                const key = `${partner.id || partner.name}-${index}`;
+                const content = partner.logoUrl ? <img src={partner.logoUrl} alt={partner.name} /> : partner.name;
+                return partner.id ? (
+                  <Link key={key} to={`/company/${partner.id}`} className="elp-partner-logo">
+                    {content}
+                  </Link>
+                ) : (
+                  <span key={key} className="elp-partner-logo">
+                    {content}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -516,7 +738,7 @@ const EmployerLandingPage = () => {
                   style={biz.featured ? { background: biz.color, color: 'white', borderColor: biz.color } : { borderColor: biz.color, color: biz.color }}
                   onClick={() => setIsModalOpen(true)}
                 >
-                  Request callback
+                  Sign Up
                 </button>
               </div>
             ))}
@@ -597,7 +819,7 @@ const EmployerLandingPage = () => {
               </button>
             </div>
 
-            <form className="elp-callback-form" onSubmit={e => e.preventDefault()}>
+            <form className="elp-callback-form" onSubmit={submitCallbackRequest}>
               <div className="elp-form-group" style={{ marginBottom: '8px' }}>
                 <div className="elp-hiring-opts">
                   <div className={`elp-hiring-opt ${hiringFor === 'company' ? 'active' : ''}`} onClick={() => setHiringFor('company')}>Your company</div>
@@ -608,10 +830,19 @@ const EmployerLandingPage = () => {
               {(hiringFor === 'company' || hiringFor === 'consultancy') && (
                 <>
                   <div className="elp-form-group">
-                    <input type="text" placeholder="Designation name" style={{ padding: '14px 16px' }} />
+                    <input type="text" placeholder="Designation name" value={enquiry.designation} onChange={(event) => updateEnquiry("designation", event.target.value)} style={{ padding: '14px 16px' }} />
                   </div>
                   <div className="elp-form-group">
-                    <input type="text" placeholder={hiringFor === 'company' ? 'Company name' : 'Consultancy name'} style={{ padding: '14px 16px' }} />
+                    <input type="text" placeholder={hiringFor === 'company' ? 'Company name' : 'Consultancy name'} value={enquiry.companyName} onChange={(event) => updateEnquiry("companyName", event.target.value)} style={{ padding: '14px 16px' }} />
+                  </div>
+                  <div className="elp-form-group">
+                    <input type="email" placeholder="Work email" value={enquiry.email} onChange={(event) => updateEnquiry("email", event.target.value)} style={{ padding: '14px 16px' }} />
+                  </div>
+                  <div className="elp-form-group">
+                    <div className="elp-phone-input">
+                      <span>+91</span>
+                      <input type="tel" inputMode="numeric" placeholder="10 digit mobile number" value={enquiry.phone} onChange={(event) => updateEnquiry("phone", event.target.value)} />
+                    </div>
                   </div>
                   <div className="elp-form-group">
                     <div className="elp-custom-dropdown" onClick={() => setRangeOpen(!rangeOpen)} style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', padding: '14px 16px' }}>
@@ -629,7 +860,7 @@ const EmployerLandingPage = () => {
                     </div>
                   </div>
                   <div className="elp-form-group">
-                    <input type="text" placeholder="City" style={{ padding: '14px 16px' }} />
+                    <input type="text" placeholder="City" value={enquiry.city} onChange={(event) => updateEnquiry("city", event.target.value)} style={{ padding: '14px 16px' }} />
                   </div>
                   
                   {/* Mock reCAPTCHA */}
@@ -646,8 +877,10 @@ const EmployerLandingPage = () => {
                 </>
               )}
 
-              <button type="submit" className="elp-btn-callback elp-modal-submit" style={{ marginTop: '12px', padding: '14px', borderRadius: '8px' }}>
-                Request callback
+              {formStatus.error && <div className="elp-form-error">{formStatus.error}</div>}
+              {formStatus.message && <div className="elp-form-success">{formStatus.message}</div>}
+              <button type="submit" className="elp-btn-callback elp-modal-submit" disabled={formStatus.loading} style={{ marginTop: '12px', padding: '14px', borderRadius: '8px' }}>
+                {formStatus.loading ? "Creating account..." : "Sign Up"}
               </button>
               
               <p className="elp-callback-note" style={{ marginTop: '12px', textAlign: 'center', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', lineHeight: '1.5', fontWeight: '500' }}>

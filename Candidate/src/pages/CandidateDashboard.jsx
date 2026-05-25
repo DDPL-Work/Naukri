@@ -84,7 +84,11 @@ export default function CandidateDashboard() {
     recommendedJobs = [],
     recentApplications = [],
     notifications = [],
+    quiz = null,
   } = state.data;
+  const normalizedRecommendedJobs = Array.isArray(recommendedJobs)
+    ? recommendedJobs
+    : Object.values(recommendedJobs || {}).flat();
   const visiblePipelineItems = 4;
   const latestNotifications = notifications.slice(0, 1);
   const hasPipelineOverflow = recentApplications.length > visiblePipelineItems;
@@ -123,6 +127,12 @@ export default function CandidateDashboard() {
           value={formatNumber(summary.companiesApplied || 0)}
           icon={LuBriefcase}
           tone="emerald"
+        />
+        <MetricCard
+          label="Quiz XP"
+          value={formatNumber(summary.quizXp || quiz?.totalXp || 0)}
+          icon={LuBellRing}
+          tone="amber"
         />
       </section>
 
@@ -226,8 +236,8 @@ export default function CandidateDashboard() {
           />
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {recommendedJobs.length ? (
-              recommendedJobs.map((job) => (
+            {normalizedRecommendedJobs.length ? (
+              normalizedRecommendedJobs.slice(0, 8).map((job) => (
                 <article
                   key={job.id}
                   className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 transition-all duration-200 hover:-translate-y-1 hover:border-lime-300 hover:bg-white hover:shadow-[0_20px_50px_rgba(132,204,22,0.12)]"
@@ -315,6 +325,17 @@ export default function CandidateDashboard() {
             />
 
             <div className="mt-5 space-y-3">
+              {quiz?.isAvailable ? (
+                <div className="rounded-2xl border border-lime-200 bg-lime-50 px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="break-words font-semibold text-slate-900">{quiz.title}</p>
+                    <Badge tone="lime">+{quiz.xpReward} XP</Badge>
+                  </div>
+                  <p className="mt-2 break-words text-sm leading-6 text-slate-600">
+                    {quiz.questionCount} questions in {quiz.durationSeconds}s. Open the Portal daily quiz to climb the ranking.
+                  </p>
+                </div>
+              ) : null}
               {latestNotifications.length ? (
                 latestNotifications.map((notification) => (
                   <div

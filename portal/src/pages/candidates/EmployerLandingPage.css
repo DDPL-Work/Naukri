@@ -663,6 +663,71 @@
   box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
 }
 
+.elp-phone-input {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.elp-phone-input:focus-within {
+  border-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+.elp-phone-input span {
+  padding: 0 12px 0 14px;
+  color: #fff;
+  font-weight: 800;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.elp-callback-form .elp-form-group .elp-phone-input input {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.elp-callback-form .elp-form-group .elp-phone-input input:focus {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.elp-btn-callback:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.elp-form-error,
+.elp-form-success {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.elp-form-error {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+}
+
+.elp-form-success {
+  color: #bbf7d0;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
 .elp-callback-note {
   display: flex;
   align-items: center;
@@ -696,10 +761,15 @@
 }
 
 .elp-signup-link {
+  background: none;
+  border: 0;
   color: #60a5fa;
   text-decoration: none;
   font-weight: 700;
   margin-left: 4px;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
 }
 
 .elp-signup-link:hover {
@@ -732,13 +802,24 @@
   flex-shrink: 0;
 }
 
-.elp-partners-logos {
+.elp-partners-marquee {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.elp-partners-track {
   display: flex;
-  gap: 36px;
   align-items: center;
-  flex-wrap: wrap;
-  opacity: 0.45;
+  gap: 36px;
+  width: max-content;
+  min-width: 100%;
+  opacity: 0.6;
   filter: grayscale(1);
+  animation: elp-partners-scroll 30s linear infinite;
+  will-change: transform;
 }
 
 .elp-partner-logo {
@@ -747,6 +828,68 @@
   font-size: 0.85rem;
   color: var(--ep-text-1);
   white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+}
+
+.elp-partner-logo img {
+  max-width: 110px;
+  max-height: 34px;
+  object-fit: contain;
+}
+
+.elp-password-input {
+  display: flex;
+  align-items: stretch;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.elp-password-input:focus-within {
+  border-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+.elp-password-input input {
+  flex: 1;
+  padding: 12px 14px;
+  background: transparent;
+  border: 0;
+  color: white;
+  font-size: 0.9rem;
+  font-family: var(--ep-font);
+}
+
+.elp-password-input input:focus {
+  outline: none;
+}
+
+.elp-password-toggle {
+  width: 46px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.68);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.elp-password-toggle:hover {
+  color: #fff;
+}
+
+.elp-password-hint {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 /* ─── Stats Bar ───────────────────────────────────────── */
@@ -1282,6 +1425,16 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes elp-partners-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
   }
 }
 

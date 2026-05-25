@@ -21,6 +21,7 @@ const Jobprofile = () => {
   const [hoverRating, setHoverRating] = useState(0);
   const [selectedRating, setSelectedRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [savedJobs, setSavedJobs] = useState({});
   const [loading, setLoading] = useState(true);
@@ -29,7 +30,7 @@ const Jobprofile = () => {
   const [company, setCompany] = useState({
     name: '', fullName: '', logo: '', bg: '#002366', accent: '#10b981',
     industry: '', type: '', size: '', founded: '', website: '',
-    location: '', followers: '—', rating: 0, reviews: '0',
+    location: '', followers: '—', rating: 0, reviews: '0', reviewsList: [],
     coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
     tags: [], about: '', departments: [], benefits: [], jobs: [],
   });
@@ -40,7 +41,9 @@ const Jobprofile = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await authService.getCompanyDetail(id);
+        const res = user
+          ? await authService.getCompanyDetail(id).catch(() => authService.getPublicCompanyDetail(id))
+          : await authService.getPublicCompanyDetail(id);
         if (res?.success && res?.data) {
           const c = res.data.company;
           const jobs = res.data.jobs || [];
@@ -56,7 +59,7 @@ const Jobprofile = () => {
           setCompany({
             name: c.name || '',
             fullName: c.fullName || c.name || '',
-            logo: c.logo || (c.name || 'M')[0].toUpperCase(),
+            logo: c.logoUrl || c.logo || (c.name || 'M')[0].toUpperCase(),
             bg: c.color || '#002366',
             accent: '#10b981',
             industry: c.industry || 'General',
@@ -68,6 +71,7 @@ const Jobprofile = () => {
             followers: '—',
             rating: 3.4,
             reviews: '—',
+            reviewsList: res.data.reviews || [],
             coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
             tags: [c.type || 'Private', c.industry || 'Corporate'].filter(Boolean),
             about: c.about || `${c.name} is a leading company in the ${c.industry || 'technology'} industry, committed to excellence and innovation.`,
@@ -152,6 +156,7 @@ const Jobprofile = () => {
   ];
 
   const ratingLabel = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent!'];
+  const isLogoUrl = String(company.logo || "").startsWith("http");
 
   if (loading) {
     return (
@@ -307,7 +312,9 @@ const Jobprofile = () => {
                 fontFamily: "'Sora', sans-serif", fontWeight: 900,
                 fontSize: '2.6rem', color: 'white', letterSpacing: '-0.04em'
               }}>
-                {company.logo}
+                {isLogoUrl ? (
+                  <img src={company.logo} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : company.logo}
               </div>
             </div>
 
@@ -592,7 +599,9 @@ const Jobprofile = () => {
                         fontFamily: "'Sora', sans-serif", fontWeight: 900, fontSize: '1.3rem',
                         color: 'white', boxShadow: '0 4px 12px rgba(0,35,102,0.25)'
                       }}>
-                        {company.logo}
+                        {isLogoUrl ? (
+                          <img src={company.logo} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : company.logo}
                       </div>
                       <div style={{ flex: 1 }}>
                         <h4 style={{ fontFamily: "'Sora', sans-serif", fontWeight: 800, fontSize: '1.05rem', color: '#0A1628', marginBottom: 5, letterSpacing: '-0.02em' }}>
@@ -833,6 +842,30 @@ const Jobprofile = () => {
               >
                 <FiStar size={14} /> Write a Review
               </button>
+
+              {Array.isArray(company.reviewsList) && company.reviewsList.length > 0 && (
+                <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid #F1F5F9' }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
+                    Recent Reviews
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 220, overflowY: 'auto' }}>
+                    {company.reviewsList.slice(0, 3).map((review) => (
+                      <div key={review.id} style={{ padding: 12, borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+                          <div>
+                            <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0A1628' }}>{review.candidateName}</div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748B' }}>{review.candidateTitle || 'Candidate'}</div>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#F59E0B' }}>{review.rating || 0}/5</div>
+                        </div>
+                        <p style={{ fontSize: '0.82rem', lineHeight: 1.6, color: '#475569', margin: 0 }}>
+                          {review.review}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* CTA Widget */}
@@ -991,25 +1024,46 @@ const Jobprofile = () => {
                     Cancel
                   </button>
                   <button
-                    disabled={!selectedRating}
-                    onClick={() => {
-                      alert('Review submitted successfully!');
-                      setShowReviewModal(false);
-                      setSelectedRating(0);
-                      setReviewText('');
+                    disabled={!selectedRating || reviewSubmitting}
+                    onClick={async () => {
+                      if (!selectedRating) return;
+                      setReviewSubmitting(true);
+                      try {
+                        const res = await authService.submitCompanyReview(id, {
+                          rating: selectedRating,
+                          review: reviewText,
+                          headline: "",
+                          isAnonymous: true,
+                        });
+                        const nextReview = res?.data?.review || null;
+                        if (nextReview) {
+                          setCompany((current) => ({
+                            ...current,
+                            reviewsList: [nextReview, ...(current.reviewsList || [])],
+                            reviews: String(Number(current.reviews || 0) + 1),
+                          }));
+                        }
+                        setShowReviewModal(false);
+                        setSelectedRating(0);
+                        setReviewText('');
+                      } catch (error) {
+                        alert(error?.message || 'Failed to submit review');
+                      } finally {
+                        setReviewSubmitting(false);
+                      }
                     }}
                     style={{
                       flex: 2, padding: '12px', borderRadius: 12, border: 'none',
-                      background: selectedRating ? '#002366' : '#F1F5F9',
-                      color: selectedRating ? 'white' : '#94A3B8',
+                      background: selectedRating && !reviewSubmitting ? '#002366' : '#F1F5F9',
+                      color: selectedRating && !reviewSubmitting ? 'white' : '#94A3B8',
                       fontFamily: "'Sora', sans-serif", fontWeight: 800, fontSize: '0.85rem',
-                      cursor: selectedRating ? 'pointer' : 'not-allowed', transition: 'all 0.18s',
-                      boxShadow: selectedRating ? '0 4px 16px rgba(0,35,102,0.25)' : 'none'
+                      cursor: selectedRating && !reviewSubmitting ? 'pointer' : 'not-allowed', transition: 'all 0.18s',
+                      boxShadow: selectedRating && !reviewSubmitting ? '0 4px 16px rgba(0,35,102,0.25)' : 'none'
                     }}
-                    onMouseEnter={e => { if (selectedRating) e.currentTarget.style.background = '#1E3A8A'; }}
-                    onMouseLeave={e => { if (selectedRating) e.currentTarget.style.background = '#002366'; }}
+                    onMouseEnter={e => { if (selectedRating && !reviewSubmitting) e.currentTarget.style.background = '#1E3A8A'; }}
+                    onMouseLeave={e => { if (selectedRating && !reviewSubmitting) e.currentTarget.style.background = '#002366'; }}
                   >
-                    Submit Review
+                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
                   </button>
                 </div>
               </div>
