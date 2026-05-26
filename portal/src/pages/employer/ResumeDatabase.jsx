@@ -6,6 +6,7 @@ import {
     FiClock, FiUsers, FiTrendingUp, FiArrowRight, FiStar
 } from "react-icons/fi";
 import mavenLogo from "../../../assets/maven-logo-BdiSsfJk.svg";
+import authService from "../../services/authService";
 import CandidateResumeModal from "../../components/CandidateResumeModal";
 import UnlockDatabaseModal from "../../components/UnlockDatabaseModal";
 
@@ -45,13 +46,15 @@ export default function ResumeDatabase() {
     const [scrolled, setScrolled] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [isUnlockOpen, setIsUnlockOpen] = useState(false);
+    const [dashboard, setDashboard] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        window.scrollTo(0, 0);
-        const fn = () => setScrolled(window.scrollY > 24);
-        window.addEventListener("scroll", fn, { passive: true });
-        return () => window.removeEventListener("scroll", fn);
-    }, []);
+    const filteredTalent = TALENT.filter(t => {
+        const query = searchVal.trim().toLowerCase();
+        const matchesSearch = !query || [t.name, t.role, t.loc, t.exp, t.avail].some(val => val.toLowerCase().includes(query)) || t.skills.some(sk => sk.toLowerCase().includes(query));
+        const matchesSkill = !activeSkill || t.skills.includes(activeSkill);
+        return matchesSearch && matchesSkill;
+    });
 
     useEffect(() => {
         const load = async () => {
@@ -217,8 +220,8 @@ export default function ResumeDatabase() {
                             <p style={{ fontSize: 16, color: "rgba(255,255,255,.5)", maxWidth: 520, lineHeight: 1.75 }}>A live snapshot of talent available today. Unlock full access to contact details and connect directly.</p>
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18, marginBottom: 40 }}>
-                            {TALENT.map((t, i) => (
-                                <div key={i} className="rd-tc" style={{ background: "rgba(255,255,255,.04)", border: "1.5px solid rgba(255,255,255,.08)", borderRadius: 20, padding: "24px 22px", cursor: "pointer", transition: "all .25s" }}>
+                            {filteredTalent.slice(0, 6).map((t, i) => (
+                                <div key={t.id} className="rd-tc" style={{ background: "rgba(255,255,255,.04)", border: "1.5px solid rgba(255,255,255,.08)", borderRadius: 20, padding: "24px 22px", cursor: "pointer", transition: "all .25s" }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 13, marginBottom: 16 }}>
                                         <div style={{ width: 48, height: 48, borderRadius: 14, background: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fd)", fontSize: 15, fontWeight: 800, color: "#fff", flexShrink: 0 }}>{t.initials}</div>
                                         <div>
@@ -232,7 +235,7 @@ export default function ResumeDatabase() {
                                         ))}
                                     </div>
                                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-                                        {t.skills.map(sk => <span key={sk} style={{ fontSize: 11.5, fontWeight: 700, background: "rgba(16,185,129,.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,.2)", borderRadius: 6, padding: "3px 9px" }}>{sk}</span>)}
+                                        {t.skills.map((sk) => <span key={sk} style={{ fontSize: 11.5, fontWeight: 700, background: "rgba(16,185,129,.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,.2)", borderRadius: 6, padding: "3px 9px" }}>{sk}</span>)}
                                     </div>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.06)" }}>
                                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 800, color: "#10b981" }}><FiZap size={12} fill="#10b981" />{t.match}% match</span>

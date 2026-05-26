@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     FiBriefcase, FiUsers, FiEye, FiTrendingUp, FiBarChart2,
@@ -10,49 +10,9 @@ import {
     FiChevronDown, FiMoreVertical, FiEdit2, FiTrash2, FiExternalLink
 } from "react-icons/fi";
 import mavenLogo from "../../../assets/maven-logo-BdiSsfJk.svg";
+import authService from "../../services/authService";
 
-/* ─── Mock Data ─────────────────────────────────────────── */
-const STATS = [
-    { label: "Active Jobs", val: 24, change: "+3", up: true, icon: <FiBriefcase size={20} />, color: "#002366", bg: "#EEF2FF", sparkline: [8, 12, 10, 15, 13, 18, 16, 20, 17, 22, 19, 24] },
-    { label: "Total Applications", val: 1284, change: "+187", up: true, icon: <FiUsers size={20} />, color: "#10b981", bg: "#ecfdf5", sparkline: [400, 520, 480, 600, 550, 700, 650, 800, 750, 900, 850, 1000] },
-    { label: "Profile Views", val: 8420, change: "+12%", up: true, icon: <FiEye size={20} />, color: "#6366f1", bg: "#f5f3ff", sparkline: [2000, 2800, 2400, 3200, 2900, 4000, 3600, 4800, 4200, 5600, 5000, 6200] },
-    { label: "Shortlisted", val: 142, change: "-8", up: false, icon: <FiTarget size={20} />, color: "#f59e0b", bg: "#fffbeb", sparkline: [60, 75, 68, 80, 72, 90, 82, 100, 92, 110, 100, 118] },
-];
-
-const JOBS = [
-    { id: 1, title: "Senior Product Designer", dept: "Design", loc: "Bengaluru", apps: 87, views: 1240, status: "active", posted: "2d ago", urgent: true },
-    { id: 2, title: "Full Stack Engineer", dept: "Engineering", loc: "Mumbai", apps: 124, views: 2100, status: "active", posted: "3d ago", urgent: false },
-    { id: 3, title: "Data Scientist", dept: "Analytics", loc: "Hyderabad", apps: 56, views: 890, status: "active", posted: "5d ago", urgent: false },
-    { id: 4, title: "Product Manager", dept: "Product", loc: "Delhi NCR", apps: 43, views: 670, status: "paused", posted: "1w ago", urgent: false },
-    { id: 5, title: "DevOps Engineer", dept: "Engineering", loc: "Pune", apps: 31, views: 510, status: "active", posted: "1w ago", urgent: true },
-    { id: 6, title: "UI/UX Researcher", dept: "Design", loc: "Bengaluru", apps: 19, views: 320, status: "closed", posted: "2w ago", urgent: false },
-];
-
-const CANDIDATES = [
-    { id: 1, name: "Kavya Sharma", role: "Sr. Product Designer", exp: "7 yrs", match: 97, loc: "Bengaluru", stage: "Interview", avatar: "KS", color: "#002366", rating: 4.8 },
-    { id: 2, name: "Arjun Mehta", role: "Full Stack Engineer", exp: "5 yrs", match: 93, loc: "Mumbai", stage: "Shortlisted", avatar: "AM", color: "#0D9488", rating: 4.5 },
-    { id: 3, name: "Sneha Pillai", role: "Data Scientist", exp: "4 yrs", match: 89, loc: "Hyderabad", stage: "Assessment", avatar: "SP", color: "#7C3AED", rating: 4.6 },
-    { id: 4, name: "Rohit Nair", role: "DevOps Engineer", exp: "6 yrs", match: 85, loc: "Pune", stage: "Shortlisted", avatar: "RN", color: "#DC2626", rating: 4.2 },
-    { id: 5, name: "Priya Anand", role: "Product Manager", exp: "8 yrs", match: 91, loc: "Delhi NCR", stage: "Offer Sent", avatar: "PA", color: "#B45309", rating: 4.9 },
-];
-
-const ACTIVITIES = [
-    { icon: <FiUsers size={14} />, text: "Arjun Mehta moved to Interview stage", time: "5m ago", color: "#002366", bg: "#EEF2FF" },
-    { icon: <FiBriefcase size={14} />, text: "New job posted: DevOps Engineer", time: "1h ago", color: "#10b981", bg: "#ecfdf5" },
-    { icon: <FiMail size={14} />, text: "Offer letter sent to Priya Anand", time: "2h ago", color: "#f59e0b", bg: "#fffbeb" },
-    { icon: <FiStar size={14} />, text: "Kavya Sharma shortlisted for Design role", time: "3h ago", color: "#6366f1", bg: "#f5f3ff" },
-    { icon: <FiCheckCircle size={14} />, text: "Sneha Pillai completed assessment", time: "5h ago", color: "#10b981", bg: "#ecfdf5" },
-    { icon: <FiEye size={14} />, text: "Job 'Sr. Product Designer' hit 1K views", time: "8h ago", color: "#0ea5e9", bg: "#f0f9ff" },
-];
-
-const PIPELINE = [
-    { stage: "Applied", count: 1284, color: "#6366f1", pct: 100 },
-    { stage: "Screened", count: 487, color: "#0ea5e9", pct: 38 },
-    { stage: "Shortlisted", count: 142, color: "#002366", pct: 11 },
-    { stage: "Interview", count: 58, color: "#f59e0b", pct: 4.5 },
-    { stage: "Offer", count: 12, color: "#10b981", pct: 0.9 },
-];
-
+/* ─── Employer Dashboard Helpers ─────────────────────────────────────────── */
 const NAV_ITEMS = [
     { icon: <FiActivity size={18} />, label: "Dashboard", id: "dashboard" },
     { icon: <FiBriefcase size={18} />, label: "Jobs", id: "jobs" },
@@ -62,6 +22,60 @@ const NAV_ITEMS = [
     { icon: <FiMail size={18} />, label: "Messages", id: "messages", badge: 5 },
     { icon: <FiSettings size={18} />, label: "Settings", id: "settings" },
 ];
+
+function DonutChart({ breakdown = [], activeJobs = 0 }) {
+    const R = 48;
+    const stroke = 11;
+    const circ = 2 * Math.PI * R;
+    let offset = 0;
+    const slices = breakdown.length
+        ? breakdown
+        : [{ pct: 100, color: "#cbd5e1", label: "No jobs yet", count: 0 }];
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+            <div style={{ position: "relative", width: 140, height: 140 }}>
+                <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
+                    <circle cx="70" cy="70" r={R} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
+                    {slices.map((s, i) => {
+                        const dash = (s.pct / 100) * circ;
+                        const el = (
+                            <circle
+                                key={i}
+                                cx="70"
+                                cy="70"
+                                r={R}
+                                fill="none"
+                                stroke={s.color}
+                                strokeWidth={stroke}
+                                strokeLinecap="round"
+                                strokeDasharray={`${Math.max(dash - 1, 0)} ${Math.max(circ - dash + 1, 0)}`}
+                                strokeDashoffset={-offset * circ / 100}
+                            />
+                        );
+                        offset += s.pct;
+                        return el;
+                    })}
+                </svg>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
+                    <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 26, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{activeJobs}</div>
+                    <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>Active Jobs</div>
+                </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 12px", width: "100%" }}>
+                {slices.map((s, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, background: s.color + "0d", border: `1px solid ${s.color}22` }}>
+                        <div style={{ width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#334155", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</div>
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: s.color, fontFamily: "'Bricolage Grotesque',sans-serif", flexShrink: 0 }}>{s.pct}%</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 /* ─── Sparkline ─────────────────────────────────────────── */
 function Sparkline({ data, color }) {
@@ -143,6 +157,8 @@ export default function EmployerDashboard() {
     const [notifOpen, setNotifOpen] = useState(false);
     const [jobFilter, setJobFilter] = useState("all");
     const [searchVal, setSearchVal] = useState("");
+    const [dashboard, setDashboard] = useState(null);
+    const [dashboardLoading, setDashboardLoading] = useState(true);
     const mainRef = useRef(null);
     const headerRef = useRef(null);
 
@@ -186,18 +202,165 @@ export default function EmployerDashboard() {
         load();
     }, []);
 
-    const filteredJobs = JOBS.filter(j => {
-        const matchFilter = jobFilter === "all" || j.status === jobFilter;
-        const matchSearch = j.title.toLowerCase().includes(searchVal.toLowerCase()) || j.dept.toLowerCase().includes(searchVal.toLowerCase());
-        return matchFilter && matchSearch;
+    useEffect(() => {
+        let active = true;
+        const loadDashboard = async () => {
+            if (!localStorage.getItem("employerToken")) {
+                if (active) setDashboardLoading(false);
+                return;
+            }
+
+            try {
+                const response = await authService.getEmployerDashboard();
+                if (!active) return;
+                setDashboard(response?.data || null);
+            } catch (error) {
+                if (active) setDashboard(null);
+            } finally {
+                if (active) setDashboardLoading(false);
+            }
+        };
+
+        loadDashboard();
+        return () => { active = false; };
+    }, []);
+
+    const jobs = dashboard?.jobs || [];
+    const applications = dashboard?.applications || [];
+    const uniqueCandidates = useMemo(() => {
+        const seen = new Set();
+        return applications.filter((application) => {
+            const key = String(application.candidateId || application.candidateEmail || application.candidateName || application.id || "");
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }, [applications]);
+
+    const filteredJobs = jobs.filter((j) => {
+        if (jobFilter === "all") return true;
+        if (jobFilter === "active") return Boolean(j.isActive);
+        if (jobFilter === "paused") return !j.isActive && j.approvalStatus === "APPROVED";
+        if (jobFilter === "closed") return !j.isActive && j.approvalStatus !== "APPROVED";
+        return true;
+    }).filter((j) => {
+        const term = searchVal.trim().toLowerCase();
+        if (!term) return true;
+        return String(j.title || "").toLowerCase().includes(term) || String(j.department || j.dept || "").toLowerCase().includes(term) || String(j.location || "").toLowerCase().includes(term);
     });
 
-    const statusColor = s => s === "active" ? "#10b981" : s === "paused" ? "#f59e0b" : "#94a3b8";
-    const statusBg = s => s === "active" ? "#ecfdf5" : s === "paused" ? "#fffbeb" : "#f1f5f9";
-    const stageColor = s => ({
+    const tracking = dashboard?.tracking || {};
+    const urgentJobCount = jobs.filter((job) => Boolean(job.requiresPackageOverride)).length;
+    const interviewsToday = applications.filter((application) => String(application.status).toUpperCase() === "INTERVIEW").length;
+
+    const dashboardStats = useMemo(() => [
+        { label: "Active Jobs", val: Number(tracking.activeApprovedJobs ?? dashboard?.company?.activeJobCount ?? jobs.length), change: "+0", up: true, icon: <FiBriefcase size={20} />, color: "#002366", bg: "#EEF2FF", sparkline: [] },
+        { label: "Total Applications", val: Number(tracking.totalApplications ?? applications.length), change: "+0", up: true, icon: <FiUsers size={20} />, color: "#10b981", bg: "#ecfdf5", sparkline: [] },
+        { label: "Profile Views", val: Number(tracking.profileViews ?? 0), change: "+0%", up: true, icon: <FiEye size={20} />, color: "#6366f1", bg: "#f5f3ff", sparkline: [] },
+        { label: "Shortlisted", val: Number(applications.filter((application) => application.status === "SHORTLISTED").length), change: "-0", up: false, icon: <FiTarget size={20} />, color: "#f59e0b", bg: "#fffbeb", sparkline: [] },
+    ], [applications.length, jobs.length, tracking, dashboard]);
+
+    const departmentBreakdown = useMemo(() => {
+        const bucket = new Map();
+        jobs.forEach((job) => {
+            const label = String(job.department || job.dept || "Other") || "Other";
+            bucket.set(label, (bucket.get(label) || 0) + 1);
+        });
+        const total = Array.from(bucket.values()).reduce((sum, count) => sum + count, 0);
+        const palette = ["#002366", "#10b981", "#6366f1", "#f59e0b", "#dc2626", "#8b5cf6", "#0ea5e9"];
+        return Array.from(bucket.entries()).map(([label, count], index) => ({
+            label,
+            count,
+            pct: total ? Math.max(2, Math.round((count / total) * 100)) : 0,
+            color: palette[index % palette.length],
+        }));
+    }, [jobs]);
+
+    const pipelineData = useMemo(() => {
+        const total = applications.length;
+        const stages = [
+            { stage: "Applied", status: "APPLIED", color: "#6366f1" },
+            { stage: "Screened", status: "SCREENING", color: "#0ea5e9" },
+            { stage: "Shortlisted", status: "SHORTLISTED", color: "#002366" },
+            { stage: "Interview", status: "INTERVIEW", color: "#f59e0b" },
+            { stage: "Offer", status: "OFFERED", color: "#10b981" },
+        ];
+        return stages.map((item) => {
+            const count = applications.filter((application) => application.status === item.status).length;
+            return {
+                ...item,
+                count,
+                pct: total ? Math.max(4, Math.round((count / total) * 100)) : 0,
+            };
+        });
+    }, [applications]);
+
+    const activityFeed = useMemo(() => {
+        const events = [
+            ...applications.map((application) => ({
+                id: `app-${application.id}`,
+                icon: <FiUsers size={14} />,
+                text: `${application.candidateName || "Candidate"} moved to ${application.statusLabel || application.status || "Applied"} for ${application.jobTitle || "a role"}`,
+                time: application.lastUpdated || "Just now",
+                color: application.status === "OFFERED" ? "#f59e0b" : application.status === "SHORTLISTED" ? "#10b981" : application.status === "INTERVIEW" ? "#6366f1" : "#002366",
+                bg: application.status === "OFFERED" ? "#fffbeb" : application.status === "SHORTLISTED" ? "#ecfdf5" : application.status === "INTERVIEW" ? "#f5f3ff" : "#eef2ff",
+                order: new Date(application.updatedAt || application.appliedAt || application.createdAt || Date.now()).getTime(),
+            })),
+            ...jobs.map((job) => ({
+                id: `job-${job.id}`,
+                icon: <FiBriefcase size={14} />,
+                text: `Job posted: ${job.title}`,
+                time: job.lastUpdated || "Just now",
+                color: "#10b981",
+                bg: "#ecfdf5",
+                order: new Date(job.updatedAt || job.createdAt || Date.now()).getTime(),
+            })),
+        ];
+        return events.sort((a, b) => b.order - a.order).slice(0, 6);
+    }, [applications, jobs]);
+
+    const candidateCards = useMemo(() => uniqueCandidates.slice(0, 5).map((application, index) => {
+        const name = application.candidateName || application.candidateEmail || "Candidate";
+        const role = application.candidateCurrentTitle || application.jobTitle || "Candidate";
+        const exp = application.candidateExperience || application.experience || application.experienceYears || "N/A";
+        const loc = application.candidateCity || application.candidateLocation || "";
+        const stage = application.status === "SHORTLISTED" ? "Shortlisted"
+            : application.status === "OFFERED" ? "Offer Sent"
+            : application.status === "INTERVIEW" ? "Interview"
+            : application.status === "SCREENING" ? "Screening"
+            : "Applied";
+        const match = Number(application.matchScore ?? application.match ?? 86);
+        const rating = Math.min(5, Math.max(3.6, Math.round((match / 20) * 10) / 10));
+        return {
+            id: application.candidateId || application.id || index,
+            name,
+            role,
+            exp: typeof exp === "string" ? exp : `${exp} yrs`,
+            loc,
+            stage,
+            rating,
+            match,
+            color: ["#002366", "#0D9488", "#7C3AED", "#DC2626", "#B45309"][index % 5],
+            avatar: String(name).trim().split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase() || "C",
+        };
+    }), [uniqueCandidates]);
+
+    const statusColor = (status) => {
+        if (String(status).toUpperCase() === "APPROVED") return "#10b981";
+        if (String(status).toUpperCase() === "PENDING") return "#f59e0b";
+        if (String(status).toUpperCase() === "REJECTED") return "#94a3b8";
+        return "#94a3b8";
+    };
+    const statusBg = (status) => {
+        if (String(status).toUpperCase() === "APPROVED") return "#ecfdf5";
+        if (String(status).toUpperCase() === "PENDING") return "#fffbeb";
+        if (String(status).toUpperCase() === "REJECTED") return "#f1f5f9";
+        return "#f1f5f9";
+    };
+    const stageColor = (s) => ({
         "Interview": "#002366", "Shortlisted": "#10b981", "Assessment": "#6366f1", "Offer Sent": "#f59e0b"
     })[s] || "#94a3b8";
-    const stageBg = s => ({
+    const stageBg = (s) => ({
         "Interview": "#EEF2FF", "Shortlisted": "#ecfdf5", "Assessment": "#f5f3ff", "Offer Sent": "#fffbeb"
     })[s] || "#f1f5f9";
 
@@ -314,8 +477,8 @@ export default function EmployerDashboard() {
                             <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#002366,#10b981)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fd)", fontSize: 13, fontWeight: 800, color: "#fff", flexShrink: 0 }}>TC</div>
                             {sidebarOpen && (
                                 <div style={{ overflow: "hidden" }}>
-                                    <div style={{ fontFamily: "var(--fd)", fontSize: 13, fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>TechCorp India</div>
-                                    <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>Pro Plan · Active</div>
+                                    <div style={{ fontFamily: "var(--fd)", fontSize: 13, fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dashboard?.company?.name || "Your Company"}</div>
+                                    <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{dashboard?.company?.packageType || "Pro Plan"} · Active</div>
                                 </div>
                             )}
                         </div>
@@ -371,8 +534,8 @@ export default function EmployerDashboard() {
                                         <span style={{ fontSize: 11, fontWeight: 800, color: "#10b981", cursor: "pointer" }}>Mark all read</span>
                                     </div>
                                     <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                                        {ACTIVITIES.slice(0, 5).map((a, i) => (
-                                            <div key={i} style={{ display: "flex", gap: 11, padding: "13px 18px", borderBottom: "1px solid #f8fafc", cursor: "pointer", transition: "background .15s" }}
+                                        {activityFeed.slice(0, 5).map((a, i) => (
+                                            <div key={a.id} style={{ display: "flex", gap: 11, padding: "13px 18px", borderBottom: i < activityFeed.slice(0, 5).length - 1 ? "1px solid #f8fafc" : "none", cursor: "pointer", transition: "background .15s" }}
                                                 onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
                                                 onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
                                                 <div style={{ width: 30, height: 30, borderRadius: 9, background: a.bg, display: "flex", alignItems: "center", justifyContent: "center", color: a.color, flexShrink: 0, marginTop: 1 }}>{a.icon}</div>
@@ -412,12 +575,12 @@ export default function EmployerDashboard() {
                                     <div style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,.3)" }} />
                                     <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,.4)" }}>Wednesday, May 14</span>
                                 </div>
-                                <div style={{ fontFamily: "var(--fd)", fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2, marginBottom: 8 }}>Good morning, TechCorp! 👋</div>
+                                <div style={{ fontFamily: "var(--fd)", fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2, marginBottom: 8 }}>Good morning, {dashboard?.company?.name || "there"}! 👋</div>
                                 <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.5)", fontWeight: 500, lineHeight: 1.5 }}>
                                     You have{" "}
-                                    <span style={{ color: "#34d399", fontWeight: 700, background: "rgba(52,211,153,.12)", padding: "1px 7px", borderRadius: 5 }}>12 new applications</span>
+                                    <span style={{ color: "#34d399", fontWeight: 700, background: "rgba(52,211,153,.12)", padding: "1px 7px", borderRadius: 5 }}>{applications.length} new applications</span>
                                     {" "}and{" "}
-                                    <span style={{ color: "#818cf8", fontWeight: 700, background: "rgba(129,140,248,.12)", padding: "1px 7px", borderRadius: 5 }}>3 interviews</span>
+                                    <span style={{ color: "#818cf8", fontWeight: 700, background: "rgba(129,140,248,.12)", padding: "1px 7px", borderRadius: 5 }}>{applications.filter((application) => application.status === "INTERVIEW").length} interviews</span>
                                     {" "}scheduled today.
                                 </div>
                             </div>
@@ -426,11 +589,11 @@ export default function EmployerDashboard() {
                             <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, flexShrink: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "rgba(255,255,255,.07)", border: "1px solid rgba(16,185,129,.3)", borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: "#fff", backdropFilter: "blur(12px)" }}>
                                     <span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(16,185,129,.18)", display: "flex", alignItems: "center", justifyContent: "center", color: "#34d399" }}><FiCalendar size={13} /></span>
-                                    3 Interviews Today
+                                    {interviewsToday} Interviews Today
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "rgba(255,255,255,.07)", border: "1px solid rgba(245,158,11,.3)", borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: "#fff", backdropFilter: "blur(12px)" }}>
                                     <span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(245,158,11,.18)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fbbf24" }}><FiZap size={13} /></span>
-                                    2 Urgent Jobs
+                                    {urgentJobCount} Urgent Jobs
                                 </div>
                                 <button className="db-btn-green" style={{ borderRadius: 12, padding: "11px 20px", fontSize: 13, boxShadow: "0 4px 18px rgba(16,185,129,.35)" }}>Quick Actions</button>
                             </div>
@@ -438,7 +601,7 @@ export default function EmployerDashboard() {
 
                         {/* ── STAT CARDS ── */}
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
-                            {STATS.map((s, i) => (
+                            {dashboardStats.map((s, i) => (
                                 <div key={i} className="db-stat">
                                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
                                         <div style={{ width: 44, height: 44, borderRadius: 13, background: s.bg, border: `1px solid ${s.color}22`, display: "flex", alignItems: "center", justifyContent: "center", color: s.color }}>{s.icon}</div>
@@ -490,18 +653,18 @@ export default function EmployerDashboard() {
                                             <div>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                                     <span style={{ fontFamily: "var(--fd)", fontSize: 13.5, fontWeight: 800, color: "#0f172a" }}>{j.title}</span>
-                                                    {j.urgent && <span className="db-badge" style={{ background: "#fef2f2", color: "#dc2626" }}>Urgent</span>}
+                                                    {Boolean(j.requiresPackageOverride) && <span className="db-badge" style={{ background: "#fef2f2", color: "#dc2626" }}>Urgent</span>}
                                                 </div>
-                                                <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>Posted {j.posted}</div>
+                                                <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>Updated {j.lastUpdated || j.createdAt || "recently"}</div>
                                             </div>
-                                            <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{j.dept}</div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#475569" }}><FiMapPin size={11} color="#94a3b8" />{j.loc}</div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700, color: "#0f172a" }}><FiUsers size={12} color="#94a3b8" />{j.apps}</div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700, color: "#0f172a" }}><FiEye size={12} color="#94a3b8" />{j.views}</div>
+                                            <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{j.department || j.dept || "Other"}</div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#475569" }}><FiMapPin size={11} color="#94a3b8" />{j.location || "Remote"}</div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700, color: "#0f172a" }}><FiUsers size={12} color="#94a3b8" />{j.applicantCount ?? 0}</div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700, color: "#0f172a" }}><FiEye size={12} color="#94a3b8" />{j.viewCount ?? "-"}</div>
                                             <div>
-                                                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 22, padding: "0 10px", borderRadius: 100, background: statusBg(j.status), fontSize: 11.5, fontWeight: 800, color: statusColor(j.status), fontFamily: "var(--fd)" }}>
-                                                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: statusColor(j.status) }} />
-                                                    {j.status.charAt(0).toUpperCase() + j.status.slice(1)}
+                                                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 22, padding: "0 10px", borderRadius: 100, background: statusBg(j.approvalStatus), fontSize: 11.5, fontWeight: 800, color: statusColor(j.approvalStatus), fontFamily: "var(--fd)" }}>
+                                                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: statusColor(j.approvalStatus) }} />
+                                                    {String(j.approvalStatus || "Pending").charAt(0).toUpperCase() + String(j.approvalStatus || "Pending").slice(1).toLowerCase()}
                                                 </span>
                                             </div>
                                             <div style={{ display: "flex", gap: 6 }}>
@@ -520,7 +683,7 @@ export default function EmployerDashboard() {
                                     ))}
                                 </div>
                                 <div style={{ padding: "12px 20px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <span style={{ fontSize: 12.5, color: "#94a3b8", fontWeight: 600 }}>Showing {filteredJobs.length} of {JOBS.length} jobs</span>
+                                    <span style={{ fontSize: 12.5, color: "#94a3b8", fontWeight: 600 }}>Showing {filteredJobs.length} of {jobs.length} jobs</span>
                                     <button className="db-btn-ghost" style={{ fontSize: 12, padding: "7px 14px" }}>View All Jobs <FiChevronRight size={13} /></button>
                                 </div>
                             </div>
@@ -532,7 +695,7 @@ export default function EmployerDashboard() {
                                     <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>All active jobs combined</div>
                                 </div>
                                 <div style={{ padding: "20px" }}>
-                                    {PIPELINE.map((p, i) => (
+                                    {pipelineData.map((p, i) => (
                                         <div key={i} style={{ marginBottom: 16 }}>
                                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -554,7 +717,7 @@ export default function EmployerDashboard() {
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                             <div>
                                                 <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 2 }}>Conversion Rate</div>
-                                                <div style={{ fontFamily: "var(--fd)", fontSize: 22, fontWeight: 800, color: "#0f172a" }}>0.93%</div>
+                                                <div style={{ fontFamily: "var(--fd)", fontSize: 22, fontWeight: 800, color: "#0f172a" }}>{applications.length ? `${Math.round((applications.filter((application) => application.status === "OFFERED").length / applications.length) * 10000) / 100}%` : "0%"}</div>
                                             </div>
                                             <div style={{ width: 54, height: 54, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                                 <svg width="54" height="54" viewBox="0 0 54 54" style={{ transform: "rotate(-90deg)" }}>
@@ -583,7 +746,7 @@ export default function EmployerDashboard() {
                                     <button className="db-btn-ghost" style={{ fontSize: 12, padding: "7px 14px" }}>View All</button>
                                 </div>
                                 <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                                    {CANDIDATES.map((c, i) => (
+                                    {candidateCards.map((c, i) => (
                                         <div key={c.id} className="db-cand">
                                             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                                 {/* Avatar */}
@@ -635,14 +798,14 @@ export default function EmployerDashboard() {
                                 <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                     <div>
                                         <div style={{ fontFamily: "var(--fd)", fontSize: 15, fontWeight: 800, color: "#0f172a" }}>Jobs by Department</div>
-                                        <div style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 600, marginTop: 2 }}>24 active postings</div>
+                                        <div style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 600, marginTop: 2 }}>{jobs.length} active postings</div>
                                     </div>
                                     <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 100, background: "#EEF2FF", fontSize: 11, fontWeight: 800, color: "#002366", fontFamily: "var(--fd)" }}>
                                         <FiBarChart2 size={11} /> Live
                                     </div>
                                 </div>
                                 <div style={{ padding: "20px 18px" }}>
-                                    <DonutChart />
+                                    <DonutChart breakdown={departmentBreakdown} activeJobs={jobs.length} />
                                     <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 7, borderTop: "1px solid #f1f5f9", paddingTop: 14 }}>
                                         {[
                                             { label: "Most competitive", val: "Engineering", color: "#002366", icon: <FiTarget size={12} /> },
@@ -669,8 +832,8 @@ export default function EmployerDashboard() {
                                     </div>
                                 </div>
                                 <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 0, maxHeight: 420, overflowY: "auto" }}>
-                                    {ACTIVITIES.map((a, i) => (
-                                        <div key={i} style={{ display: "flex", gap: 11, padding: "10px 4px", borderBottom: i < ACTIVITIES.length - 1 ? "1px solid #f8fafc" : "none", cursor: "pointer", transition: "background .15s", borderRadius: 10 }}
+                                    {activityFeed.map((a, i) => (
+                                        <div key={a.id} style={{ display: "flex", gap: 11, padding: "10px 4px", borderBottom: i < activityFeed.length - 1 ? "1px solid #f8fafc" : "none", cursor: "pointer", transition: "background .15s", borderRadius: 10 }}
                                             onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
                                             onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                             <div style={{ width: 30, height: 30, borderRadius: 9, background: a.bg, display: "flex", alignItems: "center", justifyContent: "center", color: a.color, flexShrink: 0, marginTop: 1 }}>{a.icon}</div>

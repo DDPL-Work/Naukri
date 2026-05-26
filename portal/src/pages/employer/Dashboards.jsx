@@ -35,73 +35,6 @@ const C = {
 };
 
 /* ── Mock Data ───────────────────────────────────────────── */
-const COMPANY = {
-    name: "TechCorp India", tagline: "Building the Future of Work · AI-Powered Hiring",
-    location: "Bengaluru, Karnataka, India", website: "www.techcorp.in",
-    size: "500–1,000 employees", industry: "Technology & Software",
-    founded: "2015", type: "Public Company", followers: "12.4K",
-    connections: "248 connections", plan: "Pro Plan",
-    cover: "#002366", initials: "TC",
-    about: `TechCorp India is a leading technology company specializing in enterprise SaaS, AI/ML solutions, and full-stack product development. We serve 200+ clients across BFSI, Healthcare, and E-Commerce verticals.\n\nOur engineering culture is built on ownership, rapid iteration, and a deep commitment to developer experience. We're hiring across all functions and offer competitive packages, ESOPs, and flexible remote-hybrid models.`,
-    specialties: ["React", "Node.js", "Python", "AWS", "Machine Learning", "Product Management", "DevOps", "Data Engineering"],
-};
-
-const JOBS = [
-    { id: 1, title: "Senior Product Designer", dept: "Design", loc: "Bengaluru", type: "Full-time", apps: 87, posted: "2d ago", urgent: true, salary: "₹18–26 LPA" },
-    { id: 2, title: "Full Stack Engineer", dept: "Engineering", loc: "Mumbai · Hybrid", type: "Full-time", apps: 124, posted: "3d ago", urgent: false, salary: "₹22–34 LPA" },
-    { id: 3, title: "Data Scientist", dept: "Analytics", loc: "Hyderabad", type: "Full-time", apps: 56, posted: "5d ago", urgent: false, salary: "₹20–30 LPA" },
-    { id: 4, title: "Product Manager", dept: "Product", loc: "Delhi NCR", type: "Full-time", apps: 43, posted: "1w ago", urgent: false, salary: "₹24–38 LPA" },
-    { id: 5, title: "DevOps Engineer", dept: "Engineering", loc: "Pune · Remote", type: "Contract", apps: 31, posted: "1w ago", urgent: true, salary: "₹16–24 LPA" },
-];
-
-const TEAM = [
-    { name: "Ananya Krishnan", role: "VP of Engineering", avatar: "AK", color: C.navy },
-    { name: "Rohan Mehta", role: "Head of Product", avatar: "RM", color: "#0D9488" },
-    { name: "Priya Sharma", role: "Chief People Officer", avatar: "PS", color: C.purple },
-    { name: "Varun Nair", role: "CTO", avatar: "VN", color: C.indigo },
-];
-
-const REVIEWS = [
-    { id: 1, avatar: "JD", color: C.indigo, time: "2 days ago", text: "Incredible interview process! The team at TechCorp was extremely professional and transparent about the role.", likes: 124, type: "review" },
-    { id: 2, avatar: "SP", color: C.emerald, time: "1 week ago", text: "Great work culture and exciting projects. The hiring managers were very welcoming and accommodating.", likes: 89, type: "review" },
-    { id: 3, avatar: "AK", color: C.amber, time: "2 weeks ago", text: "The assessment was challenging but fair. Enjoyed the technical discussion and the detailed feedback provided.", likes: 231, type: "review" },
-    { id: 4, avatar: "RN", color: C.navy, time: "3 weeks ago", text: "Solid onboarding experience. The HR team was very supportive throughout the documentation process.", likes: 45, type: "review" },
-    { id: 5, avatar: "MK", color: C.purple, time: "1 month ago", text: "Loved the office vibe and the tech stack. Definitely one of the better interview experiences I've had.", likes: 67, type: "review" },
-    { id: 6, avatar: "SD", color: C.red, time: "1 month ago", text: "The rounds were comprehensive. I appreciated the quick turnaround time for the results.", likes: 32, type: "review" },
-    { id: 7, avatar: "VJ", color: C.sky, time: "2 months ago", text: "Very professional conduct. Even though I wasn't selected, the feedback was constructive and helpful.", likes: 156, type: "review" },
-    { id: 8, avatar: "AM", color: C.greenD, time: "2 months ago", text: "The team is doing some great work in AI. The vision for the product is very inspiring.", likes: 98, type: "review" },
-];
-
-const MESSAGES_DATA = [
-    {
-        id: 1, from: "Kavya Sharma", avatar: "KS", color: C.navy, role: "Sr. Product Designer", time: "5m ago", preview: "Thank you for reaching out! I'd love to discuss...", unread: true, messages: [
-            { from: "me", text: "Hi Kavya! We noticed your profile and think you'd be a great fit for our Senior Product Designer role.", time: "10:30 AM" },
-            { from: "them", text: "Thank you for reaching out! I'd love to discuss this opportunity further. Could you share more about the role?", time: "10:45 AM" },
-            { from: "me", text: "Absolutely! The role involves leading design systems, collaborating with product and engineering, and shaping the visual direction of our core platform.", time: "11:02 AM" },
-        ]
-    },
-    {
-        id: 2, from: "Arjun Mehta", avatar: "AM", color: "#0D9488", role: "Full Stack Engineer", time: "1h ago", preview: "I have 5 years of experience with React and Node...", unread: true, messages: [
-            { from: "them", text: "I saw your job posting for Full Stack Engineer. I have 5 years of experience with React and Node.js.", time: "9:15 AM" },
-            { from: "me", text: "Great background! We'd love to schedule a technical screen. Are you available this week?", time: "9:30 AM" },
-        ]
-    },
-    {
-        id: 3, from: "Sneha Pillai", avatar: "SP", color: C.purple, role: "Data Scientist", time: "3h ago", preview: "Looking forward to the interview tomorrow!", unread: false, messages: [
-            { from: "them", text: "Looking forward to the interview tomorrow! Should I prepare anything specific?", time: "Yesterday 3:00 PM" },
-            { from: "me", text: "Please prepare a brief walkthrough of a data project you're proud of. 10 minutes max.", time: "Yesterday 3:20 PM" },
-            { from: "them", text: "Perfect, I'll have something ready. See you then!", time: "Yesterday 3:25 PM" },
-        ]
-    },
-    {
-        id: 4, from: "Rohit Nair", avatar: "RN", color: "#DC2626", role: "DevOps Engineer", time: "1d ago", preview: "Can we reschedule? I have a conflict on Friday.", unread: false, messages: [
-            { from: "them", text: "Can we reschedule? I have a conflict on Friday.", time: "Yesterday 10:00 AM" },
-            { from: "me", text: "No problem! How does Monday 3 PM work?", time: "Yesterday 10:10 AM" },
-            { from: "them", text: "Monday works perfectly, thank you!", time: "Yesterday 10:15 AM" },
-        ]
-    },
-];
-
 const CONVERSATION_COLORS = [C.navy, "#0D9488", C.purple, "#DC2626", C.indigo, C.amber, C.sky, C.greenD];
 
 const getInitialsFromName = (name = "Candidate") =>
@@ -525,7 +458,7 @@ export default function EmployerProfile() {
     const [showPost, setShowPost] = useState(false);
     const [activeConv, setActiveConv] = useState(0);
     const [msgInput, setMsgInput] = useState("");
-    const [messages, setMessages] = useState(MESSAGES_DATA);
+    const [messages, setMessages] = useState([]);
     const [liked, setLiked] = useState({});
     const [following, setFollowing] = useState(false);
     const [jobFilter, setJobFilter] = useState("all");
@@ -567,10 +500,7 @@ export default function EmployerProfile() {
     }, [dashboard?.company]);
 
     const conversationSeed = useMemo(
-        () => {
-            const liveThreads = buildConversationThreads(dashboard?.applications || []);
-            return liveThreads.length ? liveThreads : MESSAGES_DATA;
-        },
+        () => buildConversationThreads(dashboard?.applications || []),
         [dashboard?.applications],
     );
 
@@ -930,33 +860,37 @@ export default function EmployerProfile() {
         setCallStatus("idle");
     }, [activeConversation?.id, localCallStream]);
 
-    const filteredJobs = JOBS.filter(j =>
-        jobFilter === "all" || (jobFilter === "urgent" && j.urgent) || j.dept.toLowerCase() === jobFilter
+    const jobs = dashboard?.jobs || [];
+    const filteredJobs = jobs.filter(
+        (j) =>
+            jobFilter === "all" ||
+            (jobFilter === "urgent" && j.requiresPackageOverride) ||
+            (j.department || "").toLowerCase() === jobFilter,
     );
 
     const NAV_TABS = ["Overview", "Jobs", "People", "Updates", "Analytics"];
     const company = {
-        ...COMPANY,
-        ...(dashboard?.company || {}),
-        name: dashboard?.company?.name || employerSession.current?.companyName || COMPANY.name,
-        tagline: dashboard?.company?.tagline || COMPANY.tagline,
+        name: dashboard?.company?.name || employerSession.current?.companyName || "",
+        tagline: dashboard?.company?.tagline || "",
         location: dashboard?.company?.location?.city
-            ? [dashboard.company.location.city, dashboard.company.location.region, dashboard.company.location.zone].filter(Boolean).join(", ")
-            : COMPANY.location,
-        website: dashboard?.company?.website || COMPANY.website,
-        about: dashboard?.company?.about || COMPANY.about,
-        type: dashboard?.company?.type || COMPANY.type,
-        followers: dashboard?.company?.followers || COMPANY.followers,
-        connections: dashboard?.company?.connections || COMPANY.connections,
-        plan: dashboard?.company?.packageType || COMPANY.plan,
+            ? [dashboard.company.location.city, dashboard.company.location.region, dashboard.company.location.zone]
+                  .filter(Boolean)
+                  .join(", ")
+            : "",
+        website: dashboard?.company?.website || "",
+        about: dashboard?.company?.about || "",
+        type: dashboard?.company?.type || "",
+        followers: dashboard?.company?.followers || "",
+        connections: dashboard?.company?.connections || "",
+        plan: dashboard?.company?.packageType || "",
         logoUrl: dashboard?.company?.logoUrl || "",
         coverImageUrl: dashboard?.company?.coverImageUrl || "",
-        industry: dashboard?.company?.industry || COMPANY.industry,
-        size: dashboard?.company?.companySize || COMPANY.size,
-        founded: dashboard?.company?.foundedYear || COMPANY.founded,
-        specialties: dashboard?.company?.specialties || COMPANY.specialties,
+        industry: dashboard?.company?.industry || "",
+        size: dashboard?.company?.companySize || "",
+        founded: dashboard?.company?.foundedYear || "",
+        specialties: dashboard?.company?.specialties || [],
     };
-    const companyReviews = dashboard?.reviews?.length ? dashboard.reviews : REVIEWS;
+    const companyReviews = dashboard?.reviews || [];
 
     const tracking = dashboard?.tracking || {};
     const overviewCards = [
@@ -965,6 +899,47 @@ export default function EmployerProfile() {
         { label: "Shortlisted", val: Number((dashboard?.applications || []).filter((application) => application.status === "SHORTLISTED").length || 0), icon: FiTarget, color: C.indigo },
         { label: "Offers Sent", val: Number((dashboard?.applications || []).filter((application) => application.status === "OFFERED").length || 0), icon: FiAward, color: C.amber },
     ];
+    const uniqueCandidateApplications = useMemo(() => {
+        const seen = new Set();
+        return (dashboard?.applications || []).filter((application) => {
+            const candidateKey = String(application.candidateId || application.candidateEmail || application.candidateName || application.id || "");
+            if (!candidateKey || seen.has(candidateKey)) return false;
+            seen.add(candidateKey);
+            return true;
+        });
+    }, [dashboard?.applications]);
+
+    const candidateMatchScore = (status = "") => {
+        const normalized = String(status || "").toUpperCase();
+        if (normalized === "OFFERED") return 98;
+        if (normalized === "SHORTLISTED") return 94;
+        if (normalized === "INTERVIEW") return 90;
+        if (normalized === "SCREENING") return 86;
+        return 80;
+    };
+
+    const topMatches = useMemo(
+        () =>
+            uniqueCandidateApplications.slice(0, 4).map((application, index) => ({
+                id: String(application.candidateId || application.id || index),
+                name: application.candidateName || "Candidate",
+                role: application.candidateCurrentTitle || application.jobTitle || "Candidate",
+                match: candidateMatchScore(application.status),
+                avatar: getInitialsFromName(application.candidateName),
+                color: CONVERSATION_COLORS[index % CONVERSATION_COLORS.length],
+            })),
+        [uniqueCandidateApplications],
+    );
+
+    const people = uniqueCandidateApplications.slice(0, 4).map((application, index) => ({
+        id: String(application.candidateId || application.id || index),
+        name: application.candidateName || "Candidate",
+        role: application.candidateCurrentTitle || application.jobTitle || "Candidate",
+        location: application.candidateCity || "",
+        avatar: getInitialsFromName(application.candidateName),
+        color: CONVERSATION_COLORS[index % CONVERSATION_COLORS.length],
+    }));
+
     const analytics = useMemo(() => {
         const jobs = dashboard?.jobs || [];
         const applications = dashboard?.applications || [];
@@ -1454,18 +1429,22 @@ export default function EmployerProfile() {
                 <Card className="ep-card" style={{ padding: "18px" }}>
                     <div style={{ fontFamily: C.fd, fontSize: 16, fontWeight: 800, color: C.s900, marginBottom: 14 }}>People</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 12 }}>
-                        {TEAM.map((person) => (
-                            <div key={person.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, background: C.s50, border: `1px solid ${C.s100}` }}>
-                                <Avatar initials={person.avatar} color={person.color} size={42} radius={12} />
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontFamily: C.fd, fontSize: 13.5, fontWeight: 800, color: C.s900 }}>{person.name}</div>
-                                    <div style={{ fontSize: 12, color: C.s500 }}>{person.role}</div>
+                        {people.length > 0 ? (
+                            people.map((person) => (
+                                <div key={person.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, background: C.s50, border: `1px solid ${C.s100}` }}>
+                                    <Avatar initials={person.avatar} color={person.color} size={42} radius={12} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontFamily: C.fd, fontSize: 13.5, fontWeight: 800, color: C.s900 }}>{person.name}</div>
+                                        <div style={{ fontSize: 12, color: C.s500 }}>{person.role}{person.location ? ` · ${person.location}` : ""}</div>
+                                    </div>
+                                    <button onClick={() => setShowMsg(true)} style={{ width: 32, height: 32, borderRadius: 9, border: "none", background: "#EEF2FF", color: C.navy, cursor: "pointer", flexShrink: 0 }}>
+                                        <FiMail size={13} />
+                                    </button>
                                 </div>
-                                <button onClick={() => setShowMsg(true)} style={{ width: 32, height: 32, borderRadius: 9, border: "none", background: "#EEF2FF", color: C.navy, cursor: "pointer", flexShrink: 0 }}>
-                                    <FiMail size={13} />
-                                </button>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <div style={{ color: C.s500, fontSize: 13 }}>No candidate conversations are available yet. Once applications arrive, they’ll appear here.</div>
+                        )}
                     </div>
                 </Card>
             )}
@@ -1562,7 +1541,7 @@ export default function EmployerProfile() {
                     padding: "12px 20px", borderTop: `1px solid ${C.s100}`,
                     display: "flex", justifyContent: "space-between", alignItems: "center"
                 }}>
-                    <span style={{ fontSize: 12, color: C.s400, fontWeight: 600 }}>Showing {filteredJobs.length} of {JOBS.length} open roles</span>
+                    <span style={{ fontSize: 12, color: C.s400, fontWeight: 600 }}>Showing {filteredJobs.length} of {jobs.length} open roles</span>
                     <Btn variant="ghost" onClick={() => navigate("/jobs")} style={{ fontSize: 12, padding: "6px 13px" }}>View all jobs <FiChevronRight size={12} /></Btn>
                 </div>
             </Card>
@@ -1718,12 +1697,7 @@ export default function EmployerProfile() {
                         padding: "3px 9px", borderRadius: 100, fontFamily: C.fd
                     }}>AI-Ranked</span>
                 </div>
-                {[
-                    { name: "Kavya Sharma", role: "Sr. Product Designer", match: 97, avatar: "KS", color: C.navy },
-                    { name: "Arjun Mehta", role: "Full Stack Engineer", match: 93, avatar: "AM", color: "#0D9488" },
-                    { name: "Priya Anand", role: "Product Manager", match: 91, avatar: "PA", color: "#B45309" },
-                    { name: "Sneha Pillai", role: "Data Scientist", match: 89, avatar: "SP", color: C.purple },
-                ].map((c, i) => (
+                {(topMatches.length ? topMatches : []).map((c, i) => (
                     <div key={i} style={{
                         display: "flex", alignItems: "center", gap: 10, padding: "10px 0",
                         borderBottom: i < 3 ? `1px solid ${C.s100}` : "none"
@@ -1749,6 +1723,11 @@ export default function EmployerProfile() {
                         </button>
                     </div>
                 ))}
+                {topMatches.length === 0 && (
+                    <div style={{ color: C.s500, fontSize: 13, padding: "18px 0" }}>
+                        No candidate matches yet. Review your open jobs or refresh the applicant pool to see top matches here.
+                    </div>
+                )}
             </Card>
 
             {/* ─ Premium X Promo ─ */}
