@@ -164,40 +164,54 @@ export default function EmployerDashboard() {
 
     useEffect(() => {
         const load = async () => {
-            await Promise.all([
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"),
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"),
-            ]);
-            const { gsap, ScrollTrigger } = window;
-            if (!gsap) return;
-            gsap.registerPlugin(ScrollTrigger);
-
-            /* Sidebar slide-in */
-            gsap.fromTo(".db-sidebar", { x: -280, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "power3.out" });
-
-            /* Header slide down */
-            gsap.fromTo(".db-header", { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out", delay: 0.15 });
-
-            /* Staggered stat cards */
-            gsap.fromTo(".db-stat", { opacity: 0, y: 36, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.1, ease: "back.out(1.3)", delay: 0.35 });
-
-            /* Content sections */
-            gsap.fromTo(".db-section", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.65, stagger: 0.12, ease: "power3.out", delay: 0.55 });
-
-            /* Candidate cards */
-            gsap.fromTo(".db-cand", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, stagger: 0.08, ease: "power2.out", delay: 0.75 });
-
-            /* Pipeline bars */
-            gsap.fromTo(".db-pipe-fill", { scaleX: 0 }, { scaleX: 1, duration: 1.1, stagger: 0.1, ease: "power3.out", delay: 0.9, transformOrigin: "left center" });
-
-            /* Number counters */
-            document.querySelectorAll(".db-counter").forEach(el => {
-                const target = parseInt(el.dataset.val, 10);
-                gsap.fromTo({ val: 0 }, {
-                    val: target, duration: 1.8, ease: "power2.out", delay: 0.5,
-                    onUpdate: function () { el.textContent = Math.round(this.targets()[0].val).toLocaleString(); }
-                });
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                if (typeof window === 'undefined') return resolve();
+                if (document.querySelector(`script[src="${src}"]`)) return resolve();
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve();
+                s.onerror = (e) => reject(e);
+                document.head.appendChild(s);
             });
+
+            try {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js');
+                const { gsap } = window;
+                const { ScrollTrigger } = window || {};
+                if (!gsap) return;
+                try { gsap.registerPlugin && gsap.registerPlugin(ScrollTrigger); } catch { }
+
+                /* Sidebar slide-in */
+                gsap.fromTo(".db-sidebar", { x: -280, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "power3.out" });
+
+                /* Header slide down */
+                gsap.fromTo(".db-header", { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out", delay: 0.15 });
+
+                /* Staggered stat cards */
+                gsap.fromTo(".db-stat", { opacity: 0, y: 36, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.1, ease: "back.out(1.3)", delay: 0.35 });
+
+                /* Content sections */
+                gsap.fromTo(".db-section", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.65, stagger: 0.12, ease: "power3.out", delay: 0.55 });
+
+                /* Candidate cards */
+                gsap.fromTo(".db-cand", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, stagger: 0.08, ease: "power2.out", delay: 0.75 });
+
+                /* Pipeline bars */
+                gsap.fromTo(".db-pipe-fill", { scaleX: 0 }, { scaleX: 1, duration: 1.1, stagger: 0.1, ease: "power3.out", delay: 0.9, transformOrigin: "left center" });
+
+                /* Number counters */
+                document.querySelectorAll(".db-counter").forEach(el => {
+                    const target = parseInt(el.dataset.val, 10);
+                    gsap.fromTo({ val: 0 }, {
+                        val: target, duration: 1.8, ease: "power2.out", delay: 0.5,
+                        onUpdate: function () { el.textContent = Math.round(this.targets()[0].val).toLocaleString(); }
+                    });
+                });
+            } catch (err) {
+                // ignore animation errors
+            }
         };
         load();
     }, []);
@@ -225,8 +239,8 @@ export default function EmployerDashboard() {
         return () => { active = false; };
     }, []);
 
-    const jobs = dashboard?.jobs || [];
-    const applications = dashboard?.applications || [];
+    const jobs = Array.isArray(dashboard?.jobs) ? dashboard.jobs : (dashboard?.jobs?.data || []);
+    const applications = Array.isArray(dashboard?.applications) ? dashboard.applications : (dashboard?.applications?.data || []);
     const uniqueCandidates = useMemo(() => {
         const seen = new Set();
         return applications.filter((application) => {

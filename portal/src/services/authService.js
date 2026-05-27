@@ -174,6 +174,24 @@ const authService = {
     }
   },
 
+  getEmployerApplications: async () => {
+    try {
+      const response = await api.get('/company-panel/applications');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch employer applications' };
+    }
+  },
+
+  employerCreateJob: async (payload) => {
+    try {
+      const response = await api.post('/company-panel/jobs', payload);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Job creation failed' };
+    }
+  },
+
   getEmployerChats: async () => {
     try {
       const response = await api.get('/company-panel/chats');

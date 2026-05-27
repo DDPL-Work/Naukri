@@ -75,10 +75,14 @@ const buildConversationMessages = (application) => {
     ];
 };
 
-const buildConversationThreads = (applications = []) => {
+    const buildConversationThreads = (applications = []) => {
     const threadsByCandidate = new Map();
 
-    (applications || []).forEach((application, index) => {
+    const apps = Array.isArray(applications)
+        ? applications
+        : (applications && Array.isArray(applications.data) ? applications.data : []);
+
+    (apps || []).forEach((application, index) => {
         const candidateId = application.candidateId || application.id || `candidate-${index}`;
         const candidateName = application.candidateName || "Candidate";
         const avatar = getInitialsFromName(candidateName);
@@ -500,7 +504,7 @@ export default function EmployerProfile() {
     }, [dashboard?.company]);
 
     const conversationSeed = useMemo(
-        () => buildConversationThreads(dashboard?.applications || []),
+        () => buildConversationThreads(Array.isArray(dashboard?.applications) ? dashboard.applications : (dashboard?.applications?.data || [])),
         [dashboard?.applications],
     );
 
@@ -580,7 +584,21 @@ export default function EmployerProfile() {
             try {
                 const response = await authService.getEmployerDashboard();
                 if (!active) return;
-                setDashboard(response?.data || null);
+                let dashboardData = response?.data || null;
+
+                // If the dashboard doesn't include recent applications, fetch them separately
+                try {
+                    const hasApps = (dashboardData && Array.isArray(dashboardData.applications) && dashboardData.applications.length > 0);
+                    if (!hasApps) {
+                        const appsResp = await authService.getEmployerApplications();
+                        const apps = appsResp?.data || appsResp?.applications || [];
+                        dashboardData = { ...(dashboardData || {}), applications: apps };
+                    }
+                } catch (err) {
+                    // ignore; keep whatever dashboard data we already have
+                }
+
+                setDashboard(dashboardData || null);
 
                 const nextSession = {
                     ...(savedSession || {}),
@@ -751,13 +769,32 @@ export default function EmployerProfile() {
         }
     }, [activeConv, messages.length]);
 
-    /* GSAP */
+    /* GSAP: dynamically load via script tag to avoid module import side-effects */
     useEffect(() => {
+        const loadScript = (src) => new Promise((resolve, reject) => {
+            if (typeof window === 'undefined') return resolve();
+            if (document.querySelector(`script[src="${src}"]`)) return resolve();
+            const s = document.createElement('script');
+            s.src = src;
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = (e) => reject(e);
+            document.head.appendChild(s);
+        });
+
         (async () => {
-            await import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js");
-            const { gsap } = window; if (!gsap) return;
-            gsap.fromTo(".ep-cover", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: .6, ease: "power3.out" });
-            gsap.fromTo(".ep-card", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .55, stagger: .07, ease: "power3.out", delay: .2 });
+            try {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js');
+                const { gsap } = window;
+                const { ScrollTrigger } = window || {};
+                if (!gsap) return;
+                try { gsap.registerPlugin && gsap.registerPlugin(ScrollTrigger); } catch { /* ignore */ }
+                gsap.fromTo(".ep-cover", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: .6, ease: "power3.out" });
+                gsap.fromTo(".ep-card", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .55, stagger: .07, ease: "power3.out", delay: .2 });
+            } catch (err) {
+                // Loading animation failed — silently ignore to avoid breaking the UI
+            }
         })();
     }, []);
 
@@ -860,7 +897,9 @@ export default function EmployerProfile() {
         setCallStatus("idle");
     }, [activeConversation?.id, localCallStream]);
 
-    const jobs = dashboard?.jobs || [];
+    const normalizedJobs = Array.isArray(dashboard?.jobs) ? dashboard.jobs : (dashboard?.jobs?.data || []);
+    const normalizedApplications = Array.isArray(dashboard?.applications) ? dashboard.applications : (dashboard?.applications?.data || []);
+    const jobs = normalizedJobs;
     const filteredJobs = jobs.filter(
         (j) =>
             jobFilter === "all" ||
@@ -895,19 +934,19 @@ export default function EmployerProfile() {
     const tracking = dashboard?.tracking || {};
     const overviewCards = [
         { label: "Active Jobs", val: Number(tracking.activeApprovedJobs ?? dashboard?.company?.activeJobCount ?? 0), icon: FiBriefcase, color: C.navy },
-        { label: "Applications", val: Number(tracking.totalApplications ?? 0), icon: FiUsers, color: C.green },
-        { label: "Shortlisted", val: Number((dashboard?.applications || []).filter((application) => application.status === "SHORTLISTED").length || 0), icon: FiTarget, color: C.indigo },
-        { label: "Offers Sent", val: Number((dashboard?.applications || []).filter((application) => application.status === "OFFERED").length || 0), icon: FiAward, color: C.amber },
+        { label: "Applications", val: Number(tracking.totalApplications ?? normalizedApplications.length ?? 0), icon: FiUsers, color: C.green },
+        { label: "Shortlisted", val: Number(normalizedApplications.filter((application) => application.status === "SHORTLISTED").length || 0), icon: FiTarget, color: C.indigo },
+        { label: "Offers Sent", val: Number(normalizedApplications.filter((application) => application.status === "OFFERED").length || 0), icon: FiAward, color: C.amber },
     ];
     const uniqueCandidateApplications = useMemo(() => {
         const seen = new Set();
-        return (dashboard?.applications || []).filter((application) => {
+        return normalizedApplications.filter((application) => {
             const candidateKey = String(application.candidateId || application.candidateEmail || application.candidateName || application.id || "");
             if (!candidateKey || seen.has(candidateKey)) return false;
             seen.add(candidateKey);
             return true;
         });
-    }, [dashboard?.applications]);
+    }, [normalizedApplications]);
 
     const candidateMatchScore = (status = "") => {
         const normalized = String(status || "").toUpperCase();
@@ -920,7 +959,7 @@ export default function EmployerProfile() {
 
     const topMatches = useMemo(
         () =>
-            uniqueCandidateApplications.slice(0, 4).map((application, index) => ({
+            uniqueCandidateApplications.slice(0, 5).map((application, index) => ({
                 id: String(application.candidateId || application.id || index),
                 name: application.candidateName || "Candidate",
                 role: application.candidateCurrentTitle || application.jobTitle || "Candidate",
@@ -931,7 +970,7 @@ export default function EmployerProfile() {
         [uniqueCandidateApplications],
     );
 
-    const people = uniqueCandidateApplications.slice(0, 4).map((application, index) => ({
+    const people = uniqueCandidateApplications.slice(0, 5).map((application, index) => ({
         id: String(application.candidateId || application.id || index),
         name: application.candidateName || "Candidate",
         role: application.candidateCurrentTitle || application.jobTitle || "Candidate",
@@ -941,8 +980,8 @@ export default function EmployerProfile() {
     }));
 
     const analytics = useMemo(() => {
-        const jobs = dashboard?.jobs || [];
-        const applications = dashboard?.applications || [];
+        const jobs = normalizedJobs;
+        const applications = normalizedApplications;
         const jobSeries = buildMonthlySeries(jobs, (job) => job.createdAt || job.updatedAt);
         const applicationSeries = buildMonthlySeries(applications, (application) => application.appliedAt || application.updatedAt);
         const statusCounts = buildStatusCounts(applications);
@@ -1216,11 +1255,10 @@ export default function EmployerProfile() {
                             size={34} radius={9} fontSize={12} />
                     </div>
             </div>
-        </header >
+        </header>
 
-            {/* ══ PAGE BODY ════════════════════════════════════════ */ }
-            < main style = {{ maxWidth: 1160, margin: "0 auto", padding: "24px 20px 60px" }
-}>
+            {/* ══ PAGE BODY ════════════════════════════════════════ */}
+            <main style={{ maxWidth: 1160, margin: "0 auto", padding: "24px 20px 60px" }}>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
 
         {/* ── LEFT COLUMN ────────────────────────────────── */}
@@ -1697,35 +1735,59 @@ export default function EmployerProfile() {
                         padding: "3px 9px", borderRadius: 100, fontFamily: C.fd
                     }}>AI-Ranked</span>
                 </div>
-                {(topMatches.length ? topMatches : []).map((c, i) => (
-                    <div key={i} style={{
-                        display: "flex", alignItems: "center", gap: 10, padding: "10px 0",
-                        borderBottom: i < 3 ? `1px solid ${C.s100}` : "none"
+                {(topMatches.length ? topMatches : []).slice(0, 5).map((c, i) => (
+                    <div key={c.id} style={{
+                        display: "flex", alignItems: "center", gap: 12, padding: "12px 0",
+                        borderBottom: i < (Math.min(topMatches.length, 5) - 1) ? `1px solid ${C.s100}` : "none"
                     }}>
-                        <Avatar initials={c.avatar} color={c.color} size={38} radius={11} />
+                        <Avatar initials={c.avatar} color={c.color} size={44} radius={12} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: C.fd, fontSize: 13, fontWeight: 800, color: C.s900 }}>{c.name}</div>
-                            <div style={{ fontSize: 11.5, color: C.s500, marginTop: 1 }}>{c.role}</div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                                <div style={{ flex: 1, height: 3, borderRadius: 100, background: C.s100 }}>
-                                    <div style={{ height: "100%", borderRadius: 100, background: C.green, width: `${c.match}%` }} />
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontFamily: C.fd, fontSize: 14, fontWeight: 800, color: C.s900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                                    <div style={{ fontSize: 12, color: C.s500, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.role}</div>
                                 </div>
-                                <span style={{ fontSize: 11, fontWeight: 800, color: C.green, fontFamily: C.fd }}>{c.match}%</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{c.match}%</div>
+                                </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                                <div style={{ flex: 1, height: 6, borderRadius: 999, background: C.s100 }}>
+                                    <div style={{ height: "100%", borderRadius: 999, background: C.green, width: `${c.match}%` }} />
+                                </div>
+                                <div style={{ fontSize: 12, color: C.s500 }}>{/* optional metadata */}</div>
                             </div>
                         </div>
                         <button onClick={() => setShowMsg(true)}
+                            aria-label={`Message ${c.name}`}
+                            title={`Message ${c.name}`}
                             style={{
-                                width: 30, height: 30, borderRadius: 8, background: "#EEF2FF",
+                                width: 36, height: 36, borderRadius: 10, background: "#EEF2FF",
                                 border: "none", display: "flex", alignItems: "center",
                                 justifyContent: "center", cursor: "pointer", color: C.navy, flexShrink: 0
                             }}>
-                            <FiMail size={13} />
+                            <FiMail size={15} />
                         </button>
                     </div>
                 ))}
                 {topMatches.length === 0 && (
                     <div style={{ color: C.s500, fontSize: 13, padding: "18px 0" }}>
                         No candidate matches yet. Review your open jobs or refresh the applicant pool to see top matches here.
+                    </div>
+                )}
+                {topMatches.length > 0 && (
+                    <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                        <button onClick={() => navigate('/resume-database')} style={{
+                            flex: 1, padding: '10px 12px', borderRadius: 12, border: '1px solid #E2E8F0',
+                            background: '#fff', color: C.navy, fontWeight: 800, cursor: 'pointer'
+                        }}>
+                            View all candidates
+                        </button>
+                        <button onClick={() => setShowMsg(true)} style={{
+                            padding: '10px 12px', borderRadius: 12, border: 'none', background: C.green, color: '#fff', fontWeight: 800, cursor: 'pointer'
+                        }}>
+                            Message top match
+                        </button>
                     </div>
                 )}
             </Card>
@@ -1841,7 +1903,7 @@ export default function EmployerProfile() {
 {/* ════════════════════════════════════════════════════
             MODAL: MESSAGES
         ════════════════════════════════════════════════════ */}
-    < Modal open = { showMsg } onClose = {()=> setShowMsg(false)} title = "Messages" width = { 780} noPad >
+    <Modal open={showMsg} onClose={() => setShowMsg(false)} title="Messages" width={780} noPad>
         <div style={{ display: "flex", height: 520 }}>
             {/* Conv list */}
             <div style={{ width: 260, borderRight: `1px solid ${C.s100}`, overflowY: "auto", flexShrink: 0 }}>
@@ -1976,7 +2038,7 @@ export default function EmployerProfile() {
                 </div>
             </div>
         </div>
-        </Modal >
+        </Modal>
         <Modal open={showCall} onClose={endCall} title={`${callMode === "VIDEO" ? "Video" : "Audio"} Call`} width={560} noPad>
             <div style={{ padding: 20, display: "grid", gap: 16 }}>
                 <div style={{
@@ -2039,9 +2101,9 @@ export default function EmployerProfile() {
 {/* ════════════════════════════════════════════════════
             MODAL: ANALYTICS
         ════════════════════════════════════════════════════ */}
-    < Modal open = { showAna } onClose = {()=> setShowAna(false)} title = "Analytics Dashboard" width = { 860} >
-        {/* Tab bar */ }
-        < div style = {{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+    <Modal open={showAna} onClose={() => setShowAna(false)} title="Analytics Dashboard" width={860}>
+        {/* Tab bar */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
         {
             ["overview", "traffic", "pipeline", "sources"].map(t => (
                 <button key={t} className={`ep-ana-tab${anaTab === t ? " active" : ""}`}
@@ -2050,13 +2112,13 @@ export default function EmployerProfile() {
                 </button>
             ))
         }
-            < div style = {{ marginLeft: "auto" }}>
+            <div style={{ marginLeft: "auto" }}>
                 <Btn variant="ghost" style={{ fontSize: 12, padding: "7px 13px" }}><FiDownload size={12} /> Export CSV</Btn>
-            </div >
-          </div >
+            </div>
+          </div>
 
-    {/* KPI row */ }
-    < div style = {{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+    {/* KPI row */}
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
     {
         [
         { label: "Active Jobs", val: analytics.kpis[0].val, change: analytics.kpis[0].change, up: analytics.kpis[0].up, color: C.navy },
@@ -2156,7 +2218,7 @@ export default function EmployerProfile() {
                         })()}
                     </svg>
                     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                        <div style={{ fontFamily: C.fd, fontSize: 22, fontWeight: 800, color: C.s900 }}>{formatCompactNumber(tracking.totalApplications ?? dashboard?.applications?.length ?? 0)}</div>
+                        <div style={{ fontFamily: C.fd, fontSize: 22, fontWeight: 800, color: C.s900 }}>{formatCompactNumber(tracking.totalApplications ?? normalizedApplications.length ?? 0)}</div>
                         <div style={{ fontSize: 10, color: C.s400, fontWeight: 700, textTransform: "uppercase" }}>Total</div>
                     </div>
                 </div>
@@ -2209,9 +2271,9 @@ export default function EmployerProfile() {
 {/* ════════════════════════════════════════════════════
             MODAL: PREMIUM X
         ════════════════════════════════════════════════════ */}
-    < Modal open = { showPro } onClose = {()=> setShowPro(false)} title = "Premium X — Supercharge Hiring" width = { 680} >
-        {/* Hero */ }
-        < div style = {{
+    <Modal open={showPro} onClose={() => setShowPro(false)} title="Premium X — Supercharge Hiring" width={680}>
+        {/* Hero */}
+        <div style={{
             background: `linear-gradient(135deg,#fffbeb,#fef3c7)`,
                 border: `1px solid #fde68a`, borderRadius: 14, padding: "20px 22px", marginBottom: 24,
                     display: "flex", gap: 16, alignItems: "center"
@@ -2226,10 +2288,10 @@ export default function EmployerProfile() {
                 The most powerful hiring suite for growing teams. Get unlimited access to candidate insights, AI-powered matching, and priority placement.
               </div>
             </div>
-          </div >
+          </div>
 
-    {/* Plans */ }
-    < div style = {{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 24 }}>
+    {/* Plans */}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 24 }}>
     {
         [
         { name: "Starter", price: "₹4,999", period: "/mo", features: ["5 active jobs", "50 candidate views", "Basic analytics", "Email support"], color: C.sky, best: false },
@@ -2280,8 +2342,8 @@ export default function EmployerProfile() {
     }
           </div >
 
-    {/* Feature grid */ }
-    < div style = {{ borderTop: `1px solid ${C.s100}`, paddingTop: 20 }}>
+    {/* Feature grid */}
+    <div style={{ borderTop: `1px solid ${C.s100}`, paddingTop: 20 }}>
             <div style={{ fontFamily:C.fd, fontSize:14, fontWeight:800, color:C.s900, marginBottom:14 }}>What's included in all plans</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               {[
@@ -2305,13 +2367,13 @@ export default function EmployerProfile() {
                 </div>
               ))}
             </div>
-          </div >
-        </Modal >
+          </div>
+        </Modal>
 
 {/* ════════════════════════════════════════════════════
             MODAL: POST A JOB
         ════════════════════════════════════════════════════ */}
-    < Modal open = { showPost } onClose = {()=> setShowPost(false)} title = "Post a New Job" width = { 620} >
+    <Modal open={showPost} onClose={() => setShowPost(false)} title="Post a New Job" width={620}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {[
                 { label: "Job Title", placeholder: "e.g. Senior Product Designer", type: "text" },

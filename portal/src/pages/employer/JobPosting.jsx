@@ -46,26 +46,40 @@ export default function JobPosting() {
     useEffect(() => {
         const load = async () => {
             if (typeof window.gsap !== "undefined" && window.gsap.version) return;
-            await Promise.all([
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"),
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"),
-            ]);
-            const { gsap, ScrollTrigger } = window;
-            if (!gsap) return;
-            gsap.registerPlugin(ScrollTrigger);
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                if (typeof window === 'undefined') return resolve();
+                if (document.querySelector(`script[src="${src}"]`)) return resolve();
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve();
+                s.onerror = (e) => reject(e);
+                document.head.appendChild(s);
+            });
 
-            gsap.timeline({ defaults: { ease: "power3.out" } })
-                .from(".jp-eyebrow", { opacity: 0, y: 20, duration: 0.6 })
-                .from(".jp-word", { opacity: 0, y: 55, stagger: 0.07, duration: 0.85 }, "-=0.2")
-                .from(".jp-sub", { opacity: 0, y: 20, duration: 0.6 }, "-=0.3")
-                .from(".jp-ctas", { opacity: 0, y: 18, duration: 0.5 }, "-=0.25")
-                .from(".jp-badge", { opacity: 0, scale: 0.88, stagger: 0.08, duration: 0.45 }, "-=0.2")
-                .from(".jp-mockup", { opacity: 0, x: 70, duration: 0.95 }, "-=0.7");
+            try {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js');
+                const { gsap } = window;
+                const { ScrollTrigger } = window || {};
+                if (!gsap) return;
+                try { gsap.registerPlugin && gsap.registerPlugin(ScrollTrigger); } catch { }
 
-            gsap.from(".jp-stat", { scrollTrigger: { trigger: ".jp-stats", start: "top 80%" }, opacity: 0, y: 36, stagger: 0.12, duration: 0.7 });
-            gsap.from(".jp-step", { scrollTrigger: { trigger: ".jp-how", start: "top 75%" }, opacity: 0, x: -36, stagger: 0.13, duration: 0.65 });
-            gsap.from(".jp-plan", { scrollTrigger: { trigger: ".jp-plans", start: "top 75%" }, opacity: 0, y: 56, stagger: 0.14, duration: 0.75, ease: "back.out(1.3)" });
-            gsap.from(".jp-faq", { scrollTrigger: { trigger: ".jp-faqs", start: "top 80%" }, opacity: 0, y: 28, stagger: 0.1, duration: 0.6 });
+                gsap.timeline({ defaults: { ease: "power3.out" } })
+                    .from(".jp-eyebrow", { opacity: 0, y: 20, duration: 0.6 })
+                    .from(".jp-word", { opacity: 0, y: 55, stagger: 0.07, duration: 0.85 }, "-=0.2")
+                    .from(".jp-sub", { opacity: 0, y: 20, duration: 0.6 }, "-=0.3")
+                    .from(".jp-ctas", { opacity: 0, y: 18, duration: 0.5 }, "-=0.25")
+                    .from(".jp-badge", { opacity: 0, scale: 0.88, stagger: 0.08, duration: 0.45 }, "-=0.2")
+                    .from(".jp-mockup", { opacity: 0, x: 70, duration: 0.95 }, "-=0.7");
+
+                gsap.from(".jp-stat", { scrollTrigger: { trigger: ".jp-stats", start: "top 80%" }, opacity: 0, y: 36, stagger: 0.12, duration: 0.7 });
+                gsap.from(".jp-step", { scrollTrigger: { trigger: ".jp-how", start: "top 75%" }, opacity: 0, x: -36, stagger: 0.13, duration: 0.65 });
+                gsap.from(".jp-plan", { scrollTrigger: { trigger: ".jp-plans", start: "top 75%" }, opacity: 0, y: 56, stagger: 0.14, duration: 0.75, ease: "back.out(1.3)" });
+                gsap.from(".jp-faq", { scrollTrigger: { trigger: ".jp-faqs", start: "top 80%" }, opacity: 0, y: 28, stagger: 0.1, duration: 0.6 });
+            } catch (err) {
+                // ignore
+            }
         };
         load();
     }, []);

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 import { gsap } from 'gsap';
 import {
     FiBriefcase, FiFileText, FiUsers, FiCheckCircle,
@@ -773,6 +774,9 @@ export default function PostJob() {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [launched, setLaunched] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState('');
+    const [createdJob, setCreatedJob] = useState(null);
     const [formData, setFormData] = useState({ campaignPlan: 'Standard', cvEnabled: true });
     const contentRef = useRef(null);
     const headerRef = useRef(null);
@@ -817,18 +821,102 @@ export default function PostJob() {
         });
     };
 
-    const handleLaunch = () => {
-        animateStepOut(() => {
-            setLaunched(true);
-            setTimeout(() => {
-                if (launchRef.current) {
-                    gsap.fromTo(launchRef.current,
-                        { opacity: 0, scale: 0.88, y: 40 },
-                        { opacity: 1, scale: 1, y: 0, duration: 0.65, ease: 'back.out(1.4)' }
-                    );
-                }
-            }, 60);
-        });
+    const validateJobForm = () => {
+        if (!formData.companyName?.trim()) {
+            return { step: 1, message: 'Company name is required.' };
+        }
+        if (!formData.jobTitle?.trim()) {
+            return { step: 1, message: 'Job title is required.' };
+        }
+        if (!formData.industry) {
+            return { step: 1, message: 'Industry is required.' };
+        }
+        if (!formData.location) {
+            return { step: 1, message: 'Location is required.' };
+        }
+        if (!(formData.jobTypes || []).length) {
+            return { step: 1, message: 'Choose at least one job type.' };
+        }
+        if (!formData.salaryMin || !formData.salaryMax) {
+            return { step: 1, message: 'Salary range is required.' };
+        }
+        if (!formData.roleDescription?.trim()) {
+            return { step: 1, message: 'Job description is required.' };
+        }
+        if (!(formData.requiredSkills || []).length) {
+            return { step: 2, message: 'Please add at least one required skill.' };
+        }
+        return null;
+    };
+
+    const handleLaunch = async () => {
+        const validation = validateJobForm();
+        if (validation) {
+            setStep(validation.step);
+            setSubmitError(validation.message);
+            return;
+        }
+
+        setSubmitError('');
+        setSubmitting(true);
+
+        try {
+            const skills = Array.isArray(formData.requiredSkills)
+                ? formData.requiredSkills
+                : String(formData.requiredSkills || '')
+                    .split(',')
+                    .map((item) => item.trim())
+                    .filter(Boolean);
+
+            const experience = formData.minExp && formData.maxExp
+                ? `${formData.minExp} – ${formData.maxExp}`
+                : formData.minExp || formData.maxExp || '';
+
+            const workplaceType = (formData.jobTypes || []).includes('Remote')
+                ? 'Remote'
+                : (formData.jobTypes || []).includes('Hybrid')
+                    ? 'Hybrid'
+                    : (formData.jobTypes || []).includes('Part-time')
+                        ? 'Part-time'
+                        : (formData.jobTypes || []).includes('Contract')
+                            ? 'Contract'
+                            : 'Full-time';
+
+            const payload = {
+                title: formData.jobTitle,
+                summary: formData.roleDescription || formData.responsibilities || '',
+                description: [formData.roleDescription, formData.responsibilities]
+                    .filter(Boolean)
+                    .join('\n\n'),
+                department: formData.industry || 'General',
+                jobType: formData.jobTypes?.[0] || 'Full-time',
+                workplaceType,
+                location: formData.location,
+                experience,
+                salaryMin: Number(formData.salaryMin) || 0,
+                salaryMax: Number(formData.salaryMax) || 0,
+                skills,
+                deadline: formData.cvEndDate || undefined,
+            };
+
+            const response = await authService.employerCreateJob(payload);
+            setCreatedJob(response?.data || null);
+            animateStepOut(() => {
+                setLaunched(true);
+                setSubmitting(false);
+                setTimeout(() => {
+                    if (launchRef.current) {
+                        gsap.fromTo(launchRef.current,
+                            { opacity: 0, scale: 0.88, y: 40 },
+                            { opacity: 1, scale: 1, y: 0, duration: 0.65, ease: 'back.out(1.4)' }
+                        );
+                    }
+                }, 60);
+            });
+        } catch (error) {
+            setSubmitting(false);
+            setSubmitError(error?.message || 'Unable to post the job. Please try again.');
+        }
     };
 
     const updateData = useCallback((updater) => {
@@ -839,6 +927,15 @@ export default function PostJob() {
 
     /* ── SUCCESS STATE ── */
     if (launched) {
+        const employerSession = (() => {
+            try {
+                return JSON.parse(localStorage.getItem('employerUser') || 'null') || {};
+            } catch {
+                return {};
+            }
+        })();
+        const companyProfilePath = employerSession.companyId ? `/company/${employerSession.companyId}` : null;
+
         return (
             <div style={{ minHeight: '100vh', background: '#F0F4FA', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                 <div ref={launchRef} style={{
@@ -870,6 +967,15 @@ export default function PostJob() {
                         }}>
                             Go to Dashboard
                         </button>
+                        {companyProfilePath && (
+                            <button onClick={() => navigate(companyProfilePath)} style={{
+                                padding: '13px 28px', borderRadius: 14,
+                                background: '#E0F2FE', border: '1.5px solid #93C5FD',
+                                color: '#0C4A6E', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit'
+                            }}>
+                                View Company Profile
+                            </button>
+                        )}
                         <button onClick={() => { setLaunched(false); setStep(1); setFormData({ campaignPlan: 'Standard', cvEnabled: true }); }} style={{
                             padding: '13px 28px', borderRadius: 14,
                             background: '#F1F5F9', border: '1.5px solid #E2E8F0',
@@ -928,6 +1034,11 @@ export default function PostJob() {
                     {step === 3 && <StepScreening data={formData} setData={updateData} />}
                     {step === 4 && <StepReview data={formData} />}
                 </div>
+                {submitError && (
+                    <div style={{ maxWidth: 900, margin: '20px auto 0', padding: '14px 18px', borderRadius: 16, background: '#FEE2E2', border: '1px solid #FECACA', color: '#B91C1C', fontWeight: 700 }}>
+                        {submitError}
+                    </div>
+                )}
             </main>
 
             {/* ── STICKY FOOTER NAV ── */}
@@ -995,19 +1106,29 @@ export default function PostJob() {
                                 Continue to {STEPS[step]?.label} <FiArrowRight size={16} />
                             </button>
                         ) : (
-                            <button onClick={handleLaunch} style={{
+                            <button onClick={handleLaunch} disabled={submitting} style={{
                                 display: 'flex', alignItems: 'center', gap: 9,
                                 padding: '13px 32px', borderRadius: 14, border: 'none',
-                                background: 'linear-gradient(135deg, #65A30D 0%, #84CC16 100%)',
-                                color: '#fff', fontSize: 14.5, fontWeight: 800,
-                                cursor: 'pointer', fontFamily: 'inherit',
-                                boxShadow: '0 6px 24px rgba(132,204,22,0.38)',
+                                background: submitting ? '#A7F3D0' : 'linear-gradient(135deg, #65A30D 0%, #84CC16 100%)',
+                                color: submitting ? '#064E3B' : '#fff', fontSize: 14.5, fontWeight: 800,
+                                cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                                boxShadow: submitting ? 'none' : '0 6px 24px rgba(132,204,22,0.38)',
                                 transition: 'all 0.22s', letterSpacing: '0.01em'
                             }}
-                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(132,204,22,0.5)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(132,204,22,0.38)'; }}
+                                onMouseEnter={e => {
+                                    if (!submitting) {
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(132,204,22,0.5)';
+                                    }
+                                }}
+                                onMouseLeave={e => {
+                                    if (!submitting) {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 6px 24px rgba(132,204,22,0.38)';
+                                    }
+                                }}
                             >
-                                <FiZap size={17} /> Launch Job Campaign
+                                <FiZap size={17} /> {submitting ? 'Posting job...' : 'Launch Job Campaign'}
                             </button>
                         )}
                     </div>

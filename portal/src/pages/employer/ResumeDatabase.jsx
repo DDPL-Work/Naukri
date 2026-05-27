@@ -59,26 +59,40 @@ export default function ResumeDatabase() {
     useEffect(() => {
         const load = async () => {
             if (typeof window.gsap !== "undefined") return;
-            await Promise.all([
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"),
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"),
-            ]);
-            const { gsap, ScrollTrigger } = window;
-            if (!gsap) return;
-            gsap.registerPlugin(ScrollTrigger);
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                if (typeof window === 'undefined') return resolve();
+                if (document.querySelector(`script[src="${src}"]`)) return resolve();
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve();
+                s.onerror = (e) => reject(e);
+                document.head.appendChild(s);
+            });
 
-            gsap.timeline({ defaults: { ease: "power3.out" } })
-                .from(".rd-tag", { opacity: 0, y: 20, duration: 0.6 })
-                .from(".rd-word", { opacity: 0, y: 55, stagger: 0.07, duration: 0.85 }, "-=0.2")
-                .from(".rd-sub", { opacity: 0, y: 20, duration: 0.6 }, "-=0.3")
-                .from(".rd-sbox", { opacity: 0, y: 28, scale: 0.97, duration: 0.65 }, "-=0.25")
-                .from(".rd-fpill", { opacity: 0, y: 16, stagger: 0.06, duration: 0.45 }, "-=0.2")
-                .from(".rd-skill", { opacity: 0, scale: 0.88, stagger: 0.03, duration: 0.4 }, "-=0.1");
+            try {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js');
+                const { gsap } = window;
+                const { ScrollTrigger } = window || {};
+                if (!gsap) return;
+                try { gsap.registerPlugin && gsap.registerPlugin(ScrollTrigger); } catch { }
 
-            gsap.from(".rd-stat", { scrollTrigger: { trigger: ".rd-stats", start: "top 80%" }, opacity: 0, y: 36, stagger: 0.12, duration: 0.7 });
-            gsap.from(".rd-fc", { scrollTrigger: { trigger: ".rd-feats", start: "top 78%" }, opacity: 0, y: 44, stagger: 0.1, duration: 0.7, ease: "back.out(1.2)" });
-            gsap.from(".rd-tc", { scrollTrigger: { trigger: ".rd-talent", start: "top 78%" }, opacity: 0, x: -28, stagger: 0.09, duration: 0.6 });
-            gsap.from(".rd-biz", { scrollTrigger: { trigger: ".rd-biz-grid", start: "top 78%" }, opacity: 0, y: 40, stagger: 0.12, duration: 0.7 });
+                gsap.timeline({ defaults: { ease: "power3.out" } })
+                    .from(".rd-tag", { opacity: 0, y: 20, duration: 0.6 })
+                    .from(".rd-word", { opacity: 0, y: 55, stagger: 0.07, duration: 0.85 }, "-=0.2")
+                    .from(".rd-sub", { opacity: 0, y: 20, duration: 0.6 }, "-=0.3")
+                    .from(".rd-sbox", { opacity: 0, y: 28, scale: 0.97, duration: 0.65 }, "-=0.25")
+                    .from(".rd-fpill", { opacity: 0, y: 16, stagger: 0.06, duration: 0.45 }, "-=0.2")
+                    .from(".rd-skill", { opacity: 0, scale: 0.88, stagger: 0.03, duration: 0.4 }, "-=0.1");
+
+                gsap.from(".rd-stat", { scrollTrigger: { trigger: ".rd-stats", start: "top 80%" }, opacity: 0, y: 36, stagger: 0.12, duration: 0.7 });
+                gsap.from(".rd-fc", { scrollTrigger: { trigger: ".rd-feats", start: "top 78%" }, opacity: 0, y: 44, stagger: 0.1, duration: 0.7, ease: "back.out(1.2)" });
+                gsap.from(".rd-tc", { scrollTrigger: { trigger: ".rd-talent", start: "top 78%" }, opacity: 0, x: -28, stagger: 0.09, duration: 0.6 });
+                gsap.from(".rd-biz", { scrollTrigger: { trigger: ".rd-biz-grid", start: "top 78%" }, opacity: 0, y: 40, stagger: 0.12, duration: 0.7 });
+            } catch (err) {
+                // ignore
+            }
         };
         load();
     }, []);

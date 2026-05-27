@@ -61,28 +61,42 @@ export default function HiringAutomation() {
     useEffect(() => {
         const load = async () => {
             if (typeof window.gsap !== "undefined" && window.gsap.version) return;
-            await Promise.all([
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"),
-                import("https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"),
-            ]);
-            const { gsap, ScrollTrigger } = window;
-            if (!gsap) return;
-            gsap.registerPlugin(ScrollTrigger);
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                if (typeof window === 'undefined') return resolve();
+                if (document.querySelector(`script[src="${src}"]`)) return resolve();
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve();
+                s.onerror = (e) => reject(e);
+                document.head.appendChild(s);
+            });
 
-            gsap.timeline({ defaults: { ease: "power3.out" } })
-                .from(".ha-tag", { opacity: 0, y: 20, duration: 0.6 })
-                .from(".ha-word", { opacity: 0, y: 55, stagger: 0.07, duration: 0.85 }, "-=0.2")
-                .from(".ha-sub", { opacity: 0, y: 20, duration: 0.6 }, "-=0.3")
-                .from(".ha-ctas", { opacity: 0, y: 18, duration: 0.5 }, "-=0.25")
-                .from(".ha-mcard", { opacity: 0, y: 30, stagger: 0.1, duration: 0.6 }, "-=0.3");
+            try {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js');
+                const { gsap } = window;
+                const { ScrollTrigger } = window || {};
+                if (!gsap) return;
+                try { gsap.registerPlugin && gsap.registerPlugin(ScrollTrigger); } catch { }
 
-            gsap.from(".ha-wf", { scrollTrigger: { trigger: ".ha-wf-wrap", start: "top 75%" }, opacity: 0, x: -32, stagger: 0.12, duration: 0.65 });
-            gsap.from(".ha-fc", { scrollTrigger: { trigger: ".ha-feats", start: "top 78%" }, opacity: 0, y: 44, stagger: 0.1, duration: 0.7, ease: "back.out(1.2)" });
-            gsap.from(".ha-tc", { scrollTrigger: { trigger: ".ha-tests", start: "top 80%" }, opacity: 0, scale: 0.94, stagger: 0.12, duration: 0.7 });
-            gsap.from(".ha-plan", { scrollTrigger: { trigger: ".ha-plans", start: "top 78%" }, opacity: 0, y: 44, stagger: 0.14, duration: 0.7, ease: "back.out(1.2)" });
+                gsap.timeline({ defaults: { ease: "power3.out" } })
+                    .from(".ha-tag", { opacity: 0, y: 20, duration: 0.6 })
+                    .from(".ha-word", { opacity: 0, y: 55, stagger: 0.07, duration: 0.85 }, "-=0.2")
+                    .from(".ha-sub", { opacity: 0, y: 20, duration: 0.6 }, "-=0.3")
+                    .from(".ha-ctas", { opacity: 0, y: 18, duration: 0.5 }, "-=0.25")
+                    .from(".ha-mcard", { opacity: 0, y: 30, stagger: 0.1, duration: 0.6 }, "-=0.3");
 
-            // Pulse on active workflow step
-            gsap.to(".ha-pulse", { scale: 1.18, opacity: 0.5, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut" });
+                gsap.from(".ha-wf", { scrollTrigger: { trigger: ".ha-wf-wrap", start: "top 75%" }, opacity: 0, x: -32, stagger: 0.12, duration: 0.65 });
+                gsap.from(".ha-fc", { scrollTrigger: { trigger: ".ha-feats", start: "top 78%" }, opacity: 0, y: 44, stagger: 0.1, duration: 0.7, ease: "back.out(1.2)" });
+                gsap.from(".ha-tc", { scrollTrigger: { trigger: ".ha-tests", start: "top 80%" }, opacity: 0, scale: 0.94, stagger: 0.12, duration: 0.7 });
+                gsap.from(".ha-plan", { scrollTrigger: { trigger: ".ha-plans", start: "top 78%" }, opacity: 0, y: 44, stagger: 0.14, duration: 0.7, ease: "back.out(1.2)" });
+
+                // Pulse on active workflow step
+                gsap.to(".ha-pulse", { scale: 1.18, opacity: 0.5, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut" });
+            } catch (err) {
+                // ignore
+            }
         };
         load();
     }, []);
