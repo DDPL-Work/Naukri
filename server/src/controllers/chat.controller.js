@@ -1,3 +1,4 @@
+// chat.controller.js
 const Application = require("../models/Application");
 const CandidateNotification = require("../models/CandidateNotification");
 const CandidateProfile = require("../models/CandidateProfile");
@@ -5,6 +6,7 @@ const ChatMessage = require("../models/ChatMessage");
 const ChatThread = require("../models/ChatThread");
 const Company = require("../models/Company");
 const User = require("../models/User");
+const mongoose = require("mongoose");
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
@@ -201,7 +203,7 @@ const ensureCandidateThreads = async (candidateUser) => {
     const existingThread = threadMap.get(companyKey);
     if (existingThread) {
       existingThread.candidateName = candidateUser.name || "Candidate";
-      existingThread.jobTitle = jobTitle;
+      existingThread.jobTitle = `${companyName} - ${jobTitle}`;
       existingThread.applicationId = application._id;
       existingThread.jobId = application.jobId?._id || application.jobId || null;
       await existingThread.save();
@@ -317,7 +319,13 @@ exports.getCompanyThreadMessages = async (req, res, next) => {
       throw createHttpError(400, "Thread id is required");
     }
 
-    const thread = await ChatThread.findOne({ _id: threadId, companyId: company._id });
+    let thread = null;
+    if (mongoose.Types.ObjectId.isValid(threadId)) {
+      thread = await ChatThread.findOne({
+        $or: [{ _id: threadId }, { candidateId: threadId }],
+        companyId: company._id,
+      });
+    }
     if (!thread) {
       throw createHttpError(404, "Conversation not found");
     }
@@ -383,7 +391,13 @@ exports.sendCompanyMessage = async (req, res, next) => {
       throw createHttpError(400, "Message text or attachment is required");
     }
 
-    const thread = await ChatThread.findOne({ _id: threadId, companyId: company._id });
+    let thread = null;
+    if (mongoose.Types.ObjectId.isValid(threadId)) {
+      thread = await ChatThread.findOne({
+        $or: [{ _id: threadId }, { candidateId: threadId }],
+        companyId: company._id,
+      });
+    }
     if (!thread) {
       throw createHttpError(404, "Conversation not found");
     }
@@ -536,4 +550,5 @@ exports._internal = {
   persistMessage,
   formatThread,
   formatMessage,
+  recordCompanyNotification,
 };

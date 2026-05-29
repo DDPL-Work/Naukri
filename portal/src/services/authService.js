@@ -346,6 +346,24 @@ const authService = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to mark candidate chat as read' };
     }
+  },
+
+  getCandidateNotifications: async () => {
+    try {
+      const response = await api.get('/candidate/notifications');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch notifications' };
+    }
+  },
+
+  markCandidateNotificationRead: async (notificationId) => {
+    try {
+      const response = await api.patch(`/candidate/notifications/${notificationId}/read`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to mark notification as read' };
+    }
   }
 };
 

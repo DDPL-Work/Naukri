@@ -465,6 +465,7 @@ const formatNotification = (notification) => ({
   actionUrl: notification.actionUrl || "",
   createdAt: notification.createdAt,
   lastUpdated: formatRelativeTime(notification.updatedAt),
+  metadata: notification.metadata || {},
 });
 
 const formatHistoryItem = (entry) => ({

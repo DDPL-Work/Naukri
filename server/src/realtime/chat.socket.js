@@ -1,6 +1,8 @@
+// chat.socket.js
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const User = require("../models/User");
+const Company = require("../models/Company");
 const ChatThread = require("../models/ChatThread");
 const chatController = require("../controllers/chat.controller");
 
@@ -38,7 +40,7 @@ const ensureThreadAccess = async ({ user, threadId }) => {
   }
 
   const isCompanyParticipant = String(thread.companyId) === String(user.companyId || "");
-  const isCandidateParticipant = String(thread.candidateId) === String(user._id);
+  const isCandidateParticipant = String(thread.candidateId) === String(user._id || user.id);
 
   if (user.role === "CLIENT" && !isCompanyParticipant) {
     throw new Error("Conversation access denied");
@@ -113,6 +115,19 @@ const initChatSocket = (server) => {
           attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
           metadata: payload.metadata || {},
         });
+
+        if (senderRole === "COMPANY") {
+          const company = await Company.findById(thread.companyId).select("name");
+          if (company) {
+            await chatController._internal.recordCompanyNotification({
+              company,
+              candidateId: thread.candidateId,
+              jobId: thread.jobId,
+              threadId: thread._id,
+              text: message.text || "Company sent an attachment.",
+            });
+          }
+        }
 
         const formattedMessage = chatController._internal.formatMessage(message);
         const formattedThread = chatController._internal.formatThread(thread, {

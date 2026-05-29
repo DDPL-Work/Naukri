@@ -1,4 +1,6 @@
+//ProfileDashboard.js
 import React, { useState, useRef, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import {
   FiEdit2, FiBriefcase, FiMapPin, FiZap, FiCheckCircle,
   FiChevronRight, FiHome, FiFileText, FiMonitor, FiShare2,
@@ -7,7 +9,8 @@ import {
   FiCalendar, FiClock, FiChevronLeft, FiInfo, FiSend, FiChevronDown,
   FiStar, FiBookmark, FiGlobe, FiTwitter, FiFacebook, FiLinkedin, FiCopy, FiShare,
   FiHelpCircle, FiShield, FiLock, FiTrash2, FiSearch,
-  FiLayers, FiBookOpen, FiArrowRight, FiMenu
+  FiLayers, FiBookOpen, FiArrowRight, FiMenu, FiMessageSquare,
+  FiVideo, FiPaperclip, FiSmile
 } from 'react-icons/fi';
 import { FaWhatsapp, FaLinkedinIn, FaTwitter as FaXTwitter, FaFacebookF } from 'react-icons/fa';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
@@ -22,6 +25,54 @@ import { jsPDF } from 'jspdf';
 import ResumeTemplate from '../../components/ResumeTemplate';
 import ProfileEditModal from '../../components/ProfileModals';
 import authService from '../../services/authService';
+
+const getCandidateSocketUrl = () => (
+  import.meta.env.VITE_SOCKET_URL ||
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000"
+).replace(/\/api\/v\d+$/, "");
+
+const getInitials = (name = "Company") => String(name || "Company")
+  .trim()
+  .split(/\s+/)
+  .slice(0, 2)
+  .map((part) => part[0] || "")
+  .join("")
+  .toUpperCase() || "C";
+
+const getCompanyNameFromThread = (thread = {}) => {
+  if (thread.companyName) return thread.companyName;
+  const jobTitle = thread.jobTitle || "";
+  if (jobTitle.includes(" - ")) return jobTitle.split(" - ")[0].trim();
+  return "Company";
+};
+
+const normalizeCandidateThread = (thread = {}, index = 0) => {
+  const companyName = getCompanyNameFromThread(thread);
+  const role = thread.jobTitle?.includes(" - ")
+    ? thread.jobTitle.split(" - ").slice(1).join(" - ").trim()
+    : thread.jobTitle || "Recruiter conversation";
+
+  return {
+    ...thread,
+    id: String(thread.id || thread._id || `thread-${index}`),
+    companyName,
+    avatar: getInitials(companyName),
+    role,
+    preview: thread.lastMessageText || "No messages yet",
+    time: thread.time || "Just now",
+    unread: Number(thread.unreadCount || 0) > 0 || thread.lastSenderRole === "COMPANY",
+    messages: Array.isArray(thread.messages) ? thread.messages : [],
+    activeCall: thread.activeCall || { state: "IDLE", mediaType: "AUDIO", initiatedBy: "SYSTEM" },
+  };
+};
+
+const RTC_CONFIG = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
+    ]
+};
 
 const FaqItem = ({ index, question, answer }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -129,6 +180,23 @@ export default function ProfileDashboard() {
   const [nvites, setNvites] = useState([]);
   const [earlyAccess, setEarlyAccess] = useState([]);
   const [dashboardSummary, setDashboardSummary] = useState({ totalApplications: 0, shortlisted: 0, interviews: 0, companiesApplied: 0 });
+  const [notifications, setNotifications] = useState([]);
+  const [candidateThreads, setCandidateThreads] = useState([]);
+  const [showCandidateChat, setShowCandidateChat] = useState(false);
+  const [activeCandidateConv, setActiveCandidateConv] = useState(0);
+  const [candidateMsgInput, setCandidateMsgInput] = useState("");
+  const [candidateCallModal, setCandidateCallModal] = useState(false);
+  const [candidateCallMode, setCandidateCallMode] = useState("AUDIO");
+  const [candidateCallStatus, setCandidateCallStatus] = useState("idle");
+  const [candidateCallStream, setCandidateCallStream] = useState(null);
+  const [candidateRemoteCallStream, setCandidateRemoteCallStream] = useState(null);
+  const candidateSocketRef = useRef(null);
+  const candidateThreadsRef = useRef([]);
+  const candidateChatEndRef = useRef(null);
+  const candidateCallPreviewRef = useRef(null);
+  const candidateRemoteVideoRef = useRef(null);
+  const candidatePeerConnectionRef = useRef(null);
+  const activeCandidateThreadIdRef = useRef("");
 
   useEffect(() => {
     if (user) {
@@ -201,6 +269,467 @@ export default function ProfileDashboard() {
       }).catch(err => console.error("Failed to fetch dashboard data", err));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+
+    const loadCandidateComms = async () => {
+      try {
+        const [notificationResponse, chatResponse] = await Promise.allSettled([
+          authService.getCandidateNotifications(),
+          authService.getCandidateChats(),
+        ]);
+
+        if (!active) return;
+
+        if (notificationResponse.status === "fulfilled") {
+          setNotifications(Array.isArray(notificationResponse.value?.data) ? notificationResponse.value.data : []);
+        }
+
+        if (chatResponse.status === "fulfilled") {
+          const threads = chatResponse.value?.data?.threads || [];
+          setCandidateThreads(threads.map(normalizeCandidateThread));
+        }
+      } catch (error) {
+        console.error("Failed to load candidate communications", error);
+      }
+    };
+
+    loadCandidateComms();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const dynamicNotifications = React.useMemo(() => {
+    const backendItems = notifications.map((item) => {
+      const isChat = item.category === "CHAT" || item.metadata?.source === "COMPANY_CHAT";
+      const palette = isChat
+        ? { icon: <FiMessageSquare />, color: "#002366", bg: "#EEF2FF", cta: "Chat" }
+        : item.category === "APPLICATION"
+          ? { icon: <FiFileText />, color: "#D97706", bg: "#FFFBEB", cta: "" }
+          : { icon: <FiBell />, color: "#2563EB", bg: "#EFF6FF", cta: item.actionUrl ? "Open" : "" };
+
+      return {
+        ...item,
+        ...palette,
+        desc: item.message || "Open notification",
+        time: item.lastUpdated || "Just now",
+        unread: item.status !== "READ",
+      };
+    });
+
+    const chatItems = candidateThreads
+      .filter((thread) => thread.unread && !backendItems.some((item) => String(item.metadata?.threadId || "") === String(thread.id)))
+      .map((thread) => ({
+        id: `thread-${thread.id}`,
+        title: `${thread.companyName} has texted you`,
+        desc: thread.preview || "New message received",
+        category: "CHAT",
+        metadata: { threadId: thread.id },
+        icon: <FiMessageSquare />,
+        color: "#002366",
+        bg: "#EEF2FF",
+        cta: "Chat",
+        time: thread.time || "Just now",
+        unread: true,
+      }));
+
+    const fallbackItems = backendItems.length || chatItems.length ? [] : [
+      { id: "profile", icon: <FiEye />, color: "#059669", bg: "#ECFDF5", title: "Your profile is ready for recruiter discovery", desc: "Keep your skills and resume updated", time: "Today", unread: false },
+      { id: "jobs", icon: <FiBriefcase />, color: "#2563EB", bg: "#EFF6FF", title: `${dashboardSummary.totalApplications || 0} applications tracked`, desc: "Review your recent application activity", time: "Today", unread: false },
+    ];
+
+    return [...chatItems, ...backendItems, ...fallbackItems];
+  }, [candidateThreads, dashboardSummary.totalApplications, notifications]);
+
+  const unreadNotificationCount = dynamicNotifications.filter((item) => item.unread).length;
+  const activeCandidateThread = candidateThreads[activeCandidateConv] || candidateThreads[0] || null;
+
+  useEffect(() => {
+    candidateThreadsRef.current = candidateThreads;
+  }, [candidateThreads]);
+
+  useEffect(() => {
+    activeCandidateThreadIdRef.current = activeCandidateThread?.id || "";
+  }, [activeCandidateThread?.id]);
+
+  useEffect(() => {
+    if (!showCandidateChat) return;
+    setTimeout(() => candidateChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+  }, [showCandidateChat, activeCandidateConv, activeCandidateThread?.messages?.length]);
+
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem("token") || localStorage.getItem("candidateToken");
+    if (!token || candidateSocketRef.current) return;
+
+    const socket = io(getCandidateSocketUrl(), {
+      auth: { token },
+      transports: ["websocket"],
+      withCredentials: true,
+    });
+
+    socket.on("connect", () => {
+      candidateThreadsRef.current.forEach((thread) => {
+        if (thread.id) socket.emit("thread:join", { threadId: thread.id });
+      });
+      if (activeCandidateThreadIdRef.current) {
+        socket.emit("thread:join", { threadId: activeCandidateThreadIdRef.current });
+      }
+    });
+
+    socket.on("chat:message", ({ threadId, message, thread }) => {
+      setCandidateThreads((current) => current.map((conversation, index) => {
+        if (String(conversation.id) !== String(threadId)) return conversation;
+
+        const nextMessage = {
+          from: message.senderRole === "CANDIDATE" ? "me" : "them",
+          text: message.text || "",
+          time: message.lastUpdated || "Just now",
+        };
+
+        return normalizeCandidateThread({
+          ...conversation,
+          ...thread,
+          messages: [...(conversation.messages || []), nextMessage],
+          lastMessageText: message.text || conversation.preview,
+          unreadCount: message.senderRole === "COMPANY" ? 1 : 0,
+        }, index);
+      }));
+    });
+
+    socket.on("call:state", async ({ threadId, activeCall }) => {
+      setCandidateThreads((current) => current.map((thread) => (
+        String(thread.id) === String(threadId) ? { ...thread, activeCall } : thread
+      )));
+
+      if (activeCall?.state === "RINGING" && activeCall?.initiatedBy === "COMPANY") {
+        const ringingIndex = candidateThreadsRef.current.findIndex((thread) => String(thread.id) === String(threadId));
+        if (ringingIndex >= 0) setActiveCandidateConv(ringingIndex);
+        setShowCandidateChat(true);
+        setCandidateCallMode(activeCall?.mediaType || "AUDIO");
+        setCandidateCallStatus("ringing");
+        setCandidateCallModal(false);
+        return;
+      }
+
+      if (String(activeCandidateThreadIdRef.current) === String(threadId)) {
+        setCandidateCallMode(activeCall?.mediaType || "AUDIO");
+        setCandidateCallStatus(activeCall?.state === "IN_CALL" ? "in-call" : activeCall?.state === "RINGING" ? "ringing" : "idle");
+        
+        if (activeCall?.state === "IN_CALL" && activeCall?.initiatedBy === "CANDIDATE") {
+            if (candidatePeerConnectionRef.current) return;
+            
+            const pc = new RTCPeerConnection(RTC_CONFIG);
+            candidatePeerConnectionRef.current = pc;
+            
+            setCandidateCallStream(currentStream => {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
+                }
+                return currentStream;
+            });
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
+                }
+            };
+            pc.ontrack = (event) => {
+                setCandidateRemoteCallStream(event.streams[0]);
+            };
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit("call:offer", { threadId, offer });
+            } catch (err) {
+                console.error("Error creating WebRTC offer", err);
+            }
+        }
+      }
+    });
+
+    socket.on("call:offer", async ({ threadId, offer, from }) => {
+        if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
+        
+        if (!candidatePeerConnectionRef.current) {
+            const pc = new RTCPeerConnection(RTC_CONFIG);
+            candidatePeerConnectionRef.current = pc;
+            
+            setCandidateCallStream(currentStream => {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
+                }
+                return currentStream;
+            });
+            
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
+                }
+            };
+            pc.ontrack = (event) => {
+                setCandidateRemoteCallStream(event.streams[0]);
+            };
+        }
+
+        try {
+            await candidatePeerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await candidatePeerConnectionRef.current.createAnswer();
+            await candidatePeerConnectionRef.current.setLocalDescription(answer);
+            socket.emit("call:answer", { threadId, answer });
+        } catch (err) {
+            console.error("Error handling WebRTC offer", err);
+        }
+    });
+
+    socket.on("call:answer", async ({ threadId, answer, from }) => {
+        if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
+        if (!candidatePeerConnectionRef.current) return;
+        
+        if (answer && answer.type === "answer") {
+            try {
+                await candidatePeerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+            } catch (err) {
+                console.error("Error setting remote description from answer", err);
+            }
+        }
+    });
+
+    socket.on("call:ice-candidate", async ({ threadId, candidate, from }) => {
+        if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
+        if (!candidatePeerConnectionRef.current || !candidate) return;
+        
+        try {
+            await candidatePeerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+            console.error("Error adding ice candidate", err);
+        }
+    });
+
+    socket.on("call:end", () => {
+      if (candidatePeerConnectionRef.current) {
+          candidatePeerConnectionRef.current.close();
+          candidatePeerConnectionRef.current = null;
+      }
+      setCandidateRemoteCallStream(null);
+      stopCandidateCall(false);
+    });
+
+    candidateSocketRef.current = socket;
+
+    return () => {
+      socket.disconnect();
+      candidateSocketRef.current = null;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!showCandidateChat || !activeCandidateThread?.id || !candidateSocketRef.current?.connected) return;
+    candidateSocketRef.current.emit("thread:join", { threadId: activeCandidateThread.id });
+  }, [activeCandidateThread?.id, showCandidateChat]);
+
+  useEffect(() => {
+    if (!candidateSocketRef.current?.connected) return;
+    candidateThreads.forEach((thread) => {
+      if (thread.id) candidateSocketRef.current.emit("thread:join", { threadId: thread.id });
+    });
+  }, [candidateThreads]);
+
+  useEffect(() => {
+    if (!showCandidateChat || !activeCandidateThread?.id) return;
+
+    const loadMessages = async () => {
+      try {
+        const response = await authService.getCandidateChatMessages(activeCandidateThread.id);
+        const threadMessages = response?.data?.messages || [];
+        setCandidateThreads((current) => current.map((thread, index) => {
+          if (String(thread.id) !== String(activeCandidateThread.id)) return thread;
+
+          return normalizeCandidateThread({
+            ...thread,
+            ...response?.data?.thread,
+            messages: threadMessages.map((message) => ({
+              from: message.senderRole === "CANDIDATE" ? "me" : "them",
+              text: message.text || "",
+              time: message.lastUpdated || "Just now",
+            })),
+            unreadCount: 0,
+          }, index);
+        }));
+        await authService.markCandidateChatRead(activeCandidateThread.id);
+      } catch (error) {
+        console.error("Failed to load candidate chat messages", error);
+      }
+    };
+
+    loadMessages();
+  }, [activeCandidateThread?.id, showCandidateChat]);
+
+  useEffect(() => {
+    if (candidateCallPreviewRef.current && candidateCallStream) {
+      candidateCallPreviewRef.current.srcObject = candidateCallStream;
+    }
+
+    return () => {
+      if (candidateCallPreviewRef.current) {
+        candidateCallPreviewRef.current.srcObject = null;
+      }
+    };
+  }, [candidateCallStream, candidateCallModal]);
+
+  useEffect(() => {
+    if (candidateRemoteVideoRef.current && candidateRemoteCallStream) {
+        candidateRemoteVideoRef.current.srcObject = candidateRemoteCallStream;
+    }
+  }, [candidateRemoteCallStream, candidateCallModal]);
+
+  const openCandidateChat = async (threadId = "") => {
+    if (!candidateThreads.length) {
+      try {
+        const response = await authService.getCandidateChats();
+        const threads = (response?.data?.threads || []).map(normalizeCandidateThread);
+        setCandidateThreads(threads);
+        const index = threads.findIndex((thread) => String(thread.id) === String(threadId));
+        setActiveCandidateConv(index >= 0 ? index : 0);
+      } catch (error) {
+        console.error("Unable to open chat", error);
+      }
+    } else {
+      const index = candidateThreads.findIndex((thread) => String(thread.id) === String(threadId));
+      setActiveCandidateConv(index >= 0 ? index : 0);
+    }
+
+    setShowNotifications(false);
+    setShowCandidateChat(true);
+  };
+
+  const handleNotificationClick = async (notification) => {
+    if (notification.id && !String(notification.id).startsWith("thread-")) {
+      authService.markCandidateNotificationRead(notification.id).catch(() => {});
+      setNotifications((current) => current.map((item) => (
+        String(item.id) === String(notification.id) ? { ...item, status: "READ" } : item
+      )));
+    }
+
+    if (notification.category === "CHAT" || notification.metadata?.threadId) {
+      openCandidateChat(notification.metadata?.threadId || "");
+      return;
+    }
+
+    if (notification.actionUrl) {
+      setShowNotifications(false);
+      navigate(notification.actionUrl);
+    }
+  };
+
+  const sendCandidateMessage = async () => {
+    if (!candidateMsgInput.trim() || !activeCandidateThread?.id) return;
+    const outgoing = candidateMsgInput.trim();
+    setCandidateMsgInput("");
+
+    try {
+      const response = await authService.sendCandidateChatMessage(activeCandidateThread.id, { text: outgoing });
+      const sentMessage = response?.data?.message;
+      if (!candidateSocketRef.current?.connected) {
+        setCandidateThreads((current) => current.map((thread, index) => (
+          index === activeCandidateConv
+            ? normalizeCandidateThread({
+                ...thread,
+                lastMessageText: outgoing,
+                messages: [...(thread.messages || []), {
+                  from: "me",
+                  text: sentMessage?.text || outgoing,
+                  time: sentMessage?.lastUpdated || "Just now",
+                }],
+                unreadCount: 0,
+              }, index)
+            : thread
+        )));
+      }
+    } catch (error) {
+      setCandidateThreads((current) => current.map((thread, index) => (
+        index === activeCandidateConv
+          ? { ...thread, messages: [...(thread.messages || []), { from: "me", text: outgoing, time: "Just now" }], preview: outgoing }
+          : thread
+      )));
+    }
+  };
+
+  const startCandidateCall = async (mode) => {
+    if (!activeCandidateThread?.id) return;
+    const callType = String(mode || "AUDIO").toUpperCase() === "VIDEO" ? "VIDEO" : "AUDIO";
+    setCandidateCallMode(callType);
+    setCandidateCallStatus("connecting");
+
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error("Media devices are not available in this browser");
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === "VIDEO" });
+      setCandidateCallStream(stream);
+      setCandidateCallModal(true);
+
+      const socket = candidateSocketRef.current;
+      if (socket?.connected) {
+        socket.emit("call:join", { threadId: activeCandidateThread.id, mediaType: callType }, (ack) => {
+          setCandidateCallStatus(ack?.ok ? "ringing" : "failed");
+        });
+      } else {
+        setCandidateCallStatus("waiting");
+      }
+    } catch (error) {
+      setCandidateCallStatus("failed");
+      setCandidateCallModal(false);
+      alert(error?.message || "Unable to start the call");
+    }
+  };
+
+  const acceptCandidateCall = async () => {
+    const callType = activeCandidateThread?.activeCall?.mediaType || candidateCallMode || "AUDIO";
+    setCandidateCallMode(callType);
+    setCandidateCallStatus("connecting");
+
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error("Media devices are not available in this browser");
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === "VIDEO" });
+      setCandidateCallStream(stream);
+      setCandidateCallModal(true);
+      candidateSocketRef.current?.emit("call:answer", { threadId: activeCandidateThread.id, answer: { accepted: true } }, () => {
+        setCandidateCallStatus("in-call");
+      });
+    } catch (error) {
+      alert(error?.message || "Unable to accept the call");
+    }
+  };
+
+  const stopCandidateCall = (emitEnd = true) => {
+    if (emitEnd && candidateSocketRef.current?.connected && activeCandidateThread?.id) {
+      candidateSocketRef.current.emit("call:end", { threadId: activeCandidateThread.id });
+    }
+
+    if (candidatePeerConnectionRef.current) {
+        candidatePeerConnectionRef.current.close();
+        candidatePeerConnectionRef.current = null;
+    }
+
+    if (candidateCallStream) {
+      candidateCallStream.getTracks().forEach((track) => track.stop());
+    }
+
+    setCandidateRemoteCallStream(null);
+    setCandidateCallStream(null);
+    setCandidateCallModal(false);
+    setCandidateCallStatus("idle");
+  };
 
   const handleScroll = (ref, dir) => {
     if (ref.current) ref.current.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' });
@@ -321,7 +850,7 @@ export default function ProfileDashboard() {
             </div>
             <button className={`pd-navbar-bell ${showNotifications ? 'active' : ''}`} onClick={() => setShowNotifications(true)}>
               <FiBell size={19} />
-              <span className="pd-nav-badge">3</span>
+              {unreadNotificationCount > 0 && <span className="pd-nav-badge">{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}
             </button>
             <div className="pd-navbar-avatar" onClick={() => navigate('/profile')}>
               <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="You" />
@@ -1038,7 +1567,7 @@ export default function ProfileDashboard() {
         </div>
         <div className="pd-notif-body">
           <div className="pd-notif-date">Today</div>
-          {[
+          {false && [
             { icon: <FiAward />, color: '#7C3AED', bg: '#F5F3FF', title: '🚀 Practice 4 interview questions for your Fortified Infotech application', desc: 'Get instant feedback to ace your interview', time: '2h ago', cta: 'Practice Now' },
             { icon: <FiFileText />, color: '#D97706', bg: '#FFFBEB', title: 'Your resume was viewed by a recruiter', desc: 'Application History', time: '3h ago' },
             { icon: <FiUsers />, color: '#2563EB', bg: '#EFF6FF', title: 'Let AI help you ace your next job interview', desc: 'Unlock Your Interview Success!', time: '3h ago', cta: 'Practice Now' },
@@ -1056,10 +1585,151 @@ export default function ProfileDashboard() {
               </div>
             </div>
           ))}
+          {dynamicNotifications.map((n) => (
+            <div className={`pd-notif-item ${n.unread ? 'unread' : ''}`} key={n.id} onClick={() => handleNotificationClick(n)}>
+              <div className="pd-notif-icon" style={{ background: n.bg, color: n.color }}>{n.icon}</div>
+              <div className="pd-notif-content">
+                <div className="pd-notif-title">{n.title}</div>
+                <div className="pd-notif-desc">{n.desc}</div>
+                {n.cta && <button className="pd-notif-cta" onClick={(event) => { event.stopPropagation(); handleNotificationClick(n); }}>{n.cta}</button>}
+                <div className="pd-notif-time">{n.time}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* ─── Jobs Modal ─── */}
+      {showCandidateChat && (
+        <div className="pd-chat-overlay" onClick={() => setShowCandidateChat(false)}>
+          <div className="pd-chat-modal" onClick={e => e.stopPropagation()}>
+            <div className="pd-chat-topbar">
+              <h3>Messages</h3>
+              <button className="pd-chat-close" onClick={() => setShowCandidateChat(false)}><FiX size={18} /></button>
+            </div>
+
+            <div className="pd-chat-shell">
+              <aside className="pd-chat-list">
+                <div className="pd-chat-search">
+                  <FiSearch size={15} />
+                  <input placeholder="Search messages..." />
+                </div>
+                {candidateThreads.length === 0 ? (
+                  <div className="pd-chat-empty">No recruiter conversations yet.</div>
+                ) : candidateThreads.map((thread, index) => (
+                  <button className={`pd-chat-thread ${index === activeCandidateConv ? 'active' : ''}`} key={thread.id} onClick={() => setActiveCandidateConv(index)}>
+                    <div className="pd-chat-avatar">{thread.avatar}</div>
+                    <div className="pd-chat-thread-main">
+                      <div className="pd-chat-thread-row">
+                        <strong>{thread.companyName}</strong>
+                        <span>{thread.time}</span>
+                      </div>
+                      <p>{thread.role}</p>
+                      <small>{thread.preview}</small>
+                    </div>
+                    {thread.unread && <span className="pd-chat-dot" />}
+                  </button>
+                ))}
+              </aside>
+
+              <section className="pd-chat-window">
+                {activeCandidateThread ? (
+                  <>
+                    <div className="pd-chat-header">
+                      <div className="pd-chat-avatar">{activeCandidateThread.avatar}</div>
+                      <div>
+                        <h4>{activeCandidateThread.companyName}</h4>
+                        <p>{activeCandidateThread.role}</p>
+                      </div>
+                      <div className="pd-chat-actions">
+                        <button title="Audio call" onClick={() => startCandidateCall("AUDIO")}><FiPhone size={17} /></button>
+                        <button title="Video call" onClick={() => startCandidateCall("VIDEO")}><FiVideo size={17} /></button>
+                      </div>
+                    </div>
+
+                    {activeCandidateThread.activeCall?.state === "RINGING" && activeCandidateThread.activeCall?.initiatedBy === "COMPANY" && (
+                      <div className="pd-incoming-call">
+                        <div>
+                          <strong>{activeCandidateThread.companyName} is calling</strong>
+                          <span>{activeCandidateThread.activeCall.mediaType === "VIDEO" ? "Video call" : "Audio call"}</span>
+                        </div>
+                        <button className="accept" onClick={acceptCandidateCall}>Accept</button>
+                        <button className="reject" onClick={() => stopCandidateCall(true)}>Reject</button>
+                      </div>
+                    )}
+
+                    <div className="pd-chat-messages">
+                      {(activeCandidateThread.messages || []).length === 0 ? (
+                        <div className="pd-chat-empty big">No messages yet.</div>
+                      ) : activeCandidateThread.messages.map((message, index) => (
+                        <div className={`pd-chat-bubble-row ${message.from === "me" ? "me" : "them"}`} key={`${message.time}-${index}`}>
+                          <div className="pd-chat-bubble">
+                            <span>{message.text}</span>
+                            <small>{message.time}</small>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={candidateChatEndRef} />
+                    </div>
+
+                    <div className="pd-chat-compose">
+                      <input
+                        value={candidateMsgInput}
+                        onChange={e => setCandidateMsgInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") sendCandidateMessage(); }}
+                        placeholder="Write a message..."
+                      />
+                      <button className="ghost" title="Attach file"><FiPaperclip size={17} /></button>
+                      <button className="ghost" title="Add emoji"><FiSmile size={17} /></button>
+                      <button className="send" title="Send message" onClick={sendCandidateMessage}><FiSend size={18} /></button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="pd-chat-empty big">Select a conversation to start chatting.</div>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {candidateCallModal && (
+        <div className="pd-call-overlay" onClick={() => stopCandidateCall(true)}>
+          <div className="pd-call-modal" onClick={e => e.stopPropagation()}>
+            <div className="pd-call-head">
+              <div>
+                <h3>{candidateCallMode === "VIDEO" ? "Video Call" : "Audio Call"}</h3>
+                <p>{candidateCallStatus === "ringing" ? "Waiting for the other person" : candidateCallStatus === "in-call" ? "Call in progress" : "Connecting call"}</p>
+              </div>
+              <button onClick={() => stopCandidateCall(true)}><FiX size={18} /></button>
+            </div>
+            <div className="pd-call-stage">
+              {candidateCallMode === "VIDEO" ? (
+                <div style={{ position: "relative", width: "100%", height: 320, background: "#111827", borderRadius: 12, overflow: "hidden" }}>
+                  {candidateRemoteCallStream && (
+                    <video ref={candidateRemoteVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  )}
+                  <video ref={candidateCallPreviewRef} autoPlay muted playsInline style={{ position: "absolute", bottom: 16, right: 16, width: 100, height: 140, objectFit: "cover", borderRadius: 8, border: "2px solid rgba(255,255,255,0.2)", background: "#000", zIndex: 10, display: candidateCallStream ? "block" : "none" }} />
+                  {!candidateRemoteCallStream && (
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, flexDirection: "column", gap: 10 }}>
+                        <div style={{ width: 50, height: 50, borderRadius: 16, background: "#002366", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: "bold" }}>
+                          {activeCandidateThread?.avatar || "C"}
+                        </div>
+                        Connecting secure video stream...
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="pd-audio-call-mark"><FiPhone size={34} /></div>
+              )}
+            </div>
+            <div className="pd-call-controls">
+              <button className="danger" onClick={() => stopCandidateCall(true)}>End Call</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showJobsModal && (
         <div className="pd-modal-overlay" onClick={() => setShowJobsModal(false)}>
           <div className="pd-modal-box" onClick={e => e.stopPropagation()}>

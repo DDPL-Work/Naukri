@@ -1,3 +1,4 @@
+// candidateNotification.js
 const mongoose = require("mongoose");
 
 const candidateNotificationSchema = new mongoose.Schema(
@@ -35,7 +36,7 @@ const candidateNotificationSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["APPLICATION", "JOB_ALERT", "SYSTEM", "CAMPAIGN"],
+      enum: ["APPLICATION", "JOB_ALERT", "SYSTEM", "CAMPAIGN", "CHAT"],
       default: "SYSTEM",
     },
     status: {

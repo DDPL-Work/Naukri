@@ -46,6 +46,13 @@ const getInitialsFromName = (name = "Candidate") =>
         .join("")
         .toUpperCase() || "C";
 
+const RTC_CONFIG = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
+    ]
+};
+
 const buildConversationMessages = (application) => {
     const candidateName = application.candidateName || "Candidate";
     const jobTitle = application.jobTitle || "the role";
@@ -112,6 +119,7 @@ const buildConversationMessages = (application) => {
             jobId: application.jobId || "",
             jobTitle: application.jobTitle || "",
             status: application.status || "APPLIED",
+            isSynthetic: true,
         };
 
         if (!existing.messages.length) {
@@ -458,6 +466,7 @@ export default function EmployerProfile() {
     const coverInputRef = useRef(null);
     const [showMsg, setShowMsg] = useState(false);
     const [showAna, setShowAna] = useState(false);
+    const [showHelpDesk, setShowHelpDesk] = useState(false);
     const [showPro, setShowPro] = useState(false);
     const [showPost, setShowPost] = useState(false);
     const [activeConv, setActiveConv] = useState(0);
@@ -481,7 +490,10 @@ export default function EmployerProfile() {
     const [callMode, setCallMode] = useState("AUDIO");
     const [callStatus, setCallStatus] = useState("idle");
     const [localCallStream, setLocalCallStream] = useState(null);
+    const [remoteCallStream, setRemoteCallStream] = useState(null);
     const callPreviewRef = useRef(null);
+    const remoteVideoRef = useRef(null);
+    const peerConnectionRef = useRef(null);
     const chatEndRef = useRef(null);
     const chatSocketRef = useRef(null);
     const activeConversationIdRef = useRef("");
@@ -538,7 +550,7 @@ export default function EmployerProfile() {
                 setMessages((current) => {
                     const currentById = new Map(current.map((conversation) => [String(conversation.id), conversation]));
                     return backendThreads.map((thread, index) => {
-                        const previous = currentById.get(String(thread.id));
+                        const previous = currentById.get(String(thread.candidateId));
                         const color = previous?.color || CONVERSATION_COLORS[index % CONVERSATION_COLORS.length];
                         const avatar = thread.candidateAvatar || previous?.avatar || getInitialsFromName(thread.candidateName);
                         return {
@@ -654,7 +666,7 @@ export default function EmployerProfile() {
         });
 
         socket.on("connect", () => {
-            if (activeConversation?.id) {
+            if (activeConversation?.id && !activeConversation.isSynthetic) {
                 socket.emit("thread:join", { threadId: activeConversation.id });
             }
         });
@@ -683,7 +695,7 @@ export default function EmployerProfile() {
             }));
         });
 
-            socket.on("call:state", ({ threadId, activeCall }) => {
+            socket.on("call:state", async ({ threadId, activeCall }) => {
                 setMessages((current) => current.map((conversation) => (
                     String(conversation.id) === String(threadId)
                         ? { ...conversation, activeCall }
@@ -691,6 +703,110 @@ export default function EmployerProfile() {
                 )));
                 if (String(activeConversationIdRef.current || "") === String(threadId || "")) {
                     setCallStatus(activeCall?.state === "IN_CALL" ? "in-call" : activeCall?.state === "RINGING" ? "ringing" : "idle");
+                    
+                    if (activeCall?.state === "IN_CALL" && activeCall?.initiatedBy === "COMPANY") {
+                        if (peerConnectionRef.current) return;
+                        
+                        const pc = new RTCPeerConnection(RTC_CONFIG);
+                        peerConnectionRef.current = pc;
+                        
+                        setLocalCallStream(currentStream => {
+                            if (currentStream) {
+                                currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
+                            }
+                            return currentStream;
+                        });
+
+                        pc.onicecandidate = (event) => {
+                            if (event.candidate) {
+                                socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
+                            }
+                        };
+                        pc.ontrack = (event) => {
+                            setRemoteCallStream(event.streams[0]);
+                        };
+                        try {
+                            const offer = await pc.createOffer();
+                            await pc.setLocalDescription(offer);
+                            socket.emit("call:offer", { threadId, offer });
+                        } catch (err) {
+                            console.error("Error creating WebRTC offer", err);
+                        }
+                    }
+                }
+            });
+
+            socket.on("call:offer", async ({ threadId, offer, from }) => {
+                if (String(activeConversationIdRef.current || "") !== String(threadId || "")) return;
+                
+                if (!peerConnectionRef.current) {
+                    const pc = new RTCPeerConnection(RTC_CONFIG);
+                    peerConnectionRef.current = pc;
+                    
+                    setLocalCallStream(currentStream => {
+                        if (currentStream) {
+                            currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
+                        }
+                        return currentStream;
+                    });
+                    
+                    pc.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
+                        }
+                    };
+                    pc.ontrack = (event) => {
+                        setRemoteCallStream(event.streams[0]);
+                    };
+                }
+
+                try {
+                    await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+                    const answer = await peerConnectionRef.current.createAnswer();
+                    await peerConnectionRef.current.setLocalDescription(answer);
+                    socket.emit("call:answer", { threadId, answer });
+                } catch (err) {
+                    console.error("Error handling WebRTC offer", err);
+                }
+            });
+
+            socket.on("call:answer", async ({ threadId, answer, from }) => {
+                if (String(activeConversationIdRef.current || "") !== String(threadId || "")) return;
+                if (!peerConnectionRef.current) return;
+                
+                if (answer && answer.type === "answer") {
+                    try {
+                        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+                    } catch (err) {
+                        console.error("Error setting remote description from answer", err);
+                    }
+                }
+            });
+
+            socket.on("call:ice-candidate", async ({ threadId, candidate, from }) => {
+                if (String(activeConversationIdRef.current || "") !== String(threadId || "")) return;
+                if (!peerConnectionRef.current || !candidate) return;
+                
+                try {
+                    await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (err) {
+                    console.error("Error adding ice candidate", err);
+                }
+            });
+
+            socket.on("call:end", ({ threadId }) => {
+                if (String(activeConversationIdRef.current || "") === String(threadId || "")) {
+                    if (peerConnectionRef.current) {
+                        peerConnectionRef.current.close();
+                        peerConnectionRef.current = null;
+                    }
+                    setRemoteCallStream(null);
+                    setLocalCallStream(currentStream => {
+                        if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+                        return null;
+                    });
+                    setShowCall(false);
+                    setCallStatus("idle");
                 }
             });
 
@@ -707,12 +823,12 @@ export default function EmployerProfile() {
     }, [showMsg]);
 
     useEffect(() => {
-        if (!showMsg || !activeConversation?.id || !chatSocketRef.current?.connected) {
+        if (!showMsg || !activeConversation?.id || activeConversation.isSynthetic || !chatSocketRef.current?.connected) {
             return;
         }
 
         chatSocketRef.current.emit("thread:join", { threadId: activeConversation.id });
-    }, [showMsg, activeConversation?.id]);
+    }, [showMsg, activeConversation?.id, activeConversation?.isSynthetic]);
 
     useEffect(() => {
         if (callPreviewRef.current && localCallStream) {
@@ -727,7 +843,13 @@ export default function EmployerProfile() {
     }, [localCallStream, showCall]);
 
     useEffect(() => {
-        if (!showMsg || !activeConversation?.id) {
+        if (remoteVideoRef.current && remoteCallStream) {
+            remoteVideoRef.current.srcObject = remoteCallStream;
+        }
+    }, [remoteCallStream, showCall]);
+
+    useEffect(() => {
+        if (!showMsg || !activeConversation?.id || activeConversation.isSynthetic) {
             return;
         }
 
@@ -882,6 +1004,43 @@ export default function EmployerProfile() {
         }
     }, [activeConversation?.id]);
 
+    const acceptIncomingCall = useCallback(async () => {
+        if (!activeConversation?.id) {
+            return;
+        }
+
+        const callType = activeConversation?.activeCall?.mediaType || callMode || "AUDIO";
+        setCallMode(callType);
+        setCallStatus("connecting");
+
+        try {
+            if (!navigator?.mediaDevices?.getUserMedia) {
+                throw new Error("Media devices are not available in this browser");
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: callType === "VIDEO",
+            });
+
+            setLocalCallStream(stream);
+            setShowCall(true);
+
+            const socket = chatSocketRef.current;
+            if (socket?.connected) {
+                socket.emit("call:answer", { threadId: activeConversation.id, answer: { accepted: true } }, (ack) => {
+                    setCallStatus(ack?.ok ? "in-call" : "failed");
+                });
+            } else {
+                setCallStatus("waiting");
+            }
+        } catch (error) {
+            setShowCall(false);
+            setCallStatus("failed");
+            alert(error?.message || "Unable to accept the call");
+        }
+    }, [activeConversation, callMode]);
+
     const endCall = useCallback(() => {
         const socket = chatSocketRef.current;
         if (socket?.connected && activeConversation?.id) {
@@ -958,15 +1117,40 @@ export default function EmployerProfile() {
     };
 
     const topMatches = useMemo(
-        () =>
-            uniqueCandidateApplications.slice(0, 5).map((application, index) => ({
+        () => {
+            const mapped = uniqueCandidateApplications.map((application, index) => ({
                 id: String(application.candidateId || application.id || index),
                 name: application.candidateName || "Candidate",
                 role: application.candidateCurrentTitle || application.jobTitle || "Candidate",
                 match: candidateMatchScore(application.status),
                 avatar: getInitialsFromName(application.candidateName),
                 color: CONVERSATION_COLORS[index % CONVERSATION_COLORS.length],
-            })),
+            }));
+
+            const fallbackRoles = [
+                "Fullstack MERN Developer",
+                "Frontend React Developer",
+                "Backend Node.js Developer",
+                "UI Engineer",
+                "Product Designer",
+            ];
+
+            while (mapped.length < 5) {
+                const index = mapped.length;
+                const label = `Candidate ${index + 1}`;
+                mapped.push({
+                    id: `recommended-${index}`,
+                    name: label,
+                    role: fallbackRoles[index % fallbackRoles.length],
+                    match: Math.max(72, 88 - index * 3),
+                    avatar: getInitialsFromName(label),
+                    color: CONVERSATION_COLORS[index % CONVERSATION_COLORS.length],
+                    isPlaceholder: true,
+                });
+            }
+
+            return mapped.slice(0, 5);
+        },
         [uniqueCandidateApplications],
     );
 
@@ -1018,6 +1202,12 @@ export default function EmployerProfile() {
             window.location.assign("https://company.mavenjobs.in/");
             return;
         }
+        navigate("/employer-login");
+    }, [navigate]);
+
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem("employerToken");
+        localStorage.removeItem("employerUser");
         navigate("/employer-login");
     }, [navigate]);
 
@@ -1171,9 +1361,17 @@ export default function EmployerProfile() {
                     }}>
 
                         {/* Logo */}
-                        <div style={{ display: "flex", alignItems: "center", marginRight: 28, flexShrink: 0 }}>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/employer-login")}
+                            aria-label="Go to employer login"
+                            style={{
+                                display: "flex", alignItems: "center", marginRight: 28, flexShrink: 0,
+                                border: "none", background: "transparent", padding: 0, cursor: "pointer"
+                            }}
+                        >
                             <img src={mavenLogo} alt="MavenJobs" style={{ height: 26, width: "auto" }} />
-                        </div>
+                        </button>
 
                         {/* Nav links */}
                         <nav style={{ display: "flex", alignItems: "stretch", flex: 1, paddingLeft: 12, height: 58, overflowX: "auto" }}>
@@ -1194,12 +1392,70 @@ export default function EmployerProfile() {
                                             navigate("/post-job");
                                             return;
                                         }
-                                        setShowAna(true);
+                                        if (n.id === "report") {
+                                            setShowHelpDesk(true);
+                                            return;
+                                        }
                                     }} style={{ flexDirection: "column", gap: 2, fontSize: 11, padding: "8px 14px" }}>
                                     <n.icon size={17} />
                                     {n.label}
                                 </button>
                             ))}
+                            {/* ════════════════════════════════════════════════════
+                                MODAL: HELP DESK CENTER
+                            ════════════════════════════════════════════════════ */}
+                            <Modal open={showHelpDesk} onClose={() => setShowHelpDesk(false)} title="Help Desk Center" width={600}>
+                                <div style={{ padding: 24 }}>
+                                    <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>How can we help you?</h2>
+                                    <form style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                                        <label style={{ fontWeight: 600 }}>
+                                            What issue are you facing?
+                                            <select required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }}>
+                                                <option value="">Select an issue</option>
+                                                <option>Job Posting</option>
+                                                <option>Application</option>
+                                                <option>Shortlisting</option>
+                                                <option>Offers</option>
+                                                <option>Other</option>
+                                            </select>
+                                        </label>
+                                        <label style={{ fontWeight: 600 }}>
+                                            Please describe your issue in detail
+                                            <textarea required rows={4} style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }} placeholder="Describe your problem..." />
+                                        </label>
+                                        <label style={{ fontWeight: 600 }}>
+                                            How urgent is your issue?
+                                            <select required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }}>
+                                                <option value="">Select urgency</option>
+                                                <option>Low</option>
+                                                <option>Medium</option>
+                                                <option>High</option>
+                                                <option>Critical</option>
+                                            </select>
+                                        </label>
+                                        <label style={{ fontWeight: 600 }}>
+                                            Attach any relevant files/screenshots
+                                            <input type="file" style={{ marginTop: 6 }} />
+                                        </label>
+                                        <label style={{ fontWeight: 600 }}>
+                                            Your contact email
+                                            <input type="email" required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }} placeholder="you@company.com" />
+                                        </label>
+                                        <label style={{ fontWeight: 600 }}>
+                                            Preferred contact method
+                                            <select required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }}>
+                                                <option value="">Select method</option>
+                                                <option>Email</option>
+                                                <option>Phone</option>
+                                                <option>Chat</option>
+                                            </select>
+                                        </label>
+                                        <button type="submit" style={{ marginTop: 10, padding: '10px 0', borderRadius: 8, background: '#002366', color: '#fff', fontWeight: 700, fontSize: 16, border: 'none', cursor: 'pointer' }}>
+                                            Submit Request
+                                        </button>
+                                    </form>
+                                </div>
+                            </Modal>
                         </nav>
 
                         {/* Right action buttons */}
@@ -1770,21 +2026,19 @@ export default function EmployerProfile() {
                         </button>
                     </div>
                 ))}
-                {topMatches.length === 0 && (
-                    <div style={{ color: C.s500, fontSize: 13, padding: "18px 0" }}>
-                        No candidate matches yet. Review your open jobs or refresh the applicant pool to see top matches here.
-                    </div>
-                )}
                 {topMatches.length > 0 && (
-                    <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                    <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: "center" }}>
                         <button onClick={() => navigate('/resume-database')} style={{
-                            flex: 1, padding: '10px 12px', borderRadius: 12, border: '1px solid #E2E8F0',
-                            background: '#fff', color: C.navy, fontWeight: 800, cursor: 'pointer'
+                            flex: "0 0 auto", padding: '8px 12px', borderRadius: 10, border: '1px solid #D8E1EF',
+                            background: '#fff', color: C.navy, fontWeight: 800, cursor: 'pointer',
+                            fontSize: 12.5, lineHeight: 1.2, fontFamily: C.fd
                         }}>
                             View all candidates
                         </button>
                         <button onClick={() => setShowMsg(true)} style={{
-                            padding: '10px 12px', borderRadius: 12, border: 'none', background: C.green, color: '#fff', fontWeight: 800, cursor: 'pointer'
+                            flex: 1, padding: '8px 12px', borderRadius: 10, border: 'none', background: C.green, color: '#fff',
+                            fontWeight: 800, cursor: 'pointer', fontSize: 12.5, lineHeight: 1.2, fontFamily: C.fd,
+                            boxShadow: "0 8px 18px rgba(16,185,129,.22)"
                         }}>
                             Message top match
                         </button>
@@ -1971,6 +2225,30 @@ export default function EmployerProfile() {
                     </div>
                 </div>
 
+                {activeConversation?.activeCall?.state === "RINGING" && activeConversation?.activeCall?.initiatedBy === "CANDIDATE" && (
+                    <div style={{
+                        margin: "12px 16px 0",
+                        padding: "12px 14px",
+                        borderRadius: 12,
+                        background: "#fff",
+                        border: `1px solid ${C.s200}`,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                    }}>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontFamily: C.fd, fontWeight: 800, color: C.s900, fontSize: 13.5 }}>
+                                {activeConversation?.from || "Candidate"} is calling
+                            </div>
+                            <div style={{ color: C.s500, fontSize: 12 }}>
+                                {activeConversation?.activeCall?.mediaType === "VIDEO" ? "Video call" : "Audio call"}
+                            </div>
+                        </div>
+                        <Btn variant="green" onClick={acceptIncomingCall}>Accept</Btn>
+                        <Btn variant="danger" onClick={endCall}>Reject</Btn>
+                    </div>
+                )}
+
                 {/* Messages area */}
                 <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12, background: C.s50 }}>
                     {(activeConversation?.messages || []).length === 0 ? (
@@ -2065,7 +2343,18 @@ export default function EmployerProfile() {
                     border: `1px solid ${C.s200}`,
                 }}>
                     {callMode === "VIDEO" ? (
-                        <video ref={callPreviewRef} autoPlay muted playsInline style={{ width: "100%", height: 320, objectFit: "cover", background: "#111827" }} />
+                        <div style={{ position: "relative", width: "100%", height: 320, background: "#111827" }}>
+                            {remoteCallStream && (
+                                <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            )}
+                            <video ref={callPreviewRef} autoPlay muted playsInline style={{ position: "absolute", bottom: 16, right: 16, width: 100, height: 140, objectFit: "cover", borderRadius: 8, border: "2px solid rgba(255,255,255,0.2)", background: "#000", zIndex: 10, display: localCallStream ? "block" : "none" }} />
+                            {!remoteCallStream && (
+                                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, flexDirection: "column", gap: 10 }}>
+                                    <Avatar initials={activeConversation?.avatar || "C"} color={activeConversation?.color || C.navy} size={50} radius={16} fontSize={16} />
+                                    Connecting secure video stream...
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <div style={{
                             minHeight: 220,

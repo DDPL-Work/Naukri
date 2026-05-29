@@ -14,6 +14,14 @@ import { useAuth } from '../../AuthContext';
 import authService from '../../services/authService';
 import './EmployerLandingPage.css';
 
+const getInitials = (value = "Company") => String(value || "Company")
+  .trim()
+  .split(/\s+/)
+  .slice(0, 2)
+  .map((part) => part[0] || "")
+  .join("")
+  .toUpperCase() || "CO";
+
 const EmployerLandingPage = () => {
   const navigate = useNavigate();
   useAuth();
@@ -72,6 +80,32 @@ const EmployerLandingPage = () => {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem("employerToken")) return;
+
+    let active = true;
+    authService.getEmployerDashboard()
+      .then((response) => {
+        if (!active || !response?.data?.company) return;
+        const nextSession = {
+          ...(employerSession || {}),
+          companyName: response.data.company.name || employerSession?.companyName || "",
+          email: employerSession?.email || response.data.company.email || "",
+          logoUrl: response.data.company.logoUrl || "",
+          coverImageUrl: response.data.company.coverImageUrl || "",
+          activeJobCount: response.data.tracking?.activeApprovedJobs ?? response.data.company.activeJobCount ?? 0,
+          totalApplications: response.data.tracking?.totalApplications ?? 0,
+        };
+        localStorage.setItem("employerUser", JSON.stringify(nextSession));
+        setEmployerSession(nextSession);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -187,6 +221,8 @@ const EmployerLandingPage = () => {
       const employerUser = {
         ...(response?.user || {}),
         companyName: response?.company?.name || response?.user?.companyName || companyName,
+        logoUrl: response?.company?.logoUrl || response?.user?.logoUrl || "",
+        coverImageUrl: response?.company?.coverImageUrl || response?.user?.coverImageUrl || "",
       };
 
       localStorage.setItem("employerToken", response.token);
@@ -262,6 +298,10 @@ const EmployerLandingPage = () => {
         const employerUser = {
           ...(response.user || {}),
           companyName: response?.company?.name || response?.user?.companyName || "",
+          logoUrl: response?.company?.logoUrl || response?.user?.logoUrl || "",
+          coverImageUrl: response?.company?.coverImageUrl || response?.user?.coverImageUrl || "",
+          activeJobCount: response?.tracking?.activeApprovedJobs ?? response?.company?.activeJobCount ?? 0,
+          totalApplications: response?.tracking?.totalApplications ?? 0,
         };
         localStorage.setItem("employerUser", JSON.stringify(employerUser));
         setEmployerSession(employerUser);
@@ -449,12 +489,14 @@ const EmployerLandingPage = () => {
                 {/* Cover Image */}
                 <div style={{
                   height: '140px',
-                  background: `url("https://i.pinimg.com/736x/1d/5b/a0/1d5ba0f8288cd496cdb9714d6456b097.jpg") center/cover no-repeat`,
+                  background: employerSession.coverImageUrl
+                    ? `url("${employerSession.coverImageUrl}") center/cover no-repeat`
+                    : 'linear-gradient(135deg, #0f172a 0%, #172554 52%, #0f766e 100%)',
                   position: 'relative'
                 }}>
                   <div style={{
                     position: 'absolute', inset: 0,
-                    background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.4))'
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.08), rgba(0,0,0,0.48))'
                   }} />
                 </div>
 
@@ -462,24 +504,35 @@ const EmployerLandingPage = () => {
                 <div style={{ padding: '0 24px 24px', textAlign: 'center', marginTop: '-45px' }}>
                   <div style={{
                     width: '90px', height: '90px', borderRadius: '20px',
-                    background: `url("https://i.pinimg.com/736x/59/d5/de/59d5deb71f0608503a43a356cffa81a7.jpg") center/cover no-repeat`,
+                    background: employerSession.logoUrl
+                      ? `url("${employerSession.logoUrl}") center/cover no-repeat`
+                      : 'linear-gradient(135deg, #002366, #10b981)',
                     border: '4px solid rgba(255,255,255,0.1)',
                     boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
                     margin: '0 auto 16px',
                     position: 'relative',
-                    backdropFilter: 'blur(10px)'
-                  }} />
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontWeight: 900,
+                    fontSize: '1.35rem',
+                    letterSpacing: '0.02em'
+                  }}>
+                    {!employerSession.logoUrl && getInitials(employerSession.companyName || employerSession.username)}
+                  </div>
                   
                   <h3 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: '800', marginBottom: '4px', fontFamily: 'inherit' }}>{employerSession.companyName || employerSession.username || "Employer workspace"}</h3>
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '20px' }}>{employerSession.email || "Verified employer account"}</p>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                     <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <div style={{ color: '#10b981', fontWeight: '800', fontSize: '1.1rem' }}>24</div>
+                      <div style={{ color: '#10b981', fontWeight: '800', fontSize: '1.1rem' }}>{employerSession.activeJobCount ?? 0}</div>
                       <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Jobs</div>
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <div style={{ color: '#6366f1', fontWeight: '800', fontSize: '1.1rem' }}>1.2K</div>
+                      <div style={{ color: '#6366f1', fontWeight: '800', fontSize: '1.1rem' }}>{employerSession.totalApplications ?? 0}</div>
                       <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Applicants</div>
                     </div>
                   </div>
