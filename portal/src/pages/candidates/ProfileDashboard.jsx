@@ -184,6 +184,7 @@ export default function ProfileDashboard() {
   const [candidateCallStatus, setCandidateCallStatus] = useState("idle");
   const [candidateCallStream, setCandidateCallStream] = useState(null);
   const [candidateRemoteCallStream, setCandidateRemoteCallStream] = useState(null);
+  const [isCallConnected, setIsCallConnected] = useState(false);
   const candidateSocketRef = useRef(null);
   const candidateThreadsRef = useRef([]);
   const candidateChatEndRef = useRef(null);
@@ -441,7 +442,17 @@ export default function ProfileDashboard() {
         if (activeCall?.state === "IN_CALL" && activeCall?.initiatedBy === "CANDIDATE") {
             if (candidatePeerConnectionRef.current) return;
             
-            const pc = new RTCPeerConnection(RTC_CONFIG);
+            const pc = createRtcPeerConnection({
+                onIceCandidate: (candidate) => {
+                    if (candidate) {
+                        socket.emit("call:ice-candidate", { threadId, candidate });
+                    }
+                },
+                onTrack: (event) => {
+                    setCandidateRemoteCallStream(event.streams[0]);
+                    setIsCallConnected(true);
+                }
+            });
             candidatePeerConnectionRef.current = pc;
             
             setCandidateCallStream(currentStream => {
@@ -450,15 +461,6 @@ export default function ProfileDashboard() {
                 }
                 return currentStream;
             });
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
-                }
-            };
-            pc.ontrack = (event) => {
-                setCandidateRemoteCallStream(event.streams[0]);
-            };
             try {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -474,7 +476,17 @@ export default function ProfileDashboard() {
         if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
         
         if (!candidatePeerConnectionRef.current) {
-            const pc = new RTCPeerConnection(RTC_CONFIG);
+            const pc = createRtcPeerConnection({
+                onIceCandidate: (candidate) => {
+                    if (candidate) {
+                        socket.emit("call:ice-candidate", { threadId, candidate });
+                    }
+                },
+                onTrack: (event) => {
+                    setCandidateRemoteCallStream(event.streams[0]);
+                    setIsCallConnected(true);
+                }
+            });
             candidatePeerConnectionRef.current = pc;
             
             setCandidateCallStream(currentStream => {
@@ -483,19 +495,11 @@ export default function ProfileDashboard() {
                 }
                 return currentStream;
             });
-            
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
-                }
-            };
-            pc.ontrack = (event) => {
-                setCandidateRemoteCallStream(event.streams[0]);
-            };
         }
 
         try {
             await candidatePeerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+            await flushIceCandidates(candidatePeerConnectionRef.current, candidatePendingIceCandidatesRef.current);
             const answer = await candidatePeerConnectionRef.current.createAnswer();
             await candidatePeerConnectionRef.current.setLocalDescription(answer);
             socket.emit("call:answer", { threadId, answer });
@@ -511,6 +515,8 @@ export default function ProfileDashboard() {
         if (answer && answer.type === "answer") {
             try {
                 await candidatePeerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+                await flushIceCandidates(candidatePeerConnectionRef.current, candidatePendingIceCandidatesRef.current);
+                setIsCallConnected(true);
             } catch (err) {
                 console.error("Error setting remote description from answer", err);
             }
@@ -519,7 +525,12 @@ export default function ProfileDashboard() {
 
     socket.on("call:ice-candidate", async ({ threadId, candidate, from }) => {
         if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
-        if (!candidatePeerConnectionRef.current || !candidate) return;
+        if (!candidate) return;
+        
+        if (!candidatePeerConnectionRef.current || !candidatePeerConnectionRef.current.remoteDescription) {
+            candidatePendingIceCandidatesRef.current.push(candidate);
+            return;
+        }
         
         try {
             await candidatePeerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -533,7 +544,9 @@ export default function ProfileDashboard() {
           candidatePeerConnectionRef.current.close();
           candidatePeerConnectionRef.current = null;
       }
+      candidatePendingIceCandidatesRef.current = [];
       setCandidateRemoteCallStream(null);
+      setIsCallConnected(false);
       stopCandidateCall(false);
     });
 
@@ -749,10 +762,12 @@ export default function ProfileDashboard() {
       candidateCallStream.getTracks().forEach((track) => track.stop());
     }
 
+    candidatePendingIceCandidatesRef.current = [];
     setCandidateRemoteCallStream(null);
     setCandidateCallStream(null);
     setCandidateCallModal(false);
     setCandidateCallStatus("idle");
+    setIsCallConnected(false);
   };
 
   const handleScroll = (ref, dir) => {
@@ -1721,9 +1736,21 @@ export default function ProfileDashboard() {
         <div className="pd-call-overlay" onClick={() => stopCandidateCall(true)}>
           <div className="pd-call-modal" onClick={e => e.stopPropagation()}>
             <div className="pd-call-head">
-              <div>
-                <h3>{candidateCallMode === "VIDEO" ? "Video Call" : "Audio Call"}</h3>
-                <p>{candidateCallStatus === "ringing" ? "Waiting for the other person" : candidateCallStatus === "in-call" ? "Call in progress" : "Connecting call"}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div>
+                  <h3>{candidateCallMode === "VIDEO" ? "Video Call" : "Audio Call"}</h3>
+                  <p>{candidateCallStatus === "ringing" ? "Waiting for the other person" : candidateCallStatus === "in-call" ? "Call in progress" : "Connecting call"}</p>
+                </div>
+                {isCallConnected && (
+                  <div style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    background: "#10b981",
+                    boxShadow: "0 0 8px rgba(16, 185, 129, 0.6)",
+                    animation: "pulse 2s infinite"
+                  }} />
+                )}
               </div>
               <button onClick={() => stopCandidateCall(true)}><FiX size={18} /></button>
             </div>

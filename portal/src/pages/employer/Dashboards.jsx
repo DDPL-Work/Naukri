@@ -507,6 +507,7 @@ export default function EmployerProfile() {
     const [callStatus, setCallStatus] = useState("idle");
     const [localCallStream, setLocalCallStream] = useState(null);
     const [remoteCallStream, setRemoteCallStream] = useState(null);
+    const [isCallConnected, setIsCallConnected] = useState(false);
     const callPreviewRef = useRef(null);
     const remoteVideoRef = useRef(null);
     const peerConnectionRef = useRef(null);
@@ -697,6 +698,7 @@ export default function EmployerProfile() {
                 },
                 onTrack: (event) => {
                     setRemoteCallStream(event.streams?.[0] || event.stream);
+                    setIsCallConnected(true);
                 },
                 onConnectionStateChange: (state) => {
                     console.debug("Employer RTCPeerConnection state", state);
@@ -849,6 +851,7 @@ export default function EmployerProfile() {
                     localCallStreamRef.current = null;
                     setShowCall(false);
                     setCallStatus("idle");
+                    setIsCallConnected(false);
                 }
             });
 
@@ -1089,13 +1092,20 @@ export default function EmployerProfile() {
             socket.emit("call:end", { threadId: activeConversation.id });
         }
 
+        if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
+            peerConnectionRef.current = null;
+        }
+
         if (localCallStream) {
             localCallStream.getTracks().forEach((track) => track.stop());
         }
 
+        pendingIceCandidatesRef.current = [];
         setLocalCallStream(null);
         setShowCall(false);
         setCallStatus("idle");
+        setIsCallConnected(false);
     }, [activeConversation?.id, localCallStream]);
 
     const normalizedJobs = Array.isArray(dashboard?.jobs) ? dashboard.jobs : (dashboard?.jobs?.data || []);
@@ -2386,13 +2396,25 @@ export default function EmployerProfile() {
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "14px 16px", borderRadius: 14, background: C.s50, border: `1px solid ${C.s200}`
                 }}>
-                    <div>
-                        <div style={{ fontFamily: C.fd, fontWeight: 800, color: C.s900, marginBottom: 4 }}>
-                            {activeConversation?.from || "Candidate"}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div>
+                            <div style={{ fontFamily: C.fd, fontWeight: 800, color: C.s900, marginBottom: 4 }}>
+                                {activeConversation?.from || "Candidate"}
+                            </div>
+                            <div style={{ fontSize: 12.5, color: C.s500 }}>
+                                {callStatus === "ringing" ? "Waiting for the candidate to join" : callStatus === "connecting" ? "Connecting secure call session" : "Call ready"}
+                            </div>
                         </div>
-                        <div style={{ fontSize: 12.5, color: C.s500 }}>
-                            {callStatus === "ringing" ? "Waiting for the candidate to join" : callStatus === "connecting" ? "Connecting secure call session" : "Call ready"}
-                        </div>
+                        {isCallConnected && (
+                            <div style={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: "50%",
+                                background: "#10b981",
+                                boxShadow: "0 0 8px rgba(16, 185, 129, 0.6)",
+                                animation: "pulse 2s infinite"
+                            }} />
+                        )}
                     </div>
                     <Tag color={callMode === "VIDEO" ? C.indigo : C.green}>{callMode}</Tag>
                 </div>
