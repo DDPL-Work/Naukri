@@ -171,7 +171,7 @@ const initChatSocket = (server) => {
     socket.on("call:offer", async ({ threadId, offer }, ack = () => {}) => {
       try {
         const thread = await ensureThreadAccess({ user: currentUser, threadId });
-        io.to(`${SOCKET_ROOM_PREFIX}${String(thread._id)}`).emit("call:offer", {
+        socket.to(`${SOCKET_ROOM_PREFIX}${String(thread._id)}`).emit("call:offer", {
           threadId: String(thread._id),
           offer,
           from: currentUser.id,
@@ -186,7 +186,7 @@ const initChatSocket = (server) => {
       try {
         const thread = await ensureThreadAccess({ user: currentUser, threadId });
         const nextThread = await upsertCallState(thread, { state: "IN_CALL" });
-        io.to(`${SOCKET_ROOM_PREFIX}${String(nextThread._id)}`).emit("call:answer", {
+        socket.to(`${SOCKET_ROOM_PREFIX}${String(nextThread._id)}`).emit("call:answer", {
           threadId: String(nextThread._id),
           answer,
           from: currentUser.id,
@@ -204,7 +204,7 @@ const initChatSocket = (server) => {
     socket.on("call:ice-candidate", async ({ threadId, candidate }, ack = () => {}) => {
       try {
         const thread = await ensureThreadAccess({ user: currentUser, threadId });
-        io.to(`${SOCKET_ROOM_PREFIX}${String(thread._id)}`).emit("call:ice-candidate", {
+        socket.to(`${SOCKET_ROOM_PREFIX}${String(thread._id)}`).emit("call:ice-candidate", {
           threadId: String(thread._id),
           candidate,
           from: currentUser.id,

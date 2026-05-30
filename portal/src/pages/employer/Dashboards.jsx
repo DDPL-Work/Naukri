@@ -49,8 +49,29 @@ const getInitialsFromName = (name = "Candidate") =>
 const RTC_CONFIG = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" }
-    ]
+        { urls: "stun:stun1.l.google.com:19302" },
+        {
+            urls: "turn:a.relay.metered.ca:80",
+            username: "e8dd65b92f6bce636e3aad7c",
+            credential: "uWdVMlNYkSZSE/M5",
+        },
+        {
+            urls: "turn:a.relay.metered.ca:80?transport=tcp",
+            username: "e8dd65b92f6bce636e3aad7c",
+            credential: "uWdVMlNYkSZSE/M5",
+        },
+        {
+            urls: "turn:a.relay.metered.ca:443",
+            username: "e8dd65b92f6bce636e3aad7c",
+            credential: "uWdVMlNYkSZSE/M5",
+        },
+        {
+            urls: "turns:a.relay.metered.ca:443?transport=tcp",
+            username: "e8dd65b92f6bce636e3aad7c",
+            credential: "uWdVMlNYkSZSE/M5",
+        },
+    ],
+    iceCandidatePoolSize: 10,
 };
 
 
@@ -518,6 +539,8 @@ export default function EmployerProfile() {
     const callPreviewRef = useRef(null);
     const remoteVideoRef = useRef(null);
     const peerConnectionRef = useRef(null);
+    const localCallStreamRef = useRef(null);
+    const pendingIceCandidatesRef = useRef([]);
     const chatEndRef = useRef(null);
     const chatSocketRef = useRef(null);
     const activeConversationIdRef = useRef("");
@@ -741,13 +764,12 @@ export default function EmployerProfile() {
                         
                         const pc = new RTCPeerConnection(RTC_CONFIG);
                         peerConnectionRef.current = pc;
+                        pendingIceCandidatesRef.current = [];
                         
-                        setLocalCallStream(currentStream => {
-                            if (currentStream) {
-                                currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
-                            }
-                            return currentStream;
-                        });
+                        const stream = localCallStreamRef.current;
+                        if (stream) {
+                            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                        }
 
                         pc.onicecandidate = (event) => {
                             if (event.candidate) {
@@ -774,13 +796,12 @@ export default function EmployerProfile() {
                 if (!peerConnectionRef.current) {
                     const pc = new RTCPeerConnection(RTC_CONFIG);
                     peerConnectionRef.current = pc;
+                    pendingIceCandidatesRef.current = [];
                     
-                    setLocalCallStream(currentStream => {
-                        if (currentStream) {
-                            currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
-                        }
-                        return currentStream;
-                    });
+                    const stream = localCallStreamRef.current;
+                    if (stream) {
+                        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                    }
                     
                     pc.onicecandidate = (event) => {
                         if (event.candidate) {
@@ -794,6 +815,11 @@ export default function EmployerProfile() {
 
                 try {
                     await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+                    // Flush any ICE candidates that arrived before remote description was set
+                    for (const c of pendingIceCandidatesRef.current) {
+                        try { await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+                    }
+                    pendingIceCandidatesRef.current = [];
                     const answer = await peerConnectionRef.current.createAnswer();
                     await peerConnectionRef.current.setLocalDescription(answer);
                     socket.emit("call:answer", { threadId, answer });
@@ -809,6 +835,11 @@ export default function EmployerProfile() {
                 if (answer && answer.type === "answer") {
                     try {
                         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+                        // Flush any ICE candidates that arrived before remote description was set
+                        for (const c of pendingIceCandidatesRef.current) {
+                            try { await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+                        }
+                        pendingIceCandidatesRef.current = [];
                     } catch (err) {
                         console.error("Error setting remote description from answer", err);
                     }
@@ -817,7 +848,12 @@ export default function EmployerProfile() {
 
             socket.on("call:ice-candidate", async ({ threadId, candidate, from }) => {
                 if (String(activeConversationIdRef.current || "") !== String(threadId || "")) return;
-                if (!peerConnectionRef.current || !candidate) return;
+                if (!candidate) return;
+                
+                if (!peerConnectionRef.current || !peerConnectionRef.current.remoteDescription) {
+                    pendingIceCandidatesRef.current.push(candidate);
+                    return;
+                }
                 
                 try {
                     await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -832,11 +868,13 @@ export default function EmployerProfile() {
                         peerConnectionRef.current.close();
                         peerConnectionRef.current = null;
                     }
+                    pendingIceCandidatesRef.current = [];
                     setRemoteCallStream(null);
                     setLocalCallStream(currentStream => {
                         if (currentStream) currentStream.getTracks().forEach(t => t.stop());
                         return null;
                     });
+                    localCallStreamRef.current = null;
                     setShowCall(false);
                     setCallStatus("idle");
                 }
