@@ -53,92 +53,7 @@ const RTC_CONFIG = {
     ]
 };
 
-const buildConversationMessages = (application) => {
-    const candidateName = application.candidateName || "Candidate";
-    const jobTitle = application.jobTitle || "the role";
-    const statusLabel = application.statusLabel || "Applied";
-    const candidateContext = application.candidateCurrentTitle
-        ? `${application.candidateCurrentTitle}${application.candidateCity ? ` from ${application.candidateCity}` : ""}`
-        : application.candidateExperience
-            ? `${application.candidateExperience} of experience`
-            : "a candidate";
 
-    return [
-        {
-            from: "them",
-            text: `Hi, I have applied for ${jobTitle}. I am ${candidateContext}.`,
-            time: application.lastUpdated || "Just now",
-        },
-        {
-            from: "me",
-            text: `Thanks ${candidateName}. Your application is currently ${statusLabel.toLowerCase()} for ${jobTitle}. We will update you soon.`,
-            time: "System",
-        },
-        {
-            from: "them",
-            text: `Perfect, thank you for the update. Please let me know if anything else is needed from my side.`,
-            time: "Auto",
-        },
-    ];
-};
-
-    const buildConversationThreads = (applications = []) => {
-    const threadsByCandidate = new Map();
-
-    const apps = Array.isArray(applications)
-        ? applications
-        : (applications && Array.isArray(applications.data) ? applications.data : []);
-
-    (apps || []).forEach((application, index) => {
-        const candidateId = application.candidateId || application.id || `candidate-${index}`;
-        const candidateName = application.candidateName || "Candidate";
-        const avatar = getInitialsFromName(candidateName);
-        const color = CONVERSATION_COLORS[index % CONVERSATION_COLORS.length];
-        const updatedAt = application.updatedAt || application.appliedAt || null;
-        const preview =
-            application.status === "SHORTLISTED"
-                ? `${candidateName} has been shortlisted for ${application.jobTitle}.`
-                : application.status === "OFFERED"
-                    ? `An offer has been sent to ${candidateName}.`
-                    : application.status === "INTERVIEW"
-                        ? `Interview discussion in progress for ${application.jobTitle}.`
-                        : `Application received for ${application.jobTitle}.`;
-
-        const existing = threadsByCandidate.get(candidateId) || {
-            id: candidateId,
-            from: candidateName,
-            avatar,
-            color,
-            role: application.candidateCurrentTitle || application.jobTitle || "Candidate",
-            time: application.lastUpdated || "Just now",
-            preview,
-            unread: application.status !== "HIRED" && application.status !== "REJECTED",
-            updatedAt: updatedAt ? new Date(updatedAt).getTime() : 0,
-            messages: buildConversationMessages(application),
-            candidateId,
-            jobId: application.jobId || "",
-            jobTitle: application.jobTitle || "",
-            status: application.status || "APPLIED",
-            isSynthetic: true,
-        };
-
-        if (!existing.messages.length) {
-            existing.messages = buildConversationMessages(application);
-        }
-
-        if ((updatedAt ? new Date(updatedAt).getTime() : 0) >= existing.updatedAt) {
-            existing.preview = preview;
-            existing.time = application.lastUpdated || existing.time;
-            existing.role = application.candidateCurrentTitle || application.jobTitle || existing.role;
-            existing.messages = buildConversationMessages(application);
-            existing.updatedAt = updatedAt ? new Date(updatedAt).getTime() : existing.updatedAt;
-        }
-
-        threadsByCandidate.set(candidateId, existing);
-    });
-
-    return Array.from(threadsByCandidate.values()).sort((a, b) => b.updatedAt - a.updatedAt);
-};
 
 const ANALYTICS_DATA = {
     profileViews: [320, 410, 380, 520, 490, 610, 580, 720, 680, 840, 800, 960],
@@ -451,6 +366,114 @@ function SectionHead({ title, action }) {
     );
 }
 
+function HelpDeskChatForm() {
+    const [issue, setIssue] = useState("");
+    const [desc, setDesc] = useState("");
+    const [urgency, setUrgency] = useState("");
+    const [file, setFile] = useState(null);
+    const [email, setEmail] = useState("");
+    const [contactMethod, setContactMethod] = useState("");
+    const [chatStarted, setChatStarted] = useState(false);
+    const [chatMessages, setChatMessages] = useState([
+        { from: "system", text: "Welcome to the Help Desk Center! How can we assist you today?" }
+    ]);
+    const [chatInput, setChatInput] = useState("");
+
+    function handleSubmit(e) {
+        e.preventDefault();
+        if (contactMethod === "Chat") {
+            setChatStarted(true);
+            setChatMessages((msgs) => [...msgs, { from: "user", text: desc }]);
+        } else {
+            alert("Your request has been submitted. Our team will contact you soon.");
+        }
+    }
+
+    function handleChatSend(e) {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+        setChatMessages((msgs) => [...msgs, { from: "user", text: chatInput }]);
+        setChatInput("");
+        setTimeout(() => {
+            setChatMessages((msgs) => [...msgs, { from: "system", text: "Thank you for your message. We will connect with you in a short time!" }]);
+        }, 800);
+    }
+
+    if (contactMethod === "Chat" && chatStarted) {
+        return (
+            <div style={{ display: "flex", flexDirection: "column", height: 400 }}>
+                <div style={{ flex: 1, overflowY: "auto", background: "#f8fafc", borderRadius: 10, padding: 16, marginBottom: 12, border: "1px solid #e2e8f0" }}>
+                    {chatMessages.map((msg, i) => (
+                        <div key={i} style={{ textAlign: msg.from === "user" ? "right" : "left", margin: "8px 0" }}>
+                            <span style={{ display: "inline-block", background: msg.from === "user" ? "#002366" : "#e2e8f0", color: msg.from === "user" ? "#fff" : "#222", borderRadius: 16, padding: "8px 16px", maxWidth: 320, fontSize: 15 }}>{msg.text}</span>
+                        </div>
+                    ))}
+                </div>
+                <form onSubmit={handleChatSend} style={{ display: "flex", gap: 8 }}>
+                    <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Type your message..." style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 15 }} />
+                    <button type="submit" style={{ background: "#002366", color: "#fff", border: "none", borderRadius: 8, padding: "0 18px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+                        <FiSend />
+                    </button>
+                </form>
+                <div style={{ marginTop: 10, color: "#10b981", fontWeight: 600, textAlign: "center" }}>We will connect with you in a short time!</div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ padding: 24 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>How can we help you?</h2>
+            <form style={{ display: "flex", flexDirection: "column", gap: 18 }} onSubmit={handleSubmit}>
+                <label style={{ fontWeight: 600 }}>
+                    What issue are you facing?
+                    <select required value={issue} onChange={(e) => setIssue(e.target.value)} style={{ marginTop: 6, padding: 8, borderRadius: 6, border: "1px solid #e2e8f0", width: "100%" }}>
+                        <option value="">Select an issue</option>
+                        <option>Job Posting</option>
+                        <option>Application</option>
+                        <option>Shortlisting</option>
+                        <option>Offers</option>
+                        <option>Other</option>
+                    </select>
+                </label>
+                <label style={{ fontWeight: 600 }}>
+                    Please describe your issue in detail
+                    <textarea required rows={4} value={desc} onChange={(e) => setDesc(e.target.value)} style={{ marginTop: 6, padding: 8, borderRadius: 6, border: "1px solid #e2e8f0", width: "100%" }} placeholder="Describe your problem..." />
+                </label>
+                <label style={{ fontWeight: 600 }}>
+                    How urgent is your issue?
+                    <select required value={urgency} onChange={(e) => setUrgency(e.target.value)} style={{ marginTop: 6, padding: 8, borderRadius: 6, border: "1px solid #e2e8f0", width: "100%" }}>
+                        <option value="">Select urgency</option>
+                        <option>Low</option>
+                        <option>Medium</option>
+                        <option>High</option>
+                        <option>Critical</option>
+                    </select>
+                </label>
+                <label style={{ fontWeight: 600 }}>
+                    Attach any relevant files/screenshots
+                    <input type="file" style={{ marginTop: 6 }} onChange={(e) => setFile(e.target.files[0])} />
+                </label>
+                <label style={{ fontWeight: 600 }}>
+                    Your contact email
+                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} style={{ marginTop: 6, padding: 8, borderRadius: 6, border: "1px solid #e2e8f0", width: "100%" }} placeholder="you@company.com" />
+                </label>
+                <label style={{ fontWeight: 600 }}>
+                    Preferred contact method
+                    <select required value={contactMethod} onChange={(e) => setContactMethod(e.target.value)} style={{ marginTop: 6, padding: 8, borderRadius: 6, border: "1px solid #e2e8f0", width: "100%" }}>
+                        <option value="">Select method</option>
+                        <option>Email</option>
+                        <option>Phone</option>
+                        <option>Chat</option>
+                    </select>
+                </label>
+                <button type="submit" style={{ marginTop: 10, padding: "10px 0", borderRadius: 8, background: "#002366", color: "#fff", fontWeight: 700, fontSize: 16, border: "none", cursor: "pointer" }}>
+                    {contactMethod === "Chat" ? "Start Chat" : "Submit Request"}
+                </button>
+            </form>
+        </div>
+    );
+}
+
 /* ══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════ */
@@ -486,6 +509,7 @@ export default function EmployerProfile() {
     const [savingAbout, setSavingAbout] = useState(false);
     const [likedReviews, setLikedReviews] = useState({}); // Stores the selected reaction type
     const [showReactionFor, setShowReactionFor] = useState(null);
+    const [shareMessage, setShareMessage] = useState("");
     const [showCall, setShowCall] = useState(false);
     const [callMode, setCallMode] = useState("AUDIO");
     const [callStatus, setCallStatus] = useState("idle");
@@ -515,15 +539,10 @@ export default function EmployerProfile() {
         });
     }, [dashboard?.company]);
 
-    const conversationSeed = useMemo(
-        () => buildConversationThreads(Array.isArray(dashboard?.applications) ? dashboard.applications : (dashboard?.applications?.data || [])),
-        [dashboard?.applications],
-    );
-
     useEffect(() => {
-        setMessages(conversationSeed);
+        setMessages([]);
         setActiveConv(0);
-    }, [conversationSeed]);
+    }, []);
 
     const activeConversation = useMemo(
         () => messages[activeConv] || messages[0] || null,
@@ -550,7 +569,7 @@ export default function EmployerProfile() {
                 setMessages((current) => {
                     const currentById = new Map(current.map((conversation) => [String(conversation.id), conversation]));
                     return backendThreads.map((thread, index) => {
-                        const previous = currentById.get(String(thread.candidateId));
+                        const previous = currentById.get(String(thread.id));
                         const color = previous?.color || CONVERSATION_COLORS[index % CONVERSATION_COLORS.length];
                         const avatar = thread.candidateAvatar || previous?.avatar || getInitialsFromName(thread.candidateName);
                         return {
@@ -666,8 +685,8 @@ export default function EmployerProfile() {
         });
 
         socket.on("connect", () => {
-            if (activeConversation?.id && !activeConversation.isSynthetic) {
-                socket.emit("thread:join", { threadId: activeConversation.id });
+            if (activeConversationIdRef.current) {
+                socket.emit("thread:join", { threadId: activeConversationIdRef.current });
             }
         });
 
@@ -678,8 +697,21 @@ export default function EmployerProfile() {
                 }
 
                 const nextMessages = Array.isArray(conversation.messages) ? [...conversation.messages] : [];
+                const isFromMe = message.senderRole === "COMPANY";
+                if (isFromMe) {
+                    const lastMsg = nextMessages[nextMessages.length - 1];
+                    if (lastMsg && lastMsg.from === "me" && lastMsg.text === message.text && lastMsg.time === "Just now") {
+                        nextMessages[nextMessages.length - 1] = {
+                            from: "me",
+                            text: message.text || "",
+                            time: message.lastUpdated || "Just now",
+                        };
+                        return { ...conversation, ...thread, messages: nextMessages, preview: message.text || conversation.preview, time: thread?.time || conversation.time, unread: false };
+                    }
+                }
+
                 nextMessages.push({
-                    from: message.senderRole === "COMPANY" ? "me" : "them",
+                    from: isFromMe ? "me" : "them",
                     text: message.text || "",
                     time: message.lastUpdated || "Just now",
                 });
@@ -690,7 +722,7 @@ export default function EmployerProfile() {
                     messages: nextMessages,
                     preview: message.text || conversation.preview,
                     time: thread?.time || conversation.time,
-                    unread: message.senderRole !== "COMPANY",
+                    unread: !isFromMe,
                 };
             }));
         });
@@ -823,7 +855,7 @@ export default function EmployerProfile() {
     }, [showMsg]);
 
     useEffect(() => {
-        if (!showMsg || !activeConversation?.id || activeConversation.isSynthetic || !chatSocketRef.current?.connected) {
+        if (!showMsg || !activeConversation?.id) {
             return;
         }
 
@@ -849,7 +881,7 @@ export default function EmployerProfile() {
     }, [remoteCallStream, showCall]);
 
     useEffect(() => {
-        if (!showMsg || !activeConversation?.id || activeConversation.isSynthetic) {
+        if (!showMsg || !activeConversation?.id) {
             return;
         }
 
@@ -924,43 +956,26 @@ export default function EmployerProfile() {
         if (!msgInput.trim() || !activeConversation?.id) return;
         const outgoing = msgInput.trim();
         setMsgInput("");
-        try {
-            const response = await authService.sendEmployerChatMessage(activeConversation.id, { text: outgoing });
-            const sentMessage = response?.data?.message;
-            if (!chatSocketRef.current?.connected) {
-                setMessages((current) => current.map((conversation, index) => {
-                    if (index !== activeConv) {
-                        return conversation;
-                    }
 
-                    return {
-                        ...conversation,
-                        messages: [
-                            ...(conversation.messages || []),
-                            {
-                                from: sentMessage?.senderRole === "COMPANY" ? "me" : "them",
-                                text: sentMessage?.text || outgoing,
-                                time: sentMessage?.lastUpdated || "Just now",
-                            },
-                        ],
-                        preview: outgoing,
-                        unread: false,
-                    };
-                }));
-            }
-        } catch {
-            setMessages((current) => current.map((conversation, index) => {
-                if (index !== activeConv) {
-                    return conversation;
-                }
-
-                return {
-                    ...conversation,
-                    messages: [...(conversation.messages || []), { from: "me", text: outgoing, time: "Just now" }],
-                };
-            }));
-        }
+        setMessages((current) => current.map((conversation, index) => {
+            if (index !== activeConv) return conversation;
+            return {
+                ...conversation,
+                messages: [
+                    ...(conversation.messages || []),
+                    { from: "me", text: outgoing, time: "Just now" }
+                ],
+                preview: outgoing,
+                unread: false,
+            };
+        }));
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+
+        try {
+            await authService.sendEmployerChatMessage(activeConversation.id, { text: outgoing });
+        } catch {
+            // Silently ignore or implement retry
+        }
     };
 
     const startCall = useCallback(async (mode) => {
@@ -1089,6 +1104,46 @@ export default function EmployerProfile() {
         specialties: dashboard?.company?.specialties || [],
     };
     const companyReviews = dashboard?.reviews || [];
+    const reviewPageSize = 5;
+    const totalReviewPages = Math.max(1, Math.ceil(companyReviews.length / reviewPageSize));
+
+    const handleReviewShare = async (review) => {
+        const reviewId = review?.id || review?.reviewId || review?._id || `review-${Date.now()}`;
+        const shareToken = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const shareUrl = `${window.location.origin}/review/${reviewId}?share=${shareToken}`;
+
+        const reviewSnapshot = {
+            ...review,
+            reviewId,
+            companyName: dashboard?.company?.name || "MavenJobs Company",
+            sharedAt: new Date().toISOString(),
+            helpfulCount: Math.max(1, Number(review?.helpfulCount || review?.likes || Math.round((review?.rating || 0) * 17 + 5))),
+        };
+
+        try {
+            localStorage.setItem(`maven-review-share:${reviewId}:${shareToken}`, JSON.stringify(reviewSnapshot));
+            localStorage.setItem(`maven-review-share:${reviewId}`, JSON.stringify(reviewSnapshot));
+
+            if (navigator.share) {
+                await navigator.share({
+                    title: "Candidate Review",
+                    text: `Read this verified review from ${reviewSnapshot.candidateName || "a candidate"} for ${reviewSnapshot.companyName}.`,
+                    url: shareUrl,
+                });
+                setShareMessage("Unique review link shared successfully.");
+            } else if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(shareUrl);
+                setShareMessage("Unique review link copied to clipboard.");
+            } else {
+                window.prompt("Copy this unique review link", shareUrl);
+                setShareMessage("Review link ready to copy.");
+            }
+        } catch (error) {
+            console.error("Share failed:", error);
+            setShareMessage("Unable to share this review right now.");
+        }
+        window.setTimeout(() => setShareMessage(""), 2400);
+    };
 
     const tracking = dashboard?.tracking || {};
     const overviewCards = [
@@ -1405,56 +1460,7 @@ export default function EmployerProfile() {
                                 MODAL: HELP DESK CENTER
                             ════════════════════════════════════════════════════ */}
                             <Modal open={showHelpDesk} onClose={() => setShowHelpDesk(false)} title="Help Desk Center" width={600}>
-                                <div style={{ padding: 24 }}>
-                                    <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>How can we help you?</h2>
-                                    <form style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                                        <label style={{ fontWeight: 600 }}>
-                                            What issue are you facing?
-                                            <select required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }}>
-                                                <option value="">Select an issue</option>
-                                                <option>Job Posting</option>
-                                                <option>Application</option>
-                                                <option>Shortlisting</option>
-                                                <option>Offers</option>
-                                                <option>Other</option>
-                                            </select>
-                                        </label>
-                                        <label style={{ fontWeight: 600 }}>
-                                            Please describe your issue in detail
-                                            <textarea required rows={4} style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }} placeholder="Describe your problem..." />
-                                        </label>
-                                        <label style={{ fontWeight: 600 }}>
-                                            How urgent is your issue?
-                                            <select required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }}>
-                                                <option value="">Select urgency</option>
-                                                <option>Low</option>
-                                                <option>Medium</option>
-                                                <option>High</option>
-                                                <option>Critical</option>
-                                            </select>
-                                        </label>
-                                        <label style={{ fontWeight: 600 }}>
-                                            Attach any relevant files/screenshots
-                                            <input type="file" style={{ marginTop: 6 }} />
-                                        </label>
-                                        <label style={{ fontWeight: 600 }}>
-                                            Your contact email
-                                            <input type="email" required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }} placeholder="you@company.com" />
-                                        </label>
-                                        <label style={{ fontWeight: 600 }}>
-                                            Preferred contact method
-                                            <select required style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', width: '100%' }}>
-                                                <option value="">Select method</option>
-                                                <option>Email</option>
-                                                <option>Phone</option>
-                                                <option>Chat</option>
-                                            </select>
-                                        </label>
-                                        <button type="submit" style={{ marginTop: 10, padding: '10px 0', borderRadius: 8, background: '#002366', color: '#fff', fontWeight: 700, fontSize: 16, border: 'none', cursor: 'pointer' }}>
-                                            Submit Request
-                                        </button>
-                                    </form>
-                                </div>
+                                <HelpDeskChatForm />
                             </Modal>
                         </nav>
 
@@ -1504,6 +1510,25 @@ export default function EmployerProfile() {
                             onMouseLeave={e => { e.currentTarget.style.borderColor = C.s200; e.currentTarget.style.color = C.s500; }}>
                             <FiBell size={16} />
                             <div className="notif-pulse" />
+                        </button>
+
+                        {/* Logout */}
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: "8px 12px", borderRadius: 10,
+                                border: `1px solid ${C.s200}`, background: C.s50,
+                                color: C.s700, cursor: "pointer", fontSize: 12,
+                                fontWeight: 700, fontFamily: C.dm,
+                                transition: "all .16s"
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#fff1f2"; e.currentTarget.style.borderColor = "#fecdd3"; e.currentTarget.style.color = "#b91c1c"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = C.s50; e.currentTarget.style.borderColor = C.s200; e.currentTarget.style.color = C.s700; }}
+                        >
+                            <FiLogOut size={14} />
+                            Logout
                         </button>
 
                         {/* Avatar */}
@@ -1845,16 +1870,19 @@ export default function EmployerProfile() {
             {activeTab === "Updates" && (
             <Card className="ep-card">
                 <SectionHead title="Reviews by Candidates" />
-                {companyReviews.slice(reviewPage * 5, (reviewPage + 1) * 5).map((u, i) => {
+                {companyReviews.slice(reviewPage * reviewPageSize, (reviewPage + 1) * reviewPageSize).map((u, i) => {
                     const isLiked = likedReviews[u.id];
+                    const reviewerName = u.candidateName || u.name || u.userName || "Verified Candidate";
+                    const reviewerTitle = u.candidateTitle || u.title || u.role || "Candidate";
                     return (
-                        <div key={u.id} className="ep-update">
-                            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                                <Avatar initials={(u.candidateName || "A").slice(0, 2).toUpperCase()} color={[C.navy, C.green, C.indigo, C.amber, C.purple][i % 5]} size={42} radius={12} />
-                                <div>
-                                    <div style={{ fontFamily: C.fd, fontSize: 13.5, fontWeight: 800, color: C.s900 }}>{u.candidateName}</div>
-                                    <div style={{ fontSize: 12, color: C.s400 }}>{u.candidateTitle || "Candidate"}</div>
+                        <div key={u.id} className="ep-update" style={{ borderRadius: 14, background: "#fff", border: `1px solid ${C.s100}`, boxShadow: "0 14px 26px rgba(15,23,42,0.04)" }}>
+                            <div style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "center" }}>
+                                <Avatar initials={reviewerName.slice(0, 2).toUpperCase()} color={[C.navy, C.green, C.indigo, C.amber, C.purple][i % 5]} size={42} radius={12} />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontFamily: C.fd, fontSize: 13.8, fontWeight: 800, color: C.s900 }}>{reviewerName}</div>
+                                    <div style={{ fontSize: 12, color: C.s400 }}>{reviewerTitle}</div>
                                 </div>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: C.amber, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 999, padding: "6px 10px" }}>{(u.rating || 0)}/5 rating</span>
                             </div>
                             <p style={{ fontSize: 14, color: C.s700, lineHeight: 1.7, marginBottom: 14 }}>"{u.review}"</p>
                             {/* Engagement bar */}
@@ -1915,11 +1943,14 @@ export default function EmployerProfile() {
                                         })()}
                                         {isLiked ? (isLiked.charAt(0).toUpperCase() + isLiked.slice(1)) : "Helpful"}
                                     </button>
-                                    <button style={{
-                                        display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
-                                        borderRadius: 9, background: "transparent", border: "none",
-                                        cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.s500
-                                    }}>
+                                    <button
+                                        onClick={() => handleReviewShare(u)}
+                                        style={{
+                                            display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
+                                            borderRadius: 9, background: "transparent", border: "none",
+                                            cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.s500
+                                        }}
+                                    >
                                         <FiShare2 size={13} /> Share
                                     </button>
                                 </div>
@@ -1932,13 +1963,13 @@ export default function EmployerProfile() {
                 <div style={{ padding: "16px 20px", borderTop: `1px solid ${C.s100}`, background: C.s50 + "50" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 12.5, color: C.s500, fontWeight: 600 }}>
-                            Showing page {reviewPage + 1} of {Math.ceil(companyReviews.length / 5)}
+                            Showing page {reviewPage + 1} of {totalReviewPages} · {companyReviews.length} total reviews
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                             <Btn variant="ghost" onClick={() => setReviewPage(p => Math.max(0, p - 1))} disabled={reviewPage === 0} style={{ padding: "5px 10px", opacity: reviewPage === 0 ? 0.5 : 1 }}>
                                 <FiChevronDown style={{ transform: "rotate(90deg)" }} size={14} />
                             </Btn>
-                            <Btn variant="ghost" onClick={() => setReviewPage(p => Math.min(Math.ceil(companyReviews.length / 5) - 1, p + 1))} disabled={reviewPage >= Math.ceil(companyReviews.length / 5) - 1} style={{ padding: "5px 10px", opacity: reviewPage >= Math.ceil(companyReviews.length / 5) - 1 ? 0.5 : 1 }}>
+                            <Btn variant="ghost" onClick={() => setReviewPage(p => Math.min(totalReviewPages - 1, p + 1))} disabled={reviewPage >= totalReviewPages - 1} style={{ padding: "5px 10px", opacity: reviewPage >= totalReviewPages - 1 ? 0.5 : 1 }}>
                                 <FiChevronDown style={{ transform: "rotate(-90deg)" }} size={14} />
                             </Btn>
                         </div>
@@ -1953,6 +1984,11 @@ export default function EmployerProfile() {
                         </div>
                     </div>
                 </div>
+                {shareMessage && (
+                    <div style={{ margin: "0 20px 16px", padding: "10px 12px", borderRadius: 10, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#065f46", fontSize: 12.5, fontWeight: 700 }}>
+                        {shareMessage}
+                    </div>
+                )}
             </Card>
             )}
         </div>

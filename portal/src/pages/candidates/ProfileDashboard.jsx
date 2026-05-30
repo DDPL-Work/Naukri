@@ -386,8 +386,28 @@ export default function ProfileDashboard() {
       setCandidateThreads((current) => current.map((conversation, index) => {
         if (String(conversation.id) !== String(threadId)) return conversation;
 
+        const nextMessages = Array.isArray(conversation.messages) ? [...conversation.messages] : [];
+        const isFromMe = message.senderRole === "CANDIDATE";
+        if (isFromMe) {
+          const lastMsg = nextMessages[nextMessages.length - 1];
+          if (lastMsg && lastMsg.from === "me" && lastMsg.text === message.text && lastMsg.time === "Just now") {
+             nextMessages[nextMessages.length - 1] = {
+               from: "me",
+               text: message.text || "",
+               time: message.lastUpdated || "Just now",
+             };
+             return normalizeCandidateThread({
+               ...conversation,
+               ...thread,
+               messages: nextMessages,
+               lastMessageText: message.text || conversation.preview,
+               unreadCount: 0,
+             }, index);
+          }
+        }
+
         const nextMessage = {
-          from: message.senderRole === "CANDIDATE" ? "me" : "them",
+          from: isFromMe ? "me" : "them",
           text: message.text || "",
           time: message.lastUpdated || "Just now",
         };
@@ -395,9 +415,9 @@ export default function ProfileDashboard() {
         return normalizeCandidateThread({
           ...conversation,
           ...thread,
-          messages: [...(conversation.messages || []), nextMessage],
+          messages: [...nextMessages, nextMessage],
           lastMessageText: message.text || conversation.preview,
-          unreadCount: message.senderRole === "COMPANY" ? 1 : 0,
+          unreadCount: !isFromMe ? 1 : 0,
         }, index);
       }));
     });
@@ -632,31 +652,22 @@ export default function ProfileDashboard() {
     const outgoing = candidateMsgInput.trim();
     setCandidateMsgInput("");
 
+    setCandidateThreads((current) => current.map((thread, index) => (
+      index === activeCandidateConv
+        ? normalizeCandidateThread({
+            ...thread,
+            lastMessageText: outgoing,
+            messages: [...(thread.messages || []), { from: "me", text: outgoing, time: "Just now" }],
+            unreadCount: 0,
+          }, index)
+        : thread
+    )));
+    setTimeout(() => candidateChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+
     try {
-      const response = await authService.sendCandidateChatMessage(activeCandidateThread.id, { text: outgoing });
-      const sentMessage = response?.data?.message;
-      if (!candidateSocketRef.current?.connected) {
-        setCandidateThreads((current) => current.map((thread, index) => (
-          index === activeCandidateConv
-            ? normalizeCandidateThread({
-                ...thread,
-                lastMessageText: outgoing,
-                messages: [...(thread.messages || []), {
-                  from: "me",
-                  text: sentMessage?.text || outgoing,
-                  time: sentMessage?.lastUpdated || "Just now",
-                }],
-                unreadCount: 0,
-              }, index)
-            : thread
-        )));
-      }
+      await authService.sendCandidateChatMessage(activeCandidateThread.id, { text: outgoing });
     } catch (error) {
-      setCandidateThreads((current) => current.map((thread, index) => (
-        index === activeCandidateConv
-          ? { ...thread, messages: [...(thread.messages || []), { from: "me", text: outgoing, time: "Just now" }], preview: outgoing }
-          : thread
-      )));
+      // ignore or implement retry
     }
   };
 

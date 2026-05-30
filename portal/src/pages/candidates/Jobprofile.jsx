@@ -1029,11 +1029,16 @@ const Jobprofile = () => {
                       if (!selectedRating) return;
                       setReviewSubmitting(true);
                       try {
+                        const savedUser = (() => {
+                          try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
+                        })();
                         const res = await authService.submitCompanyReview(id, {
                           rating: selectedRating,
                           review: reviewText,
                           headline: "",
-                          isAnonymous: true,
+                          isAnonymous: false,
+                          candidateName: savedUser.name || savedUser.fullName || savedUser.email || 'Candidate',
+                          candidateTitle: savedUser.headline || savedUser.title || 'Candidate',
                         });
                         const nextReview = res?.data?.review || null;
                         if (nextReview) {
