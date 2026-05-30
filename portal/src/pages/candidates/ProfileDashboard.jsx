@@ -1,6 +1,7 @@
 //ProfileDashboard.js
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { io } from 'socket.io-client';
+import { buildRtcConfig as buildWebRtcConfig, createPeerConnection as createRtcPeerConnection, flushIceCandidates, stopMediaStream } from '../../utils/webrtc';
 import {
   FiEdit2, FiBriefcase, FiMapPin, FiZap, FiCheckCircle,
   FiChevronRight, FiHome, FiFileText, FiMonitor, FiShare2,
@@ -65,13 +66,6 @@ const normalizeCandidateThread = (thread = {}, index = 0) => {
     messages: Array.isArray(thread.messages) ? thread.messages : [],
     activeCall: thread.activeCall || { state: "IDLE", mediaType: "AUDIO", initiatedBy: "SYSTEM" },
   };
-};
-
-const RTC_CONFIG = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" }
-    ]
 };
 
 const FaqItem = ({ index, question, answer }) => {
@@ -196,7 +190,10 @@ export default function ProfileDashboard() {
   const candidateCallPreviewRef = useRef(null);
   const candidateRemoteVideoRef = useRef(null);
   const candidatePeerConnectionRef = useRef(null);
+  const candidateLocalCallStreamRef = useRef(null);
+  const candidatePendingIceCandidatesRef = useRef([]);
   const activeCandidateThreadIdRef = useRef("");
+  const candidateRtcConfig = useMemo(() => buildWebRtcConfig(), []);
 
   useEffect(() => {
     if (user) {
@@ -682,8 +679,16 @@ export default function ProfileDashboard() {
         throw new Error("Media devices are not available in this browser");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === "VIDEO" });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: callType === "VIDEO",
+      });
       setCandidateCallStream(stream);
+      candidateLocalCallStreamRef.current = stream;
       setCandidateCallModal(true);
 
       const socket = candidateSocketRef.current;
@@ -711,8 +716,16 @@ export default function ProfileDashboard() {
         throw new Error("Media devices are not available in this browser");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === "VIDEO" });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: callType === "VIDEO",
+      });
       setCandidateCallStream(stream);
+      candidateLocalCallStreamRef.current = stream;
       setCandidateCallModal(true);
       candidateSocketRef.current?.emit("call:answer", { threadId: activeCandidateThread.id, answer: { accepted: true } }, () => {
         setCandidateCallStatus("in-call");

@@ -19,6 +19,7 @@ import {
 } from "react-icons/fi";
 import mavenLogo from "../../../assets/maven-logo-BdiSsfJk.svg";
 import authService from "../../services/authService";
+import { buildRtcConfig as buildWebRtcConfig, createPeerConnection as createRtcPeerConnection, flushIceCandidates, stopMediaStream } from "../../utils/webrtc";
 
 /* ── Tokens ─────────────────────────────────────────────── */
 const C = {
@@ -45,36 +46,6 @@ const getInitialsFromName = (name = "Candidate") =>
         .map((part) => part[0] || "")
         .join("")
         .toUpperCase() || "C";
-
-const RTC_CONFIG = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        {
-            urls: "turn:a.relay.metered.ca:80",
-            username: "e8dd65b92f6bce636e3aad7c",
-            credential: "uWdVMlNYkSZSE/M5",
-        },
-        {
-            urls: "turn:a.relay.metered.ca:80?transport=tcp",
-            username: "e8dd65b92f6bce636e3aad7c",
-            credential: "uWdVMlNYkSZSE/M5",
-        },
-        {
-            urls: "turn:a.relay.metered.ca:443",
-            username: "e8dd65b92f6bce636e3aad7c",
-            credential: "uWdVMlNYkSZSE/M5",
-        },
-        {
-            urls: "turns:a.relay.metered.ca:443?transport=tcp",
-            username: "e8dd65b92f6bce636e3aad7c",
-            credential: "uWdVMlNYkSZSE/M5",
-        },
-    ],
-    iceCandidatePoolSize: 10,
-};
-
-
 
 const ANALYTICS_DATA = {
     profileViews: [320, 410, 380, 520, 490, 610, 580, 720, 680, 840, 800, 960],
@@ -541,6 +512,7 @@ export default function EmployerProfile() {
     const peerConnectionRef = useRef(null);
     const localCallStreamRef = useRef(null);
     const pendingIceCandidatesRef = useRef([]);
+    const rtcConfig = useMemo(() => buildWebRtcConfig(), []);
     const chatEndRef = useRef(null);
     const chatSocketRef = useRef(null);
     const activeConversationIdRef = useRef("");
@@ -703,9 +675,46 @@ export default function EmployerProfile() {
 
         const socket = io(socketUrl, {
             auth: { token },
-            transports: ["websocket"],
+            transports: ["websocket", "polling"],
             withCredentials: true,
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 2000,
+            timeout: 20000,
+            pingInterval: 25000,
+            pingTimeout: 60000,
         });
+
+        const createEmployerPeerConnection = (threadId) => {
+            const pc = createRtcPeerConnection({
+                rtcConfig,
+                localStream: localCallStreamRef.current,
+                onIceCandidate: (candidate) => {
+                    if (candidate && chatSocketRef.current?.connected) {
+                        chatSocketRef.current.emit("call:ice-candidate", { threadId, candidate });
+                    }
+                },
+                onTrack: (event) => {
+                    setRemoteCallStream(event.streams?.[0] || event.stream);
+                },
+                onConnectionStateChange: (state) => {
+                    console.debug("Employer RTCPeerConnection state", state);
+                    if (state === "failed") {
+                        setCallStatus("failed");
+                    }
+                },
+                onIceConnectionStateChange: (iceState) => {
+                    console.debug("Employer ICE connection state", iceState);
+                },
+                onSignalingStateChange: (signalingState) => {
+                    console.debug("Employer signaling state", signalingState);
+                },
+            });
+
+            pendingIceCandidatesRef.current = [];
+            return pc;
+        };
 
         socket.on("connect", () => {
             if (activeConversationIdRef.current) {
@@ -761,30 +770,15 @@ export default function EmployerProfile() {
                     
                     if (activeCall?.state === "IN_CALL" && activeCall?.initiatedBy === "COMPANY") {
                         if (peerConnectionRef.current) return;
-                        
-                        const pc = new RTCPeerConnection(RTC_CONFIG);
-                        peerConnectionRef.current = pc;
-                        pendingIceCandidatesRef.current = [];
-                        
-                        const stream = localCallStreamRef.current;
-                        if (stream) {
-                            stream.getTracks().forEach(track => pc.addTrack(track, stream));
-                        }
 
-                        pc.onicecandidate = (event) => {
-                            if (event.candidate) {
-                                socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
-                            }
-                        };
-                        pc.ontrack = (event) => {
-                            setRemoteCallStream(event.streams[0]);
-                        };
+                        peerConnectionRef.current = createEmployerPeerConnection(threadId);
                         try {
-                            const offer = await pc.createOffer();
-                            await pc.setLocalDescription(offer);
+                            const offer = await peerConnectionRef.current.createOffer();
+                            await peerConnectionRef.current.setLocalDescription(offer);
                             socket.emit("call:offer", { threadId, offer });
                         } catch (err) {
                             console.error("Error creating WebRTC offer", err);
+                            setCallStatus("failed");
                         }
                     }
                 }
@@ -794,37 +788,18 @@ export default function EmployerProfile() {
                 if (String(activeConversationIdRef.current || "") !== String(threadId || "")) return;
                 
                 if (!peerConnectionRef.current) {
-                    const pc = new RTCPeerConnection(RTC_CONFIG);
-                    peerConnectionRef.current = pc;
-                    pendingIceCandidatesRef.current = [];
-                    
-                    const stream = localCallStreamRef.current;
-                    if (stream) {
-                        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-                    }
-                    
-                    pc.onicecandidate = (event) => {
-                        if (event.candidate) {
-                            socket.emit("call:ice-candidate", { threadId, candidate: event.candidate });
-                        }
-                    };
-                    pc.ontrack = (event) => {
-                        setRemoteCallStream(event.streams[0]);
-                    };
+                    peerConnectionRef.current = createEmployerPeerConnection(threadId);
                 }
 
                 try {
                     await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
-                    // Flush any ICE candidates that arrived before remote description was set
-                    for (const c of pendingIceCandidatesRef.current) {
-                        try { await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-                    }
-                    pendingIceCandidatesRef.current = [];
+                    await flushIceCandidates(peerConnectionRef.current, pendingIceCandidatesRef.current);
                     const answer = await peerConnectionRef.current.createAnswer();
                     await peerConnectionRef.current.setLocalDescription(answer);
                     socket.emit("call:answer", { threadId, answer });
                 } catch (err) {
                     console.error("Error handling WebRTC offer", err);
+                    setCallStatus("failed");
                 }
             });
 
@@ -835,13 +810,10 @@ export default function EmployerProfile() {
                 if (answer && answer.type === "answer") {
                     try {
                         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-                        // Flush any ICE candidates that arrived before remote description was set
-                        for (const c of pendingIceCandidatesRef.current) {
-                            try { await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-                        }
-                        pendingIceCandidatesRef.current = [];
+                        await flushIceCandidates(peerConnectionRef.current, pendingIceCandidatesRef.current);
                     } catch (err) {
                         console.error("Error setting remote description from answer", err);
+                        setCallStatus("failed");
                     }
                 }
             });
@@ -914,7 +886,14 @@ export default function EmployerProfile() {
 
     useEffect(() => {
         if (remoteVideoRef.current && remoteCallStream) {
-            remoteVideoRef.current.srcObject = remoteCallStream;
+            const remoteVideo = remoteVideoRef.current;
+            remoteVideo.autoplay = true;
+            remoteVideo.playsInline = true;
+            remoteVideo.srcObject = remoteCallStream;
+            const playPromise = remoteVideo.play();
+            if (playPromise?.catch) {
+                playPromise.catch((err) => console.warn("Remote call video autoplay failed", err));
+            }
         }
     }, [remoteCallStream, showCall]);
 
@@ -1031,11 +1010,16 @@ export default function EmployerProfile() {
             }
 
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
                 video: callType === "VIDEO",
             });
 
             setLocalCallStream(stream);
+            localCallStreamRef.current = stream;
             setShowCall(true);
 
             const socket = chatSocketRef.current;
@@ -1072,11 +1056,16 @@ export default function EmployerProfile() {
             }
 
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
                 video: callType === "VIDEO",
             });
 
             setLocalCallStream(stream);
+            localCallStreamRef.current = stream;
             setShowCall(true);
 
             const socket = chatSocketRef.current;
