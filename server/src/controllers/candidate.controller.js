@@ -404,6 +404,7 @@ const formatJob = (job, applicationMap = new Map(), matchData = null) => {
     id: String(job._id),
     companyId: String(job.companyId?._id || job.companyId || ""),
     companyName: job.companyId?.name || "Unknown company",
+    companyLogoUrl: job.companyId?.logoUrl || "",
     title: job.title,
     department: job.department || "General",
     jobType: job.jobType || "",

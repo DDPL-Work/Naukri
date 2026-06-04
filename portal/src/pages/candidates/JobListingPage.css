@@ -495,6 +495,18 @@
   color: var(--brand-blue);
   flex-shrink: 0;
   transition: background 0.2s;
+  overflow: hidden;
+}
+.jlp-company-logo.has-image {
+  background: #fff;
+  color: transparent;
+}
+.jlp-company-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 7px;
+  display: block;
 }
 .jlp-job-card:hover .jlp-company-logo { background: rgba(20,63,134,0.06); }
 .jlp-card-meta { flex: 1; }
@@ -650,6 +662,18 @@
   display: flex; align-items: center; justify-content: center;
   font-weight: 900; color: var(--text-muted);
   font-size: 0.9rem; transition: all 0.15s;
+  overflow: hidden;
+}
+.jlp-company-item-logo.has-image {
+  background: #fff;
+  color: transparent;
+}
+.jlp-company-item-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+  display: block;
 }
 .jlp-company-item:hover .jlp-company-item-logo { background: rgba(20,63,134,0.06); color: var(--brand-blue); }
 .jlp-company-item-name { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }

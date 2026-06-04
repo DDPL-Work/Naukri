@@ -23,6 +23,44 @@ const initialsFor = (name = "") =>
 
 const companyColors = ["#2563eb", "#059669", "#7c3aed", "#d97706", "#dc2626", "#0891b2"];
 
+const fallbackCompanies = [
+  { name: "Tata Consultancy Services", industry: "IT Services", tagline: "Enterprise technology and consulting teams hiring across India.", jobs: 124, color: "#2563eb" },
+  { name: "Infosys", industry: "Technology", tagline: "Digital engineering, cloud, data, and product roles for ambitious professionals.", jobs: 96, color: "#0f766e" },
+  { name: "HDFC Bank", industry: "Banking", tagline: "Customer, analytics, risk, and operations opportunities with a national brand.", jobs: 78, color: "#dc2626" },
+  { name: "Zomato", industry: "Consumer Internet", tagline: "Fast-moving product, operations, growth, and supply roles.", jobs: 54, color: "#be123c" },
+  { name: "Reliance Retail", industry: "Retail", tagline: "Store leadership, merchandising, logistics, and corporate hiring.", jobs: 88, color: "#d97706" },
+  { name: "Cognizant", industry: "IT Services", tagline: "Consulting and engineering roles for global delivery teams.", jobs: 71, color: "#0891b2" },
+  { name: "PhonePe", industry: "Fintech", tagline: "Payments, platform, security, and business roles in high-growth teams.", jobs: 42, color: "#7c3aed" },
+  { name: "Larsen & Toubro", industry: "Engineering", tagline: "Infrastructure, project, design, and field engineering careers.", jobs: 63, color: "#1d4ed8" },
+];
+
+const fallbackCategories = [
+  { label: "Software & IT", count: "2.4K jobs", description: "Frontend, backend, QA, cloud, DevOps, and support roles from verified employers." },
+  { label: "Sales & Business Development", count: "1.1K jobs", description: "Inside sales, field sales, enterprise accounts, and channel roles." },
+  { label: "Data & Analytics", count: "840 jobs", description: "Analyst, BI, data engineering, ML, and reporting opportunities." },
+  { label: "Banking & Finance", count: "760 jobs", description: "Operations, risk, relationship, credit, and finance roles." },
+  { label: "Marketing", count: "610 jobs", description: "Growth, performance marketing, brand, content, and social roles." },
+  { label: "Operations", count: "920 jobs", description: "Supply chain, logistics, customer success, and process roles." },
+];
+
+const fallbackRoles = [
+  { name: "Full Stack Developer", count: "620 jobs" },
+  { name: "Business Development Executive", count: "510 jobs" },
+  { name: "Data Analyst", count: "430 jobs" },
+  { name: "Customer Success Manager", count: "390 jobs" },
+  { name: "Digital Marketing Executive", count: "320 jobs" },
+  { name: "HR Recruiter", count: "280 jobs" },
+  { name: "Relationship Manager", count: "260 jobs" },
+  { name: "Operations Executive", count: "245 jobs" },
+];
+
+const fallbackStats = [
+  { num: "12K+", label: "Active Job Listings" },
+  { num: "85K+", label: "Registered Job Seekers" },
+  { num: "1.2K+", label: "Companies Hiring" },
+  { num: "3.5K+", label: "Offers This Month" },
+];
+
 const normalizeSearch = (value = "") => String(value || "").trim().toLowerCase();
 
 const extractMinimumExperience = (value = "") => {
@@ -139,7 +177,7 @@ exports.getPublicJobs = async (req, res) => {
     })
       .sort({ updatedAt: -1 })
       .limit(300)
-      .populate("companyId", "name industry packageType location");
+      .populate("companyId", "name industry packageType location logoUrl");
 
     const filteredJobs = jobs
       .filter((job) => jobMatchesSearch(job, search))
@@ -199,6 +237,7 @@ exports.getPublicCompanyDetail = async (req, res) => {
           activeJobCount: jobs.length,
           logo: initialsFor(company.name),
           logoUrl: company.logoUrl || "",
+          coverImageUrl: company.coverImageUrl || "",
           about: company.about || "",
           mission: company.mission || "",
           vision: company.vision || "",
@@ -341,14 +380,16 @@ exports.getHomeLandingData = async (req, res) => {
     return res.json({
       success: true,
       data: {
-        stats: [
+        stats: activeJobs || candidates || activeCompanies || monthlyOffers ? [
           { num: formatCompactCount(activeJobs), label: "Active Job Listings" },
           { num: formatCompactCount(candidates), label: "Registered Job Seekers" },
           { num: formatCompactCount(activeCompanies), label: "Companies Hiring" },
           { num: formatCompactCount(monthlyOffers), label: "Offers This Month" },
-        ],
-        topCategories: ["All", ...industryRows.map((item) => item._id).filter(Boolean)],
-        companies: companies.map((company, index) => ({
+        ] : fallbackStats,
+        topCategories: industryRows.length
+          ? ["All", ...industryRows.map((item) => item._id).filter(Boolean)]
+          : ["All", "IT Services", "Technology", "Banking", "Consumer Internet", "Retail", "Engineering", "Fintech"],
+        companies: companies.length ? companies.map((company, index) => ({
           id: String(company._id),
           name: company.name,
           logo: initialsFor(company.name),
@@ -359,18 +400,29 @@ exports.getHomeLandingData = async (req, res) => {
           desc: company.tagline || `${company.industry || "Growing"} company hiring on MavenJobs.`,
           jobs: Number(company.activeJobCount || company.openRoles || 0),
           category: company.industry || "General",
+        })) : fallbackCompanies.map((company, index) => ({
+          id: "",
+          name: company.name,
+          logo: initialsFor(company.name),
+          logoUrl: "",
+          color: company.color || companyColors[index % companyColors.length],
+          rating: 4 + ((index % 6) / 10),
+          reviews: formatCompactCount(Math.max(80, company.jobs * 18)),
+          desc: company.tagline,
+          jobs: company.jobs,
+          category: company.industry,
         })),
-        categories: categoryRows.map((item) => ({
+        categories: categoryRows.length ? categoryRows.map((item) => ({
           label: item._id || "General",
           count: `${formatCompactCount(item.count)} jobs`,
           description: `Explore active ${item._id || "general"} openings from verified employers.`,
-        })),
-        popularSearches: roleRows.map((item) => item._id).filter(Boolean),
-        jobRoles: roleRows.map((item) => ({
+        })) : fallbackCategories,
+        popularSearches: roleRows.length ? roleRows.map((item) => item._id).filter(Boolean) : fallbackRoles.map((role) => role.name),
+        jobRoles: roleRows.length ? roleRows.map((item) => ({
           name: item._id || "Open Role",
           count: `${formatCompactCount(item.count)} jobs`,
-        })),
-        trustedBrands: companies.slice(0, 5).map((company) => company.name),
+        })) : fallbackRoles,
+        trustedBrands: companies.length ? companies.slice(0, 5).map((company) => company.name) : fallbackCompanies.slice(0, 5).map((company) => company.name),
       },
     });
   } catch (error) {

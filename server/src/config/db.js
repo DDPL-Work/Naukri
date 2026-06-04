@@ -45,7 +45,12 @@ const bindConnectionListeners = () => {
   });
 
   mongoose.connection.on("disconnected", () => {
-    console.warn("[db] MongoDB connection disconnected.");
+    if (mongoose.connection.readyState === 0) {
+      console.warn("[db] MongoDB connection disconnected.");
+      return;
+    }
+
+    console.warn("[db] MongoDB driver reported a transient disconnect; waiting for reconnection.");
   });
 
   mongoose.connection.on("error", (error) => {

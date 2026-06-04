@@ -98,6 +98,7 @@ export default function JobListingPage() {
           const title = j.title || 'Senior Engineer';
           const companyObj = j.company || j.companyId || {};
           const company = companyObj.name || j.companyName || j.company || 'Enterprise Partner';
+          const companyLogoUrl = companyObj.logoUrl || j.companyLogoUrl || j.logoUrl || '';
           const minSal = j.salaryMin || 0;
           const maxSal = j.salaryMax || 0;
           const salStr = minSal && maxSal ? `${(minSal/100000).toFixed(0)}–${(maxSal/100000).toFixed(0)} Lakhs PA` : j.salary || '18–28 Lakhs PA';
@@ -128,7 +129,8 @@ export default function JobListingPage() {
             posted: j.lastUpdated || j.posted || '2 days ago',
             desc: j.description || j.desc || 'No description provided.',
             tags: skills.length > 0 ? [...stackTags, ...skills] : ['Full-Time', j.department || 'Engineering'],
-            logo: company[0],
+            logo: j.companyLogo || company[0],
+            logoUrl: companyLogoUrl,
             featured: i < 3,
             dept: j.department || 'Engineering',
             mode: j.workplaceType || 'Remote',
@@ -541,7 +543,9 @@ export default function JobListingPage() {
                 {job.featured && <div className="jlp-featured-badge"><FaStar size={12} className="inline mr-1" /> Featured</div>}
 
                 <div className="jlp-card-top">
-                  <div className="jlp-company-logo">{job.logo}</div>
+                  <div className={`jlp-company-logo ${job.logoUrl ? 'has-image' : ''}`}>
+                    {job.logoUrl ? <img src={job.logoUrl} alt={`${job.company} logo`} /> : job.logo}
+                  </div>
                   <div className="jlp-card-meta">
                     <div className="jlp-job-title">{job.title}</div>
                     <div className="jlp-company-row">
@@ -658,19 +662,11 @@ export default function JobListingPage() {
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="jlp-company-item-left">
-                      <div 
-                        className="jlp-company-item-logo"
-                        style={{
-                          background: c.color || '#002366',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: '1rem'
-                        }}
+                      <div
+                        className={`jlp-company-item-logo ${c.logoUrl ? 'has-image' : ''}`}
+                        style={!c.logoUrl ? { background: c.color || '#002366', color: 'white' } : undefined}
                       >
-                        {c.logo || c.name[0].toUpperCase()}
+                        {c.logoUrl ? <img src={c.logoUrl} alt={`${c.name} logo`} /> : (c.logo || c.name[0].toUpperCase())}
                       </div>
                       <div>
                         <div className="jlp-company-item-name">{c.name}</div>
@@ -814,4 +810,3 @@ export default function JobListingPage() {
     </div>
   );
 }
-

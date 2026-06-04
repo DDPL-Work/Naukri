@@ -109,19 +109,36 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.updateProfile(profileData);
       if (response.success) {
         const updatedProfile = response.data;
+        const profilePicUrl = typeof updatedProfile.profilePic === "string"
+          ? updatedProfile.profilePic
+          : updatedProfile.profilePic?.url || user?.profilePic || "";
+        const coverPicUrl = typeof updatedProfile.coverPic === "string"
+          ? updatedProfile.coverPic
+          : updatedProfile.coverPic?.url || user?.coverPic || "";
+
         // Update local user with new profile info
         updateUser({
-          ...updatedProfile.user,
+          ...profileData,
           ...updatedProfile,
           headline: updatedProfile.headline || "",
+          summary: updatedProfile.summary || "",
+          currentTitle: updatedProfile.currentTitle || "",
+          currentCompany: updatedProfile.currentCompany || "",
+          totalExperience: updatedProfile.totalExperience || "",
+          noticePeriod: updatedProfile.noticePeriod || "",
+          currentCity: updatedProfile.currentCity || "",
+          phone: updatedProfile.phone || "",
+          skills: updatedProfile.skills || [],
           education: updatedProfile.education || "",
           itSkills: updatedProfile.itSkills || "",
           projectTitle: updatedProfile.projectTitle || "",
           projectLink: updatedProfile.projectLink || "",
           projectDescription: updatedProfile.projectDescription || "",
-          profilePic: updatedProfile.profilePic?.url || "",
-          coverPic: updatedProfile.coverPic?.url || "",
-          profileCompletion: updatedProfile.profileCompletion,
+          expectedSalary: updatedProfile.expectedSalary || "",
+          preferredLocations: updatedProfile.preferredLocations || [],
+          profilePic: profilePicUrl,
+          coverPic: coverPicUrl,
+          profileCompletion: updatedProfile.profileCompletion ?? user?.profileCompletion ?? 0,
         });
         return { success: true, profile: updatedProfile };
       }

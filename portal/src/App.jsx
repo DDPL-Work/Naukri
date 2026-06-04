@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import NaukriLandingPage from "./pages/candidates/NaukriLandingPage";
 import EmployerLandingPage from "./pages/candidates/EmployerLandingPage";
 import JobListingPage from "./pages/candidates/JobListingPage";
@@ -37,6 +37,7 @@ function AppContent() {
   const [showQuizPopup, setShowQuizPopup] = useState(false);
   const [quizNotification, setQuizNotification] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -110,7 +111,7 @@ function AppContent() {
         xpReward={quizNotification?.xpReward || 50}
         quizDurationSeconds={quizNotification?.durationSeconds || 60}
       />
-      <Premium3D />
+      {location.pathname !== "/blog-article" && <Premium3D />}
     </>
   );
 }

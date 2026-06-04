@@ -26,12 +26,13 @@ const Jobprofile = () => {
   const [savedJobs, setSavedJobs] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const fallbackCoverImage = 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200';
 
   const [company, setCompany] = useState({
     name: '', fullName: '', logo: '', bg: '#002366', accent: '#10b981',
     industry: '', type: '', size: '', founded: '', website: '',
     location: '', followers: '—', rating: 0, reviews: '0', reviewsList: [],
-    coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
+    coverImage: fallbackCoverImage,
     tags: [], about: '', departments: [], benefits: [], jobs: [],
   });
 
@@ -72,7 +73,7 @@ const Jobprofile = () => {
             rating: 3.4,
             reviews: '—',
             reviewsList: res.data.reviews || [],
-            coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
+            coverImage: c.coverImageUrl || c.coverImage || fallbackCoverImage,
             tags: [c.type || 'Private', c.industry || 'Corporate'].filter(Boolean),
             about: c.about || `${c.name} is a leading company in the ${c.industry || 'technology'} industry, committed to excellence and innovation.`,
             mission: c.mission || '',

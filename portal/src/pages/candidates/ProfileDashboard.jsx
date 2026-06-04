@@ -1,4 +1,4 @@
-//ProfileDashboard.js
+﻿//ProfileDashboard.js
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import { buildRtcConfig as buildWebRtcConfig, createPeerConnection as createRtcPeerConnection, flushIceCandidates, stopMediaStream } from '../../utils/webrtc';
@@ -32,6 +32,8 @@ const getCandidateSocketUrl = () => (
   import.meta.env.VITE_API_URL ||
   "http://localhost:5000"
 ).replace(/\/api\/v\d+$/, "");
+
+const PROFILE_COMPLETION_MODAL_THRESHOLD = 70;
 
 const getInitials = (name = "Company") => String(name || "Company")
   .trim()
@@ -90,7 +92,10 @@ export default function ProfileDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Profile');
   const [coverImage, setCoverImage] = useState(user?.coverPic || "");
-  const [showCompletionModal, setShowCompletionModal] = useState(user?.profileCompletion < 100);
+  const profileCompletion = Number(user?.profileCompletion || 0);
+  const [showCompletionModal, setShowCompletionModal] = useState(
+    Boolean(user) && profileCompletion < PROFILE_COMPLETION_MODAL_THRESHOLD
+  );
   const [showPreview, setShowPreview] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeNavDropdown, setActiveNavDropdown] = useState(null);
@@ -120,13 +125,22 @@ export default function ProfileDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const { updateProfile } = useAuth();
 
+  useEffect(() => {
+    const currentCompletion = Number(user?.profileCompletion || 0);
+    if (!user || currentCompletion >= PROFILE_COMPLETION_MODAL_THRESHOLD) {
+      setShowCompletionModal(false);
+    }
+  }, [user, user?.profileCompletion]);
+
   const handleSaveProfile = async (formData) => {
     setIsSaving(true);
     try {
       const result = await updateProfile(formData);
       if (result.success) {
+        const savedProfile = result.profile || formData;
+        setCandidateProfile(prev => ({ ...(prev || {}), ...savedProfile }));
         setActiveEditSection(null);
-        if (formData.skills) setSkills(formData.skills);
+        if (savedProfile.skills || formData.skills) setSkills(savedProfile.skills || formData.skills);
       }
     } catch (err) {
       console.error("Save failed:", err);
@@ -183,6 +197,8 @@ export default function ProfileDashboard() {
   const [candidateCallMode, setCandidateCallMode] = useState("AUDIO");
   const [candidateCallStatus, setCandidateCallStatus] = useState("idle");
   const [candidateCallStream, setCandidateCallStream] = useState(null);
+  // Disable call features: chat-only production mode
+  const CALLS_ENABLED = false;
   const [candidateRemoteCallStream, setCandidateRemoteCallStream] = useState(null);
   const [isCallConnected, setIsCallConnected] = useState(false);
   const candidateSocketRef = useRef(null);
@@ -213,7 +229,7 @@ export default function ProfileDashboard() {
           const formatSalary = (min, max) => {
             if (!min && !max) return null;
             const toL = v => (v >= 100000 ? `${(v / 100000).toFixed(0)}L` : `${v}`);
-            if (min && max) return `${toL(min)} – ${toL(max)} P.A.`;
+            if (min && max) return `${toL(min)} - ${toL(max)} P.A.`;
             if (max) return `Up to ${toL(max)} P.A.`;
             return `${toL(min)}+ P.A.`;
           };
@@ -420,135 +436,7 @@ export default function ProfileDashboard() {
       }));
     });
 
-    socket.on("call:state", async ({ threadId, activeCall }) => {
-      setCandidateThreads((current) => current.map((thread) => (
-        String(thread.id) === String(threadId) ? { ...thread, activeCall } : thread
-      )));
-
-      if (activeCall?.state === "RINGING" && activeCall?.initiatedBy === "COMPANY") {
-        const ringingIndex = candidateThreadsRef.current.findIndex((thread) => String(thread.id) === String(threadId));
-        if (ringingIndex >= 0) setActiveCandidateConv(ringingIndex);
-        setShowCandidateChat(true);
-        setCandidateCallMode(activeCall?.mediaType || "AUDIO");
-        setCandidateCallStatus("ringing");
-        setCandidateCallModal(false);
-        return;
-      }
-
-      if (String(activeCandidateThreadIdRef.current) === String(threadId)) {
-        setCandidateCallMode(activeCall?.mediaType || "AUDIO");
-        setCandidateCallStatus(activeCall?.state === "IN_CALL" ? "in-call" : activeCall?.state === "RINGING" ? "ringing" : "idle");
-        
-        if (activeCall?.state === "IN_CALL" && activeCall?.initiatedBy === "CANDIDATE") {
-            if (candidatePeerConnectionRef.current) return;
-            
-            const pc = createRtcPeerConnection({
-                onIceCandidate: (candidate) => {
-                    if (candidate) {
-                        socket.emit("call:ice-candidate", { threadId, candidate });
-                    }
-                },
-                onTrack: (event) => {
-                    setCandidateRemoteCallStream(event.streams[0]);
-                    setIsCallConnected(true);
-                }
-            });
-            candidatePeerConnectionRef.current = pc;
-            
-            setCandidateCallStream(currentStream => {
-                if (currentStream) {
-                    currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
-                }
-                return currentStream;
-            });
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                socket.emit("call:offer", { threadId, offer });
-            } catch (err) {
-                console.error("Error creating WebRTC offer", err);
-            }
-        }
-      }
-    });
-
-    socket.on("call:offer", async ({ threadId, offer, from }) => {
-        if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
-        
-        if (!candidatePeerConnectionRef.current) {
-            const pc = createRtcPeerConnection({
-                onIceCandidate: (candidate) => {
-                    if (candidate) {
-                        socket.emit("call:ice-candidate", { threadId, candidate });
-                    }
-                },
-                onTrack: (event) => {
-                    setCandidateRemoteCallStream(event.streams[0]);
-                    setIsCallConnected(true);
-                }
-            });
-            candidatePeerConnectionRef.current = pc;
-            
-            setCandidateCallStream(currentStream => {
-                if (currentStream) {
-                    currentStream.getTracks().forEach(track => pc.addTrack(track, currentStream));
-                }
-                return currentStream;
-            });
-        }
-
-        try {
-            await candidatePeerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
-            await flushIceCandidates(candidatePeerConnectionRef.current, candidatePendingIceCandidatesRef.current);
-            const answer = await candidatePeerConnectionRef.current.createAnswer();
-            await candidatePeerConnectionRef.current.setLocalDescription(answer);
-            socket.emit("call:answer", { threadId, answer });
-        } catch (err) {
-            console.error("Error handling WebRTC offer", err);
-        }
-    });
-
-    socket.on("call:answer", async ({ threadId, answer, from }) => {
-        if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
-        if (!candidatePeerConnectionRef.current) return;
-        
-        if (answer && answer.type === "answer") {
-            try {
-                await candidatePeerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-                await flushIceCandidates(candidatePeerConnectionRef.current, candidatePendingIceCandidatesRef.current);
-                setIsCallConnected(true);
-            } catch (err) {
-                console.error("Error setting remote description from answer", err);
-            }
-        }
-    });
-
-    socket.on("call:ice-candidate", async ({ threadId, candidate, from }) => {
-        if (String(activeCandidateThreadIdRef.current) !== String(threadId)) return;
-        if (!candidate) return;
-        
-        if (!candidatePeerConnectionRef.current || !candidatePeerConnectionRef.current.remoteDescription) {
-            candidatePendingIceCandidatesRef.current.push(candidate);
-            return;
-        }
-        
-        try {
-            await candidatePeerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-            console.error("Error adding ice candidate", err);
-        }
-    });
-
-    socket.on("call:end", () => {
-      if (candidatePeerConnectionRef.current) {
-          candidatePeerConnectionRef.current.close();
-          candidatePeerConnectionRef.current = null;
-      }
-      candidatePendingIceCandidatesRef.current = [];
-      setCandidateRemoteCallStream(null);
-      setIsCallConnected(false);
-      stopCandidateCall(false);
-    });
+    // Call features are disabled in chat-only production mode; skipping call handlers
 
     candidateSocketRef.current = socket;
 
@@ -682,6 +570,10 @@ export default function ProfileDashboard() {
   };
 
   const startCandidateCall = async (mode) => {
+    if (!CALLS_ENABLED) {
+      alert("Calls are disabled. Chat-only mode is active.");
+      return;
+    }
     if (!activeCandidateThread?.id) return;
     const callType = String(mode || "AUDIO").toUpperCase() === "VIDEO" ? "VIDEO" : "AUDIO";
     setCandidateCallMode(callType);
@@ -720,6 +612,10 @@ export default function ProfileDashboard() {
   };
 
   const acceptCandidateCall = async () => {
+    if (!CALLS_ENABLED) {
+      alert("Calls are disabled. Chat-only mode is active.");
+      return;
+    }
     const callType = activeCandidateThread?.activeCall?.mediaType || candidateCallMode || "AUDIO";
     setCandidateCallMode(callType);
     setCandidateCallStatus("connecting");
@@ -841,7 +737,7 @@ export default function ProfileDashboard() {
       <input ref={pfpInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePfpChange} />
       <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverChange} />
 
-      {/* ─── Navbar ─── */}
+      {/* â”€â”€â”€ Navbar â”€â”€â”€ */}
       <header className="pd-navbar">
         <div className="pd-navbar-inner">
           <Link to="/" className="pd-navbar-brand">
@@ -885,7 +781,7 @@ export default function ProfileDashboard() {
           <div className="pd-navbar-actions">
             <div className="pd-nav-search">
               <FiGlobe size={15} className="pd-search-icon" />
-              <input type="text" placeholder="Search jobs, companies…" />
+              <input type="text" placeholder="Search jobs, companies..." />
             </div>
             <button className={`pd-navbar-bell ${showNotifications ? 'active' : ''}`} onClick={() => setShowNotifications(true)}>
               <FiBell size={19} />
@@ -903,7 +799,7 @@ export default function ProfileDashboard() {
         </div>
       </header>
 
-      {/* ─── Cover ─── */}
+      {/* â”€â”€â”€ Cover â”€â”€â”€ */}
       <div className="pd-cover" style={{ backgroundImage: `url(${coverImage})` }}>
         <div className="pd-cover-overlay" />
         <button className="pd-cover-edit" onClick={() => coverInputRef.current.click()}>
@@ -911,7 +807,7 @@ export default function ProfileDashboard() {
         </button>
       </div>
 
-      {/* ─── Identity Bar ─── */}
+      {/* â”€â”€â”€ Identity Bar â”€â”€â”€ */}
       <div className="pd-identity-bar">
         <div className="pd-identity-inner">
           <div className="pd-avatar-wrap">
@@ -931,7 +827,7 @@ export default function ProfileDashboard() {
                 <div className="pd-name-edit-row">
                   <input className="pd-name-input" value={editNameValue} onChange={e => setEditNameValue(e.target.value)} onKeyDown={handleKeyDown} autoFocus />
                   <button className="pd-save-btn" onClick={handleNameSave}>Save</button>
-                  <button className="pd-cancel-btn" onClick={() => setIsEditingName(false)}>✕</button>
+                  <button className="pd-cancel-btn" onClick={() => setIsEditingName(false)}><FiX size={14} /></button>
                 </div>
               ) : (
                 <h1 className="pd-name">
@@ -943,7 +839,7 @@ export default function ProfileDashboard() {
                 </h1>
               )}
               <span className={`pd-open-badge ${workStatus === 'Working' ? 'working' : ''}`} onClick={() => setShowWorkStatusModal(true)}>
-                ● {workStatus}
+                <span className="pd-status-dot" /> {workStatus}
               </span>
             </div>
 
@@ -987,7 +883,7 @@ export default function ProfileDashboard() {
         </div>
       </div>
 
-      {/* ─── Main Layout ─── */}
+      {/* â”€â”€â”€ Main Layout â”€â”€â”€ */}
       <div className="pd-main">
 
         {/* Left Sidebar */}
@@ -1015,7 +911,15 @@ export default function ProfileDashboard() {
                 { id: 'summary', label: 'Add a profile summary' },
                 { id: 'skills', label: 'Add your skills' }
               ].map(tip => (
-                <div className="pd-tip-item" key={tip.id} onClick={() => setActiveTip(tip.id)}>
+                <div
+                  className="pd-tip-item"
+                  key={tip.id}
+                  onClick={() => {
+                    setActiveTip(tip.id);
+                    setShowPreview(true);
+                    setActiveEditSection(tip.id === 'experience' ? 'Employment' : tip.id === 'summary' ? 'Profile summary' : 'Key skills');
+                  }}
+                >
                   <FiPlus size={13} />
                   <span>{tip.label}</span>
                 </div>
@@ -1046,7 +950,7 @@ export default function ProfileDashboard() {
             </div>
             <div className="pd-boost-banner">
               <FiZap size={14} />
-              <span>Get 3× profile boost</span>
+              <span>Get 3x profile boost</span>
               <FiChevronRight size={13} className="pd-boost-arrow" />
             </div>
           </div>
@@ -1054,21 +958,31 @@ export default function ProfileDashboard() {
 
         {/* Center Feed */}
         <section className="pd-center">
-
           {/* PRO Banner */}
           <div className="pd-card pd-pro-card">
             <div className="pd-pro-left">
-              <div className="pd-pro-eyebrow">UPGRADE YOUR CAREER</div>
-              <h3 className="pd-pro-heading">Get hired <em>3× faster</em> with Pro</h3>
-              <button className="pd-pro-btn" onClick={() => navigate('/pro')}>✦ Become Pro Member</button>
+              <div className="pd-pro-eyebrow">PRO MEMBER FOR CANDIDATES</div>
+              <h3 className="pd-pro-heading">Turn your profile into a recruiter-ready career command center</h3>
+              <p className="pd-pro-copy">Built for active job seekers, switchers, freshers, and senior professionals who want sharper matching, stronger visibility, and guided interview prep.</p>
+              <div className="pd-pro-actions">
+                <button className="pd-pro-btn" onClick={() => navigate('/pro')}><FiAward size={14} /> Become Pro Member</button>
+                <button className="pd-pro-secondary" onClick={() => setShowKnowMoreModal(true)}>View benefits <FiChevronRight size={13} /></button>
+              </div>
             </div>
             <div className="pd-pro-features">
-              {['Hidden job invitations', 'AI-enhanced profile', 'Auto-Apply on MavenJobs', 'Priority recruiter access'].map(f => (
-                <div className="pd-pro-feat" key={f}><FiCheckCircle size={14} /> {f}</div>
+              {[
+                { role: 'Freshers', feature: 'ATS resume score, skill gaps, and interview practice' },
+                { role: 'Working pros', feature: 'Priority recruiter visibility and confidential search mode' },
+                { role: 'Career switchers', feature: 'Role-fit roadmap, course suggestions, and job alerts' },
+                { role: 'Senior talent', feature: 'Premium screening, salary benchmark, and direct outreach' },
+              ].map(f => (
+                <div className="pd-pro-feat" key={f.role}>
+                  <FiCheckCircle size={14} />
+                  <span><strong>{f.role}</strong>{f.feature}</span>
+                </div>
               ))}
             </div>
           </div>
-
           {/* Recommended Jobs */}
           <div className="pd-card">
             <div className="pd-section-header">
@@ -1127,7 +1041,7 @@ export default function ProfileDashboard() {
               <div className="pd-nvites-icon"><FiMail size={28} /><span className="pd-nvites-dot" /></div>
               <h3>NVites</h3>
               <p>Invitation to apply</p>
-              <Link to="#" className="pd-text-btn-sm">View all →</Link>
+              <Link to="#" className="pd-text-btn-sm">View all <FiArrowRight size={13} /></Link>
             </div>
             <div className="pd-nvites-list">
               {nvites.length > 0 ? nvites.map(inv => (
@@ -1135,7 +1049,7 @@ export default function ProfileDashboard() {
                   <div className="pd-nvite-logo" style={{ background: inv.bg, color: inv.col }}>{inv.code}</div>
                   <div className="pd-nvite-info">
                     <div className="pd-nvite-title">{inv.title}</div>
-                    <div className="pd-nvite-meta"><strong>{inv.company}</strong> · {inv.ago}</div>
+                    <div className="pd-nvite-meta"><strong>{inv.company}</strong> &middot; {inv.ago}</div>
                   </div>
                   <button className="pd-nvite-apply">Apply</button>
                 </Link>
@@ -1168,7 +1082,7 @@ export default function ProfileDashboard() {
                     <h4>{r.title}</h4>
                     <p className="pd-early-type">{r.company}</p>
                     <div className="pd-early-tags">
-                      <span className="pd-early-rating">★ {r.rating}</span>
+                      <span className="pd-early-rating"><FiStar size={11} /> {r.rating}</span>
                       {r.tags.map(t => <span key={t} className="pd-early-tag">{t}</span>)}
                     </div>
                     <div className="pd-early-meta">
@@ -1251,16 +1165,16 @@ export default function ProfileDashboard() {
             const dynamicMatchMetrics = [
               { label: 'Work Experience', val: `${userExp}${userExp.toLowerCase().includes('yr') ? '' : ' Yrs'}`, pct: expMatchPct, icon: <FiBriefcase /> },
               { label: 'Location', val: userCity, pct: locMatchPct, icon: <FiMapPin /> },
-              { label: 'Key Skills', val: userSkillsStr.length > 15 ? userSkillsStr.substring(0, 14) + '…' : userSkillsStr, pct: skillsMatchPct, icon: <FiEdit2 /> },
+              { label: 'Key Skills', val: userSkillsStr.length > 15 ? userSkillsStr.substring(0, 14) + '...' : userSkillsStr, pct: skillsMatchPct, icon: <FiEdit2 /> },
               { label: 'Industry', val: userIndustry, pct: industryMatchPct, icon: <FiMonitor /> },
-              { label: 'Department', val: userDept.length > 15 ? userDept.substring(0, 14) + '…' : userDept, pct: deptMatchPct, icon: <FiUsers /> },
+              { label: 'Department', val: userDept.length > 15 ? userDept.substring(0, 14) + '...' : userDept, pct: deptMatchPct, icon: <FiUsers /> },
               { label: 'Early Applicant', val: earlyAppVal, pct: earlyAppPct, icon: <FiTrendingUp /> },
             ];
 
             return (
               <div className="pd-card pd-match-card">
                 <div className="pd-section-header">
-                  <h3>Apply match — last 7 days</h3>
+                  <h3>Apply match - last 7 days</h3>
                   <button className="pd-text-btn" onClick={() => setShowApplyMatchModal(true)}>View all <FiChevronRight size={14} /></button>
                 </div>
                 <div className="pd-scroll-wrap">
@@ -1289,7 +1203,7 @@ export default function ProfileDashboard() {
                     <div className="pd-match-card-item update">
                       <h4>Review your profile</h4>
                       <p>Improve job recommendations</p>
-                      <Link to="#" className="pd-update-link">Update Profile →</Link>
+                      <button className="pd-update-link" onClick={() => { setShowPreview(true); setActiveEditSection('Career profile'); }}>Update Profile <FiArrowRight size={13} /></button>
                     </div>
                   </div>
                   <button className="pd-scroll-btn right" onClick={() => handleScroll(matchScrollRef, 'right')}><FiChevronRight size={18} /></button>
@@ -1310,7 +1224,7 @@ export default function ProfileDashboard() {
                 {[
                   { title: 'AI-powered premium talent discovery', banner: 'linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 50%, #FBBF24 100%)', label: 'PremiumX', labelStyle: { background: 'rgba(255,255,255,0.85)', color: '#92400E', fontWeight: 800, fontSize: '16px', padding: '6px 14px', borderRadius: 8 }, source: 'MavenJobs blog', date: '28 Apr 2026' },
                   { title: 'Resdex Enterprise - Search smarter, reach faster, and operate...', banner: 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 40%, #06B6D4 100%)', label: 'Resdex Enterprise', labelStyle: { background: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 700, fontSize: '13px', padding: '5px 12px', borderRadius: 6 }, source: 'MavenJobs blog', date: '10 Apr 2026' },
-                  { title: 'Introducing AI REX — MavenJobs\'s Agentic AI Talent Sourcing...', banner: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 50%, #C084FC 100%)', label: 'AI REX', labelStyle: { background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 800, fontSize: '15px', padding: '5px 14px', borderRadius: 8 }, source: 'MavenJobs blog', date: '10 Apr 2026' },
+                  { title: 'Introducing AI REX - MavenJobs agentic AI talent sourcing...', banner: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 50%, #C084FC 100%)', label: 'AI REX', labelStyle: { background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 800, fontSize: '15px', padding: '5px 14px', borderRadius: 8 }, source: 'MavenJobs blog', date: '10 Apr 2026' },
                   { title: 'How to write a resume that gets you hired in 2026', banner: 'linear-gradient(135deg, #059669 0%, #10B981 50%, #6EE7B7 100%)', label: 'Career Tips', labelStyle: { background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 700, fontSize: '13px', padding: '5px 12px', borderRadius: 6 }, source: 'MavenJobs blog', date: '02 Apr 2026' },
                   { title: 'Top 10 interview questions every developer should prepare for', banner: 'linear-gradient(135deg, #DC2626 0%, #F43F5E 50%, #FB7185 100%)', label: 'Interview Prep', labelStyle: { background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 700, fontSize: '13px', padding: '5px 12px', borderRadius: 6 }, source: 'MavenJobs blog', date: '25 Mar 2026' },
                 ].map((blog, i) => (
@@ -1338,18 +1252,22 @@ export default function ProfileDashboard() {
             <p className="pd-app-stat"><strong>3,587</strong> downloads in last 30 mins</p>
             <p className="pd-app-sub">Scan to download the app</p>
             <div className="pd-app-badges">
-              <span className="pd-badge-pill">🍎 App Store</span>
-              <span className="pd-badge-pill">▶ Play Store</span>
+              <span className="pd-badge-pill">App Store</span>
+              <span className="pd-badge-pill">Play Store</span>
             </div>
           </div>
-
           <Link to="/premium" style={{ textDecoration: 'none' }}>
             <div className="pd-card pd-premium-card" style={{ cursor: 'pointer' }}>
               <div className="pd-premium-glow" />
-              <div className="pd-premium-eyebrow">FOR RECRUITERS</div>
-              <h3 className="pd-premium-title">PremiumX</h3>
-              <p className="pd-premium-desc">AI-powered premium talent discovery for modern teams.</p>
-              <span className="pd-premium-link">Explore →</span>
+              <div className="pd-premium-eyebrow">PREMIUM X PROFILE SIGNAL</div>
+              <h3 className="pd-premium-title">Verified career visibility</h3>
+              <p className="pd-premium-desc">PremiumX adds a verified profile layer, recruiter-ready highlights, and smart outreach signals for high-intent candidates.</p>
+              <div className="pd-premium-mini-grid">
+                <span><FiShield size={13} /> Verified badge</span>
+                <span><FiTrendingUp size={13} /> Visibility boost</span>
+                <span><FiMessageSquare size={13} /> Recruiter inbox</span>
+              </div>
+              <span className="pd-premium-link">Explore PremiumX <FiArrowRight size={13} /></span>
             </div>
           </Link>
 
@@ -1411,7 +1329,7 @@ export default function ProfileDashboard() {
         </aside>
       </div>
 
-      {/* ─── Profile Preview Modal ─── */}
+      {/* â”€â”€â”€ Profile Preview Modal â”€â”€â”€ */}
       {showPreview && (
         <div className="ppm-overlay" onClick={() => setShowPreview(false)}>
           <div className="ppm-content" onClick={e => e.stopPropagation()}>
@@ -1427,7 +1345,7 @@ export default function ProfileDashboard() {
                     <h2>{user.name} <FiEdit2 size={14} className="ppm-inline-edit" onClick={() => setActiveEditSection('Basic Details')} /></h2>
                     <p className="ppm-role">{user.headline || "Add a professional headline"}</p>
                     <p className="ppm-company-at">{user.currentCompany ? `at ${user.currentCompany}` : "No company listed"}</p>
-                    <span className="ppm-updated">Last updated · {user.lastUpdated || "Just now"}</span>
+                    <span className="ppm-updated">Last updated &middot; {user.lastUpdated || "Just now"}</span>
                   </div>
                 </div>
                 <div className="ppm-meta-grid">
@@ -1435,7 +1353,7 @@ export default function ProfileDashboard() {
                   <div className="ppm-meta-item"><FiPhone size={14} /> {user.phone || "Add Phone"} {user.phone && <FiCheckCircle size={13} color="#10b981" />}</div>
                   <div className="ppm-meta-item"><FiBriefcase size={14} /> {user.totalExperience || "Add Experience"}</div>
                   <div className="ppm-meta-item"><FiMail size={14} /> {user.email} <FiCheckCircle size={13} color="#10b981" /></div>
-                  <div className="ppm-meta-item">{user.expectedSalary ? `₹ ${user.expectedSalary}` : "Add Expected Salary"}</div>
+                  <div className="ppm-meta-item">{user.expectedSalary ? `Rs. ${user.expectedSalary}` : "Add Expected Salary"}</div>
                   <div className="ppm-meta-item"><FiClock size={14} /> {user.noticePeriod || "Add Notice Period"}</div>
                 </div>
               </div>
@@ -1494,8 +1412,8 @@ export default function ProfileDashboard() {
                     <>
                       <div className="ppm-pro-banner">
                         <div className="ppm-pro-label">MavenJobs<span>Pro</span> <GiCrown className="ppm-crown" /></div>
-                        <div className="ppm-pro-pitch">Up to <strong>4× profile views</strong></div>
-                        <button className="ppm-pro-btn" onClick={() => navigate('/pro')}>Become Pro · 25% off</button>
+                        <div className="ppm-pro-pitch">Up to <strong>4x profile views</strong></div>
+                        <button className="ppm-pro-btn" onClick={() => navigate('/pro')}>Become Pro &middot; 25% off</button>
                       </div>
                       {[
                         {
@@ -1518,7 +1436,7 @@ export default function ProfileDashboard() {
                               )}
                               <div className="ppm-upload-zone">
                                 <button className="ppm-upload-btn" onClick={() => setActiveEditSection('Resume')}>Update resume</button>
-                                <p>doc, docx, rtf, pdf — max 2MB</p>
+                                <p>doc, docx, rtf, pdf - max 2MB</p>
                               </div>
                             </div>
                           )
@@ -1543,7 +1461,7 @@ export default function ProfileDashboard() {
                               <div className="ppm-exp-item">
                                 <div className="ppm-exp-title">{user.currentTitle} <FiEdit2 size={13} /></div>
                                 <div className="ppm-exp-co">{user.currentCompany}</div>
-                                <div className="ppm-exp-meta">{user.totalExperience} · {user.noticePeriod} notice</div>
+                                <div className="ppm-exp-meta">{user.totalExperience} &middot; {user.noticePeriod} notice</div>
                                 <p className="ppm-body-text">{user.summary?.slice(0, 150)}...</p>
                               </div>
                             ) : (
@@ -1577,7 +1495,7 @@ export default function ProfileDashboard() {
         </div>
       )}
 
-      {/* ─── Initial Completion Modal ─── */}
+      {/* â”€â”€â”€ Initial Completion Modal â”€â”€â”€ */}
       {showCompletionModal && (
         <div className="ppm-overlay" style={{ zIndex: 10001 }}>
           <div className="ppm-content" style={{ maxWidth: '500px', textAlign: 'center', padding: '40px', borderRadius: '28px' }}>
@@ -1597,7 +1515,7 @@ export default function ProfileDashboard() {
       )}
 
 
-      {/* ─── Notification Sidebar ─── */}
+      {/* â”€â”€â”€ Notification Sidebar â”€â”€â”€ */}
       <div className={`pd-notif-overlay ${showNotifications ? 'show' : ''}`} onClick={() => setShowNotifications(false)} />
       <div className={`pd-notif-sidebar ${showNotifications ? 'show' : ''}`}>
         <div className="pd-notif-head">
@@ -1607,12 +1525,12 @@ export default function ProfileDashboard() {
         <div className="pd-notif-body">
           <div className="pd-notif-date">Today</div>
           {false && [
-            { icon: <FiAward />, color: '#7C3AED', bg: '#F5F3FF', title: '🚀 Practice 4 interview questions for your Fortified Infotech application', desc: 'Get instant feedback to ace your interview', time: '2h ago', cta: 'Practice Now' },
+            { icon: <FiAward />, color: '#7C3AED', bg: '#F5F3FF', title: 'Practice 4 interview questions for your Fortified Infotech application', desc: 'Get instant feedback to ace your interview', time: '2h ago', cta: 'Practice Now' },
             { icon: <FiFileText />, color: '#D97706', bg: '#FFFBEB', title: 'Your resume was viewed by a recruiter', desc: 'Application History', time: '3h ago' },
             { icon: <FiUsers />, color: '#2563EB', bg: '#EFF6FF', title: 'Let AI help you ace your next job interview', desc: 'Unlock Your Interview Success!', time: '3h ago', cta: 'Practice Now' },
             { icon: <FiCheckCircle />, color: '#059669', bg: '#ECFDF5', title: 'Apply by 11:10 AM for a job posted by Infrrd', desc: 'Neo-AI Job Agent', time: '4h ago' },
             { icon: <FiX />, color: '#DC2626', bg: '#FEF2F2', title: 'Your application was not shortlisted', desc: 'Application History', time: '5h ago' },
-            { icon: <FiZap />, color: '#7C3AED', bg: '#F5F3FF', title: 'AI wrote interview Q&A from your resume', desc: '✨ Personalized for you', time: '6h ago' },
+            { icon: <FiZap />, color: '#7C3AED', bg: '#F5F3FF', title: 'AI wrote interview Q&A from your resume', desc: 'Personalized for you', time: '6h ago' },
           ].map((n, i) => (
             <div className="pd-notif-item" key={i}>
               <div className="pd-notif-icon" style={{ background: n.bg, color: n.color }}>{n.icon}</div>
@@ -1638,7 +1556,7 @@ export default function ProfileDashboard() {
         </div>
       </div>
 
-      {/* ─── Jobs Modal ─── */}
+      {/* â”€â”€â”€ Jobs Modal â”€â”€â”€ */}
       {showCandidateChat && (
         <div className="pd-chat-overlay" onClick={() => setShowCandidateChat(false)}>
           <div className="pd-chat-modal" onClick={e => e.stopPropagation()}>
@@ -1681,12 +1599,16 @@ export default function ProfileDashboard() {
                         <p>{activeCandidateThread.role}</p>
                       </div>
                       <div className="pd-chat-actions">
-                        <button title="Audio call" onClick={() => startCandidateCall("AUDIO")}><FiPhone size={17} /></button>
-                        <button title="Video call" onClick={() => startCandidateCall("VIDEO")}><FiVideo size={17} /></button>
+                        {CALLS_ENABLED && (
+                          <>
+                            <button title="Audio call" onClick={() => startCandidateCall("AUDIO")}><FiPhone size={17} /></button>
+                            <button title="Video call" onClick={() => startCandidateCall("VIDEO")}><FiVideo size={17} /></button>
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {activeCandidateThread.activeCall?.state === "RINGING" && activeCandidateThread.activeCall?.initiatedBy === "COMPANY" && (
+                    {CALLS_ENABLED && activeCandidateThread.activeCall?.state === "RINGING" && activeCandidateThread.activeCall?.initiatedBy === "COMPANY" && (
                       <div className="pd-incoming-call">
                         <div>
                           <strong>{activeCandidateThread.companyName} is calling</strong>
@@ -1732,7 +1654,7 @@ export default function ProfileDashboard() {
         </div>
       )}
 
-      {candidateCallModal && (
+      {CALLS_ENABLED && candidateCallModal && (
         <div className="pd-call-overlay" onClick={() => stopCandidateCall(true)}>
           <div className="pd-call-modal" onClick={e => e.stopPropagation()}>
             <div className="pd-call-head">
@@ -1795,13 +1717,13 @@ export default function ProfileDashboard() {
           </div>
         </div>
       )}
-      {/* ─── Early Access Modal ─── */}
+      {/* â”€â”€â”€ Early Access Modal â”€â”€â”€ */}
       <EarlyAccessModal
         isOpen={showEarlyAccessModal}
         onClose={() => setShowEarlyAccessModal(false)}
         jobs={earlyAccess}
       />
-      {/* ─── Apply Match Analytics Modal ─── */}
+      {/* â”€â”€â”€ Apply Match Analytics Modal â”€â”€â”€ */}
       {showApplyMatchModal && (() => {
         const safeApps = recentApplications || [];
         const appsWithScores = safeApps.filter(app => app && typeof app.matchScore === 'number');
@@ -1941,7 +1863,7 @@ export default function ProfileDashboard() {
           </div>
         );
       })()}
-      {/* ─── Know More Modal ─── */}
+      {/* â”€â”€â”€ Know More Modal â”€â”€â”€ */}
       {showKnowMoreModal && (
         <div className="km-modal-overlay" onClick={() => setShowKnowMoreModal(false)}>
           <div className="km-modal-box" onClick={e => e.stopPropagation()}>
@@ -2095,7 +2017,7 @@ export default function ProfileDashboard() {
                         );
                       })()}
                     </div>
-                    <p className="km-sc-sub">{dashboardSummary.interviews > 0 ? `${dashboardSummary.interviews} live interview${dashboardSummary.interviews > 1 ? 's' : ''} in progress` : 'No interviews yet — keep applying!'}</p>
+                    <p className="km-sc-sub">{dashboardSummary.interviews > 0 ? `${dashboardSummary.interviews} live interview${dashboardSummary.interviews > 1 ? 's' : ''} in progress` : 'No interviews yet - keep applying!'}</p>
                   </div>
                 </div>
               </div>
@@ -2386,7 +2308,7 @@ export default function ProfileDashboard() {
           border-color: #10b981;
         }
       `}</style>
-      {/* ─── Share Profile Modal ─── */}
+      {/* â”€â”€â”€ Share Profile Modal â”€â”€â”€ */}
       {showShareModal && (
         <div className="cm-modal-overlay" style={{ backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }} onClick={() => setShowShareModal(false)}>
           <div className="cm-modal-box" style={{ maxWidth: 540, padding: 0, borderRadius: 28, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }} onClick={e => e.stopPropagation()}>
@@ -2479,7 +2401,7 @@ export default function ProfileDashboard() {
         </div>
       )}
 
-      {/* ─── Work Status Modal ─── */}
+      {/* â”€â”€â”€ Work Status Modal â”€â”€â”€ */}
       {showWorkStatusModal && (
         <div className="cm-modal-overlay" onClick={() => setShowWorkStatusModal(false)}>
           <div className="cm-modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
@@ -2548,7 +2470,7 @@ export default function ProfileDashboard() {
         </div>
       )}
 
-      {/* ─── Profile Completion Modal ─── */}
+      {/* â”€â”€â”€ Profile Completion Modal â”€â”€â”€ */}
       {activeTip && (
         <div className="cm-modal-overlay" onClick={() => setActiveTip(null)}>
           <div className="cm-modal-box" onClick={e => e.stopPropagation()}>
@@ -2648,14 +2570,14 @@ export default function ProfileDashboard() {
           </div>
         </div>
       )}
-      {/* ─── FAQ Modal ─── */}
+      {/* â”€â”€â”€ FAQ Modal â”€â”€â”€ */}
       {showFAQModal && (
         <div className="pd-modal-overlay" onClick={() => setShowFAQModal(false)}>
           <div
             className="pd-modal-box faq-modal-v2"
             onClick={e => e.stopPropagation()}
           >
-            {/* ── internal styles ── */}
+            {/* â”€â”€ internal styles â”€â”€ */}
             <style>{`
         .faq-modal-v2 {
           width: 820px !important;
@@ -2671,7 +2593,7 @@ export default function ProfileDashboard() {
           font-family: 'DM Sans', system-ui, sans-serif;
         }
 
-        /* ── close btn ── */
+        /* â”€â”€ close btn â”€â”€ */
         .faq-close-btn {
           position: absolute;
           top: 18px; right: 18px;
@@ -2687,7 +2609,7 @@ export default function ProfileDashboard() {
         }
         .faq-close-btn:hover { background: rgba(255,255,255,.25); }
 
-        /* ── scroll container ── */
+        /* â”€â”€ scroll container â”€â”€ */
         .faq-scroll-container {
           overflow-y: auto;
           flex: 1;
@@ -2697,7 +2619,7 @@ export default function ProfileDashboard() {
         .faq-scroll-container::-webkit-scrollbar { width: 5px; }
         .faq-scroll-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        /* ── HERO ── */
+        /* â”€â”€ HERO â”€â”€ */
         .faq-hero {
           background: linear-gradient(135deg, #050e24 0%, #002366 60%, #1a0a4a 100%);
           padding: 44px 40px 36px;
@@ -2790,10 +2712,10 @@ export default function ProfileDashboard() {
           transform: translateX(0) scale(0.98);
         }
 
-        /* ── BODY PADDING ── */
+        /* â”€â”€ BODY PADDING â”€â”€ */
         .faq-body { padding: 32px 40px 40px; }
 
-        /* ── QUICK SOLUTIONS ── */
+        /* â”€â”€ QUICK SOLUTIONS â”€â”€ */
         .faq-section-label {
           display: flex; align-items: center; gap: 10px;
           font-family: 'Bricolage Grotesque', sans-serif;
@@ -2838,7 +2760,7 @@ export default function ProfileDashboard() {
           line-height: 1.55; font-weight: 500; margin: 0;
         }
 
-        /* ── FAQ ACCORDION ── */
+        /* â”€â”€ FAQ ACCORDION â”€â”€ */
         .faq-accordion { margin-bottom: 32px; }
         .faq-acc-item {
           background: #fff; border: 1.5px solid #e2e8f0;
@@ -2883,7 +2805,7 @@ export default function ProfileDashboard() {
           padding-top: 12px;
         }
 
-        /* ── TOPICS ── */
+        /* â”€â”€ TOPICS â”€â”€ */
         .faq-topic-grid {
           display: grid; grid-template-columns: repeat(3, 1fr);
           gap: 10px; margin-bottom: 32px;
@@ -2912,7 +2834,7 @@ export default function ProfileDashboard() {
           font-family: 'Bricolage Grotesque', sans-serif;
         }
 
-        /* ── BLOGS ── */
+        /* â”€â”€ BLOGS â”€â”€ */
         .faq-blog-grid {
           display: grid; grid-template-columns: repeat(3, 1fr);
           gap: 14px; margin-bottom: 32px;
@@ -2955,7 +2877,7 @@ export default function ProfileDashboard() {
           margin-top: 10px;
         }
 
-        /* ── SUPPORT ── */
+        /* â”€â”€ SUPPORT â”€â”€ */
         .faq-support {
           display: grid; grid-template-columns: 1fr 1.6fr;
           gap: 24px; background: #fff;
@@ -3059,7 +2981,7 @@ export default function ProfileDashboard() {
 
             <div className="faq-scroll-container">
 
-              {/* ── HERO ── */}
+              {/* â”€â”€ HERO â”€â”€ */}
               <div className="faq-hero">
                 <div className="faq-hero-dots" />
                 <div className="faq-hero-glow" />
@@ -3072,7 +2994,7 @@ export default function ProfileDashboard() {
                   <div className="faq-search-icon"><FiSearch size={15} /></div>
                   <input
                     type="text"
-                    placeholder="Search for answers… e.g. 'update profile', 'apply to job'"
+                    placeholder="Search for answers... e.g. 'update profile', 'apply to job'"
                   />
                   <button className="faq-search-btn">Search</button>
                 </div>
@@ -3080,16 +3002,16 @@ export default function ProfileDashboard() {
 
               <div className="faq-body">
 
-                {/* ── QUICK SOLUTIONS ── */}
+                {/* â”€â”€ QUICK SOLUTIONS â”€â”€ */}
                 <div className="faq-section-label">
                   <div className="faq-section-icon"><FiZap size={13} /></div>
                   Quick Solutions
                 </div>
                 <div className="faq-quick-grid">
                   {[
-                    { q: "How do I deactivate or delete my MavenJobs account?", a: "To deactivate your account, go to Settings → Account → Danger Zone and click 'Deactivate Account'. This will hide your profile from all recruiters instantly." },
+                    { q: "How do I deactivate or delete my MavenJobs account?", a: "To deactivate your account, go to Settings > Account > Danger Zone and click 'Deactivate Account'. This will hide your profile from all recruiters instantly." },
                     { q: "How can I update or edit my profile information?", a: "You can edit any section of your profile by clicking the 'Edit' icon in the Profile Dashboard or using the side-modal for specific sections like Headline, Skills, and Experience." },
-                    { q: "How do I hide my profile from my current employer?", a: "Go to Settings → Privacy. Under 'Visibility Settings', you can search for and block specific companies or use 'Invisible Mode' to hide from all employers." },
+                    { q: "How do I hide my profile from my current employer?", a: "Go to Settings > Privacy. Under 'Visibility Settings', you can search for and block specific companies or use 'Invisible Mode' to hide from all employers." },
                     { q: "Do I need to pay to apply for a job on MavenJobs?", a: "No, applying for jobs on MavenJobs is 100% free. We never charge candidates for applications. MavenPremiumX is an optional service for advanced career growth." },
                     { q: "How do I upload or update my resume?", a: "In the Profile Dashboard, scroll to the Resume section. You can upload a PDF/Doc file or use our Resume Builder to generate a professional resume instantly." },
                     { q: "Why am I not receiving job recommendations?", a: "Ensure your 'Key Skills' and 'Preferred Role' are up to date. Our AI matching engine uses these to recommend the most relevant opportunities to you." },
@@ -3101,7 +3023,7 @@ export default function ProfileDashboard() {
                   ))}
                 </div>
 
-                {/* ── FAQ ACCORDION ── */}
+                {/* â”€â”€ FAQ ACCORDION â”€â”€ */}
                 <div className="faq-section-label" style={{ marginTop: 4 }}>
                   <div className="faq-section-icon"><FiInfo size={13} /></div>
                   Frequently Asked Questions
@@ -3114,11 +3036,11 @@ export default function ProfileDashboard() {
                     },
                     {
                       q: "Can recruiters see my profile without my permission?",
-                      a: "By default, your profile is visible to verified recruiters on MavenJobs. You can enable 'Privacy Mode' in Settings → Privacy to hide your profile from specific companies or all employers. Your current employer can be blocked individually.",
+                      a: "By default, your profile is visible to verified recruiters on MavenJobs. You can enable 'Privacy Mode' in Settings > Privacy to hide your profile from specific companies or all employers. Your current employer can be blocked individually.",
                     },
                     {
                       q: "How does MavenPremiumX improve my hiring chances?",
-                      a: "MavenPremiumX positions your profile in front of India's top-tier recruiters hiring for roles above ₹30L CTC. Your profile gets priority placement, NChecked verification, and direct outreach via WhatsApp, email, and automated calls — giving you 3× more recruiter responses.",
+                      a: "MavenPremiumX positions your profile in front of India's top-tier recruiters hiring for roles above Rs. 30L CTC. Your profile gets priority placement, NChecked verification, and direct outreach via WhatsApp, email, and automated calls - giving you 3x more recruiter responses.",
                     },
                     {
                       q: "How do I track the status of my job applications?",
@@ -3126,18 +3048,18 @@ export default function ProfileDashboard() {
                     },
                     {
                       q: "What is an NChecked Profile and how do I get one?",
-                      a: "An NChecked Profile means Maven's team has cross-verified 14+ critical details: your current CTC breakup, company duration, notice period, designation, location, and job-search intent. To get NChecked, go to Profile → Verification and submit your details for review. It typically takes 1–2 business days.",
+                      a: "An NChecked Profile means Maven's team has cross-verified 14+ critical details: your current CTC breakup, company duration, notice period, designation, location, and job-search intent. To get NChecked, go to Profile > Verification and submit your details for review. It typically takes 1-2 business days.",
                     },
                     {
                       q: "How do I reset or change my account password?",
-                      a: "Go to Settings → Security → Change Password. Enter your current password, then set a new one. If you've forgotten your password, click 'Forgot Password' on the login page and follow the email link sent to your registered address.",
+                      a: "Go to Settings > Security > Change Password. Enter your current password, then set a new one. If you've forgotten your password, click 'Forgot Password' on the login page and follow the email link sent to your registered address.",
                     },
                   ].map((item, i) => (
                     <FaqItem key={i} index={i + 1} question={item.q} answer={item.a} />
                   ))}
                 </div>
 
-                {/* ── BROWSE BY TOPIC ── */}
+                {/* â”€â”€ BROWSE BY TOPIC â”€â”€ */}
                 <div className="faq-section-label">
                   <div className="faq-section-icon"><FiLayers size={13} /></div>
                   Browse by Topic
@@ -3160,7 +3082,7 @@ export default function ProfileDashboard() {
                   ))}
                 </div>
 
-                {/* ── BLOGS ── */}
+                {/* â”€â”€ BLOGS â”€â”€ */}
                 <div className="faq-section-label">
                   <div className="faq-section-icon"><FiBookOpen size={13} /></div>
                   Career Resources
@@ -3177,12 +3099,12 @@ export default function ProfileDashboard() {
                       img: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400",
                       tag: "Platform Guide",
                       title: "Getting the Most from MavenJobs",
-                      desc: "A step-by-step walkthrough of every feature — from profile setup to PremiumX.",
+                      desc: "A step-by-step walkthrough of every feature - from profile setup to PremiumX.",
                     },
                     {
                       img: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400",
                       tag: "Career Growth",
-                      title: "Negotiating a ₹30L+ Offer",
+                      title: "Negotiating a Rs. 30L+ Offer",
                       desc: "Expert advice on salary negotiation, counter-offers, and knowing your market worth.",
                     },
                   ].map((b, i) => (
@@ -3198,7 +3120,7 @@ export default function ProfileDashboard() {
                   ))}
                 </div>
 
-                {/* ── CONTACT SUPPORT ── */}
+                {/* â”€â”€ CONTACT SUPPORT â”€â”€ */}
                 <div className="faq-section-label">
                   <div className="faq-section-icon"><FiMail size={13} /></div>
                   Contact Support
@@ -3224,11 +3146,11 @@ export default function ProfileDashboard() {
                     ))}
                     <div className="support-hours">
                       <span className="support-hours-label">Working Hours</span>
-                      <div className="support-hours-val">Mon – Sat · 9:30 AM to 6:30 PM IST</div>
+                      <div className="support-hours-val">Mon - Sat &middot; 9:30 AM to 6:30 PM IST</div>
                     </div>
                   </div>
 
-                  {/* Right — form */}
+                  {/* Right form */}
                   <div className="support-right">
                     <h3>Report a Problem or Get Assistance</h3>
                     <div className="support-form">
@@ -3249,7 +3171,7 @@ export default function ProfileDashboard() {
                       </select>
                       <textarea
                         className="sf-field sf-textarea"
-                        placeholder="Describe your issue in detail…"
+                        placeholder="Describe your issue in detail..."
                         rows={3}
                       />
                       <button className="support-submit">
@@ -3265,7 +3187,7 @@ export default function ProfileDashboard() {
         </div>
       )}
 
-      {/* ─── Settings Modal ─── */}
+      {/* â”€â”€â”€ Settings Modal â”€â”€â”€ */}
       {showSettingsModal && (
         <div className="pd-modal-overlay">
           <div className="pd-modal-box settings-modal">
@@ -3308,7 +3230,7 @@ export default function ProfileDashboard() {
         </div>
       )}
 
-      {/* ─── Quick Answer Modal ─── */}
+      {/* â”€â”€â”€ Quick Answer Modal â”€â”€â”€ */}
       {showQuickAnswer && (
         <div className="pd-modal-overlay" onClick={() => setShowQuickAnswer(null)} style={{ zIndex: 3000 }}>
           <div className="pd-modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', padding: '28px', borderRadius: '24px', background: '#fff', height: 'auto', minHeight: 'auto' }}>
@@ -3333,3 +3255,4 @@ export default function ProfileDashboard() {
     </div>
   );
 }
+
