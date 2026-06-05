@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 
 const errorMiddleware = require("./middleware/error.middleware");
 
@@ -22,8 +23,29 @@ const companyPanelRoutes = require("./routes/company-panel.routes");
 const app = express();
 
 // Basic Middlewares
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = String(process.env.CLIENT_ORIGINS || process.env.CLIENT_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(helmet());
+app.use(
+  cors({
+    origin(origin, callback) {
+      const allowLocalFallback =
+        process.env.NODE_ENV !== "production" && allowedOrigins.length === 0;
+
+      if (!origin || allowedOrigins.includes(origin) || allowLocalFallback) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origin is not allowed by CORS"));
+    },
+    credentials: true,
+  }),
+);
+app.use(express.json({ limit: "1mb" }));
 
 // -----------------------------
 // API Versioning

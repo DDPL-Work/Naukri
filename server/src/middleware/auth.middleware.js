@@ -1,72 +1,67 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-const CrmUser = require("../models/CrmUser");
+const asyncHandler = require("./async.middleware");
+const { extractAccessToken, validateSession } = require("../services/auth.service");
 
-// ------------------------------------------------
-// USER AUTH (Normal Users)
-// ------------------------------------------------
-const protectUser = async (req, res, next) => {
+const reject = (res, statusCode, message) =>
+  res.status(statusCode).json({
+    success: false,
+    message,
+  });
+
+const resolveSession = async (req) => {
+  const accessToken = extractAccessToken(req);
+  if (!accessToken) {
+    return null;
+  }
+
+  return validateSession({ accessToken });
+};
+
+exports.protectUser = asyncHandler(async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const session = await resolveSession(req);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Authentication required" });
+    if (!session) {
+      return reject(res, 401, "Authentication required");
     }
 
-    const token = authHeader.split(" ")[1];
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.id).select("-password");
-
-    if (!user) {
-      return res.status(401).json({ message: "Invalid token" });
+    if (session.source !== "USER") {
+      return reject(res, 403, "User access required");
     }
 
-    if (!user.isActive) {
-      return res.status(403).json({ message: "User account is inactive" });
-    }
-
-    req.user = user;
+    req.user = session.user;
+    req.auth = {
+      sessionId: session.session?.sessionId || "",
+      source: session.source,
+      payload: session.payload,
+    };
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Unauthorized access" });
+    const statusCode = error.statusCode || 401;
+    return reject(res, statusCode, error.message || "Unauthorized access");
   }
-};
+});
 
-// ------------------------------------------------
-// CRM AUTH
-// ------------------------------------------------
-const protectCRM = async (req, res, next) => {
+exports.protectCRM = asyncHandler(async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const session = await resolveSession(req);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Authentication required" });
+    if (!session) {
+      return reject(res, 401, "Authentication required");
     }
 
-    const token = authHeader.split(" ")[1];
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await CrmUser.findById(decoded.id).select("-password");
-
-    if (!user) {
-      return res.status(401).json({ message: "Invalid token" });
+    if (session.source !== "CRM") {
+      return reject(res, 403, "CRM access required");
     }
 
-    if (!user.isActive || user.accessStatus === "RESTRICTED") {
-      return res.status(403).json({ message: "CRM account inactive" });
-    }
-
-    req.user = user;
+    req.user = session.user;
+    req.auth = {
+      sessionId: session.session?.sessionId || "",
+      source: session.source,
+      payload: session.payload,
+    };
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Unauthorized access" });
+    const statusCode = error.statusCode || 401;
+    return reject(res, statusCode, error.message || "Unauthorized access");
   }
-};
-
-module.exports = {
-  protectUser,
-  protectCRM,
-};
+});

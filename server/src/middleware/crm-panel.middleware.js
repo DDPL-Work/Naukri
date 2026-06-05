@@ -1,8 +1,37 @@
 const jwt = require("jsonwebtoken");
 const CrmUser = require("../models/CrmUser");
+const { extractAccessToken, validateSession } = require("../services/auth.service");
 
 const protectCrmPanel = async (req, res, next) => {
   try {
+    const sessionToken = extractAccessToken(req);
+
+    if (sessionToken) {
+      try {
+        const session = await validateSession({ accessToken: sessionToken });
+
+        if (session.source !== "CRM") {
+          return res.status(403).json({
+            success: false,
+            message: "CRM access required",
+          });
+        }
+
+        req.user = session.user;
+        req.auth = {
+          sessionId: session.session?.sessionId || "",
+          source: session.source,
+          payload: session.payload,
+        };
+        next();
+        return;
+      } catch (error) {
+        if (error.statusCode !== 401) {
+          throw error;
+        }
+      }
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

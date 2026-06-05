@@ -1,92 +1,252 @@
+const bcrypt = require("bcryptjs");
+const asyncHandler = require("../middleware/async.middleware");
 const User = require("../models/User");
 const CrmUser = require("../models/CrmUser");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const {
+  ACCESS_TOKEN_TTL,
+  buildAuthUser,
+  clearAuthCookies,
+  extractAccessToken,
+  extractRefreshToken,
+  issueTokenPair,
+  revokeSessionFromRefreshToken,
+  revokeSession,
+  rotateRefreshToken,
+  setRefreshCookie,
+  validateSession,
+} = require("../services/auth.service");
 
-const generateToken = (id, type) => {
-  return jwt.sign(
-    { id, type }, // type = USER or CRM
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" },
-  );
+const createHttpError = (statusCode, message) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
 };
 
-exports.registerCandidate = async (req, res, next) => {
+const normalizeEmail = (value = "") => String(value || "").trim().toLowerCase();
+
+const findAccountByEmail = async (email) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  const [user, crmUser] = await Promise.all([
+    User.findOne({ email: normalizedEmail }),
+    CrmUser.findOne({ email: normalizedEmail }),
+  ]);
+
+  if (user) {
+    return { doc: user, source: "USER" };
+  }
+
+  if (crmUser) {
+    return { doc: crmUser, source: "CRM" };
+  }
+
+  return null;
+};
+
+const sendAuthResponse = async (req, res, { user, source }) => {
+  const tokenPair = await issueTokenPair({
+    user,
+    source,
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
+
+  return res.status(200).json({
+    success: true,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
+    user: tokenPair.user,
+  });
+};
+
+exports.registerCandidate = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
-  const existing = await User.findOne({ email });
-  if (existing) {
-    return res.status(400).json({ message: "Email already exists" });
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedName = String(name || "").trim();
+  const normalizedPassword = String(password || "").trim();
+
+  if (!normalizedName || !normalizedEmail || !normalizedPassword) {
+    throw createHttpError(400, "Name, email, and password are required");
   }
 
-  const hashed = await bcrypt.hash(password, 10);
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing) {
+    throw createHttpError(409, "Email already exists");
+  }
+
+  const hashed = await bcrypt.hash(normalizedPassword, 10);
 
   const user = await User.create({
-    name,
-    email,
+    name: normalizedName,
+    email: normalizedEmail,
     password: hashed,
     role: "CANDIDATE",
+    accessStatus: "ACTIVE",
+    isActive: true,
   });
+
+  const tokenPair = await issueTokenPair({
+    user,
+    source: "USER",
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
 
   res.status(201).json({
-    token: generateToken(user._id),
+    success: true,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
+    user: tokenPair.user,
   });
-};
+});
 
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+exports.login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required",
-      });
-    }
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedPassword = String(password || "").trim();
 
-    // 1️⃣ Try normal User model
-    let user = await User.findOne({ email });
-    let userType = "USER";
-
-    // 2️⃣ If not found, try CRM model
-    if (!user) {
-      user = await CrmUser.findOne({ email });
-      userType = "CRM";
-    }
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
-
-    // 3️⃣ Compare password
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
-
-    // 4️⃣ Send unified response
-    res.status(200).json({
-      success: true,
-      token: generateToken(user._id, userType),
-      user: {
-        id: user._id,
-        name: user.name || user.fullName,
-        email: user.email,
-        role: user.role,
-        type: userType,
-      },
-    });
-  } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+  if (!normalizedEmail || !normalizedPassword) {
+    throw createHttpError(400, "Email and password are required");
   }
-};
+
+  const account = await findAccountByEmail(normalizedEmail);
+
+  if (!account) {
+    throw createHttpError(401, "Invalid credentials");
+  }
+
+  const passwordMatches = await bcrypt.compare(normalizedPassword, account.doc.password);
+  if (!passwordMatches) {
+    throw createHttpError(401, "Invalid credentials");
+  }
+
+  if (!account.doc.isActive || account.doc.accessStatus === "RESTRICTED") {
+    throw createHttpError(403, "Account is inactive");
+  }
+
+  const shouldRestrictCandidateLogin =
+    account.source === "USER" && account.doc.role !== "CANDIDATE" ? false : false;
+
+  if (shouldRestrictCandidateLogin) {
+    throw createHttpError(403, "Account is not allowed to log in here");
+  }
+
+  return sendAuthResponse(req, res, account);
+});
+
+exports.refresh = asyncHandler(async (req, res) => {
+  const refreshToken = extractRefreshToken(req);
+  if (!refreshToken) {
+    throw createHttpError(401, "Refresh token required");
+  }
+
+  const tokenPair = await rotateRefreshToken({
+    refreshToken,
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
+
+  res.status(200).json({
+    success: true,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
+    user: tokenPair.user,
+  });
+});
+
+exports.logout = asyncHandler(async (req, res) => {
+  const refreshToken = extractRefreshToken(req);
+
+  if (refreshToken) {
+    try {
+      await revokeSessionFromRefreshToken({
+        refreshToken,
+        reason: "logout",
+      });
+    } catch {
+      // Intentionally ignore validation errors during logout so the cookie is still cleared.
+    }
+  } else {
+    const accessToken = extractAccessToken(req);
+    if (accessToken) {
+      try {
+        const session = await validateSession({ accessToken });
+        if (session?.session?.sessionId) {
+          await revokeSession({
+            sessionId: session.session.sessionId,
+            reason: "logout",
+          });
+        }
+      } catch {
+        // Intentionally ignore validation errors during logout so the client can still clear local state.
+      }
+    }
+  }
+
+  clearAuthCookies(res);
+
+  res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
+});
+
+exports.me = asyncHandler(async (req, res) => {
+  const accessToken = extractAccessToken(req);
+
+  const session = await validateSession({ accessToken });
+
+  res.status(200).json({
+    success: true,
+    user: buildAuthUser(session.user, session.source),
+  });
+});
+
+exports.session = asyncHandler(async (req, res) => {
+  const accessToken = extractAccessToken(req);
+
+  const session = await validateSession({ accessToken });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      active: true,
+      expiresInSeconds: 15 * 60,
+      user: buildAuthUser(session.user, session.source),
+      sessionId: session.session.sessionId,
+      source: session.source,
+      tokenTtl: ACCESS_TOKEN_TTL,
+    },
+  });
+});
+
+exports.revoke = asyncHandler(async (req, res) => {
+  const sessionId = String(req.body?.sessionId || "").trim();
+  const refreshToken = extractRefreshToken(req);
+
+  if (sessionId) {
+    await revokeSession({
+      sessionId,
+      reason: "manual_revoke",
+    });
+  } else if (refreshToken) {
+    await revokeSessionFromRefreshToken({
+      refreshToken,
+      reason: "manual_revoke",
+    });
+  } else {
+    throw createHttpError(400, "Session ID or refresh token is required");
+  }
+
+  clearAuthCookies(res);
+
+  res.status(200).json({
+    success: true,
+    message: "Session revoked successfully",
+  });
+});

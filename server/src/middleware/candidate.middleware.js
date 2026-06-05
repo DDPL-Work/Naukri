@@ -1,10 +1,15 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const CrmUser = require("../models/CrmUser");
+const { extractAccessToken, validateSession } = require("../services/auth.service");
 
 const extractToken = (req) => {
-  const authHeader = req.headers.authorization;
+  const sessionToken = extractAccessToken(req);
+  if (sessionToken) {
+    return sessionToken;
+  }
 
+  const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return "";
   }
@@ -24,6 +29,27 @@ exports.protectCandidate = async (req, res, next) => {
 
     if (!token) {
       return reject(res, 401, "Candidate authentication required");
+    }
+
+    try {
+      const session = await validateSession({ accessToken: token });
+
+      if (session.source !== "USER" || session.user.role !== "CANDIDATE") {
+        return reject(res, 401, "Invalid candidate session");
+      }
+
+      req.user = session.user;
+      req.auth = {
+        sessionId: session.session?.sessionId || "",
+        source: session.source,
+        payload: session.payload,
+      };
+      next();
+      return;
+    } catch (error) {
+      if (error.statusCode !== 401) {
+        throw error;
+      }
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -50,6 +76,40 @@ exports.protectCandidateManagers = async (req, res, next) => {
 
     if (!token) {
       return reject(res, 401, "Authentication required");
+    }
+
+    try {
+      const session = await validateSession({ accessToken: token });
+
+      if (session.source === "CRM") {
+        req.user = session.user;
+        req.accessContext = "CRM";
+        req.auth = {
+          sessionId: session.session?.sessionId || "",
+          source: session.source,
+          payload: session.payload,
+        };
+        next();
+        return;
+      }
+
+      if (!["ADMIN", "CRM"].includes(session.user.role)) {
+        return reject(res, 403, "Only Admin and CRM can access candidate exports");
+      }
+
+      req.user = session.user;
+      req.accessContext = session.user.role;
+      req.auth = {
+        sessionId: session.session?.sessionId || "",
+        source: session.source,
+        payload: session.payload,
+      };
+      next();
+      return;
+    } catch (error) {
+      if (error.statusCode !== 401) {
+        throw error;
+      }
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const CrmUser = require("../models/CrmUser");
+const { extractAccessToken, validateSession } = require("../services/auth.service");
 
 const resolveAdminFromToken = async (tokenPayload) => {
   const preferredSource = tokenPayload.type === "CRM" ? "CRM" : "USER";
@@ -31,6 +32,35 @@ const resolveAdminFromToken = async (tokenPayload) => {
 
 const protectAdmin = async (req, res, next) => {
   try {
+    const sessionToken = extractAccessToken(req);
+
+    if (sessionToken) {
+      try {
+        const session = await validateSession({ accessToken: sessionToken });
+
+        if (session.user.role !== "ADMIN") {
+          return res.status(403).json({
+            success: false,
+            message: "Admin access required",
+          });
+        }
+
+        req.user = session.user;
+        req.auth = {
+          sessionId: session.session?.sessionId || "",
+          source: session.source,
+          payload: session.payload,
+        };
+        req.adminSource = session.source;
+        next();
+        return;
+      } catch (error) {
+        if (error.statusCode !== 401) {
+          throw error;
+        }
+      }
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
