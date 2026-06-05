@@ -84,6 +84,15 @@ const authService = {
     }
   },
 
+  saveJob: async (jobId, save = true) => {
+    try {
+      const response = await api.patch(`/candidate/jobs/${jobId}/save`, { save });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update saved job' };
+    }
+  },
+
   getApplications: async () => {
     try {
       const response = await api.get('/candidate/applications');
@@ -117,6 +126,15 @@ const authService = {
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to submit review' };
+    }
+  },
+
+  followCompany: async (companyId, follow = true) => {
+    try {
+      const response = await api.patch(`/candidate/companies/${companyId}/follow`, { follow });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update follow status' };
     }
   },
 

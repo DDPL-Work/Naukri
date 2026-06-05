@@ -14,6 +14,10 @@ const CandidateNotification = require("../models/CandidateNotification");
 const CandidateQuizResult = require("../models/CandidateQuizResult");
 const { uploadResumeFile } = require("../services/resume-storage.service");
 const { replaceCandidateImage } = require("../services/candidate-image-storage.service");
+const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
@@ -240,6 +244,8 @@ const formatProfile = (profile = {}, user = null) => ({
   projectLink: profile?.projectLink || "",
   projectDescription: profile?.projectDescription || "",
   lastScannedQrToken: profile?.lastScannedQrToken || "",
+  savedJobIds: (profile?.savedJobIds || []).map((id) => String(id)),
+  followedCompanyIds: (profile?.followedCompanyIds || []).map((id) => String(id)),
   resume: {
     fileName: profile?.resume?.fileName || "",
     url: profile?.resume?.url || "",
@@ -420,6 +426,7 @@ const formatJob = (job, applicationMap = new Map(), matchData = null) => {
     isActive: Boolean(job.isActive),
     applicationStatus: application?.status || "",
     hasApplied: Boolean(application),
+    hasSaved: Boolean(matchData?.savedJobIds?.has?.(String(job._id))),
     createdAt: job.createdAt,
     lastUpdated: formatRelativeTime(job.updatedAt),
     matchScore: matchData?.overall ?? null,
@@ -847,10 +854,20 @@ exports.register = asyncHandler(async (req, res) => {
       actorId: user._id,
     });
 
+    const tokenPair = await issueTokenPair({
+      user,
+      source: "USER",
+      req,
+    });
+
+    setRefreshCookie(res, tokenPair.refreshToken);
+
     res.status(201).json({
       success: true,
       referenceId: `MVN-${String(user._id).slice(-8).toUpperCase()}`,
-      token: generateToken(user._id),
+      token: tokenPair.accessToken,
+      accessToken: tokenPair.accessToken,
+      expiresInSeconds: tokenPair.expiresInSeconds,
       user: formatCandidateUser(user),
       profile: formatProfile(profile, user),
     });
@@ -894,9 +911,19 @@ exports.login = asyncHandler(async (req, res) => {
 
   const profile = await ensureCandidateProfile(user);
 
+  const tokenPair = await issueTokenPair({
+    user,
+    source: "USER",
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: formatCandidateUser(user),
     profile: formatProfile(profile, user),
   });
@@ -1082,6 +1109,7 @@ exports.getJobs = asyncHandler(async (req, res) => {
     req.user._id,
     jobs.map((job) => job._id),
   );
+  const savedJobIds = new Set((profile.savedJobIds || []).map((id) => String(id)));
 
   res.status(200).json({
     success: true,
@@ -1095,7 +1123,7 @@ exports.getJobs = asyncHandler(async (req, res) => {
           region: company.location?.region || "",
         }
         : null,
-      jobs: jobs.map((job) => formatJob(job, applicationMap)),
+      jobs: jobs.map((job) => formatJob(job, applicationMap, { savedJobIds })),
     },
   });
 });
@@ -1109,12 +1137,17 @@ exports.getJobDetail = asyncHandler(async (req, res) => {
 
   const profile = await ensureCandidateProfile(req.user);
   const applicationMap = await buildApplicationMap(req.user._id, [job._id]);
-  const matchData = computeMatchScore(job, profile);
+  const matchData = {
+    ...computeMatchScore(job, profile),
+    savedJobIds: new Set((profile.savedJobIds || []).map((savedJobId) => String(savedJobId))),
+  };
+  const followedCompanyIds = new Set((profile.followedCompanyIds || []).map((companyId) => String(companyId)));
 
   res.status(200).json({
     success: true,
     data: {
       job: formatJob(job, applicationMap, matchData),
+      hasFollowedCompany: followedCompanyIds.has(String(job.companyId?._id || job.companyId || "")),
       similarJobs: await buildSimilarJobs(job, req.user._id),
     },
   });
@@ -1143,10 +1176,6 @@ exports.createApplication = asyncHandler(async (req, res) => {
 
   const profile = await ensureCandidateProfile(req.user);
 
-  if (!profile.resume?.url) {
-    throw createHttpError(400, "Upload a resume before applying");
-  }
-
   const job = await Job.findById(jobId).populate("companyId", "name");
 
   if (!job || !job.isActive || job.approvalStatus !== "APPROVED") {
@@ -1167,8 +1196,8 @@ exports.createApplication = asyncHandler(async (req, res) => {
     companyId: job.companyId?._id || job.companyId,
     jobId: job._id,
     status: "APPLIED",
-    resumeUrl: profile.resume.url,
-    resumeFileName: profile.resume.fileName,
+    resumeUrl: profile.resume?.url || "",
+    resumeFileName: profile.resume?.fileName || "",
     sourceQrToken: qrToken.trim(),
     sourceJobId: sourceJobId || null,
   });
@@ -1197,6 +1226,68 @@ exports.createApplication = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     data: formatApplication(hydratedApplication),
+  });
+});
+
+exports.toggleSavedJob = asyncHandler(async (req, res) => {
+  const jobId = String(req.params.id || "").trim();
+  const save = req.body?.save !== false;
+
+  const job = await Job.findById(jobId).select("_id isActive approvalStatus");
+  if (!job || !job.isActive || job.approvalStatus !== "APPROVED") {
+    throw createHttpError(404, "Job not found");
+  }
+
+  const profile = await ensureCandidateProfile(req.user);
+  const savedIds = new Set((profile.savedJobIds || []).map((id) => String(id)));
+
+  if (save) {
+    savedIds.add(String(job._id));
+  } else {
+    savedIds.delete(String(job._id));
+  }
+
+  profile.savedJobIds = [...savedIds];
+  await profile.save();
+
+  res.status(200).json({
+    success: true,
+    data: {
+      jobId: String(job._id),
+      hasSaved: savedIds.has(String(job._id)),
+      savedJobIds: [...savedIds],
+    },
+  });
+});
+
+exports.toggleCompanyFollow = asyncHandler(async (req, res) => {
+  const companyId = String(req.params.id || "").trim();
+  const follow = req.body?.follow !== false;
+
+  const company = await Company.findById(companyId).select("_id status");
+  if (!company || company.status !== "ACTIVE") {
+    throw createHttpError(404, "Company not found");
+  }
+
+  const profile = await ensureCandidateProfile(req.user);
+  const followedIds = new Set((profile.followedCompanyIds || []).map((id) => String(id)));
+
+  if (follow) {
+    followedIds.add(String(company._id));
+  } else {
+    followedIds.delete(String(company._id));
+  }
+
+  profile.followedCompanyIds = [...followedIds];
+  await profile.save();
+
+  res.status(200).json({
+    success: true,
+    data: {
+      companyId: String(company._id),
+      isFollowing: followedIds.has(String(company._id)),
+      followedCompanyIds: [...followedIds],
+    },
   });
 });
 
@@ -1748,6 +1839,9 @@ exports.getCompanyDetail = asyncHandler(async (req, res) => {
     .select("candidateName candidateTitle candidateCity rating headline review isAnonymous createdAt updatedAt");
 
   const applicationMap = await buildApplicationMap(req.user._id, jobs.map((j) => j._id));
+  const profile = await ensureCandidateProfile(req.user);
+  const followedCompanyIds = new Set((profile.followedCompanyIds || []).map((companyId) => String(companyId)));
+  const followersCount = await CandidateProfile.countDocuments({ followedCompanyIds: company._id });
 
   const formattedJobs = jobs.map((j) => ({
     id: String(j._id),
@@ -1790,6 +1884,8 @@ exports.getCompanyDetail = asyncHandler(async (req, res) => {
           .join(", ") || "",
         activelyHiring: company.activelyHiring !== false,
         activeJobCount: formattedJobs.length,
+        followersCount,
+        isFollowing: followedCompanyIds.has(String(company._id)),
         color: companyColor(company._id),
         logo: (company.name || "M")[0].toUpperCase(),
         logoUrl: company.logoUrl || "",

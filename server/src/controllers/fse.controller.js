@@ -6,6 +6,10 @@ const CrmUser = require("../models/CrmUser");
 const Lead = require("../models/Lead");
 const NonVisitDay = require("../models/NonVisitDay");
 const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
+const {
   LEAD_STATUSES,
   LEAD_SOURCES,
   LEAD_PRIORITIES,
@@ -340,10 +344,15 @@ exports.signup = asyncHandler(async (req, res) => {
     isActive: true,
   });
 
+  const tokenPair = await issueTokenPair({ user, source: "CRM", req });
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(201).json({
     success: true,
     message: "FSE registered successfully",
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: String(user._id),
       fullName: user.fullName,
@@ -388,9 +397,14 @@ exports.login = asyncHandler(async (req, res) => {
     throw createHttpError(401, "Invalid email, zone, or password");
   }
 
+  const tokenPair = await issueTokenPair({ user, source: "CRM", req });
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: String(user._id),
       fullName: user.fullName,

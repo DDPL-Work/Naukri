@@ -24,6 +24,10 @@ const {
   formatPackageChangeRequest,
   applyDueApprovedPackageChangesForCompany,
 } = require("../services/package-change-request.service");
+const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
@@ -326,9 +330,19 @@ exports.login = asyncHandler(async (req, res) => {
 
   const { packageSnapshot } = await syncCompanyPackageContext(company);
 
+  const tokenPair = await issueTokenPair({
+    user,
+    source: "USER",
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateUserToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: String(user._id),
       username: user.name || "",
@@ -413,9 +427,19 @@ exports.register = asyncHandler(async (req, res) => {
 
   const { packageSnapshot } = await syncCompanyPackageContext(company);
 
+  const tokenPair = await issueTokenPair({
+    user,
+    source: "USER",
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(201).json({
     success: true,
-    token: generateUserToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: String(user._id),
       username: user.name || "",
@@ -432,7 +456,7 @@ exports.getDashboard = asyncHandler(async (req, res) => {
   const { company } = await resolveClientUserAndCompany(req.user._id);
   const { packageCatalog, packageSnapshot, appliedPackageChange } = await syncCompanyPackageContext(company);
 
-  const [jobs, applications, activePackageRequest, recentPackageRequests, reviews] = await Promise.all([
+  const [jobs, applications, activePackageRequest, recentPackageRequests, reviews, followers] = await Promise.all([
     Job.find({ companyId: company._id }).sort({ updatedAt: -1 }),
     Application.find({ companyId: company._id })
       .sort({ updatedAt: -1 })
@@ -456,6 +480,11 @@ exports.getDashboard = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20)
       .select("candidateName candidateTitle candidateCity rating headline review isAnonymous createdAt updatedAt"),
+    CandidateProfile.find({ followedCompanyIds: company._id })
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .populate("userId", "name email")
+      .select("userId phone currentTitle totalExperience currentCity currentState updatedAt"),
   ]);
 
   const candidateIds = [
@@ -548,9 +577,22 @@ exports.getDashboard = asyncHandler(async (req, res) => {
         packageOverflowRequests: pendingJobs.filter((job) => job.requiresPackageOverride).length,
         totalApplications: applications.length,
         uniqueCandidates: candidateIds.length,
+        followers: followers.length,
       },
       jobs: jobRows,
       applications: applicationRows,
+      followers: followers.map((profile) => ({
+        candidateId: String(profile.userId?._id || profile.userId || ""),
+        candidateName: profile.userId?.name || "Candidate",
+        candidateEmail: profile.userId?.email || "",
+        candidatePhone: profile.phone || "",
+        candidateCurrentTitle: profile.currentTitle || "",
+        candidateExperience: profile.totalExperience || "",
+        candidateCity: profile.currentCity || "",
+        candidateState: profile.currentState || "",
+        followedAt: profile.updatedAt || null,
+        lastUpdated: formatRelativeTime(profile.updatedAt),
+      })),
     },
   });
 });

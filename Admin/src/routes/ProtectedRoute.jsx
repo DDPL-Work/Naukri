@@ -4,6 +4,7 @@ import {
   clearStoredSession,
   getAdminProfile,
   getStoredSession,
+  restoreStoredSession,
   setStoredSession,
 } from "../services/adminApi";
 
@@ -16,8 +17,15 @@ export default function ProtectedRoute() {
 
     const validateSession = async () => {
       if (!session?.token) {
-        if (isMounted) {
-          setStatus("unauthenticated");
+        try {
+          await restoreStoredSession();
+          if (isMounted) {
+            setStatus("authenticated");
+          }
+        } catch {
+          if (isMounted) {
+            setStatus("unauthenticated");
+          }
         }
         return;
       }

@@ -1,4 +1,5 @@
 const express = require("express");
+const authController = require("../controllers/auth.controller");
 const controller = require("../controllers/zonal-manager.controller");
 const { protectCRM } = require("../middleware/auth.middleware");
 const role = require("../middleware/role.middleware");
@@ -7,6 +8,8 @@ const uploadProfilePhoto = require("../middleware/profile-image-upload.middlewar
 const router = express.Router();
 
 router.post("/auth/login", controller.login);
+router.post("/auth/refresh", authController.refresh);
+router.post("/auth/logout", authController.logout);
 
 router.use(protectCRM);
 router.use(role("ZONAL_MANAGER"));

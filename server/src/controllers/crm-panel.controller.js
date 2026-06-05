@@ -1,7 +1,6 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const axios = require("axios");
-const jwt = require("jsonwebtoken");
 const streamifier = require("streamifier");
 const asyncHandler = require("../middleware/async.middleware");
 const CrmUser = require("../models/CrmUser");
@@ -30,6 +29,10 @@ const {
   applyDueApprovedPackageChangesForCompany,
   normalizeRequestStatus,
 } = require("../services/package-change-request.service");
+const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
 
 const defaultPackages = DEFAULT_PACKAGE_CATALOG;
 const CRM_DASHBOARD_FEED_LIMIT = 24;
@@ -43,11 +46,6 @@ const createHttpError = (statusCode, message) => {
   error.statusCode = statusCode;
   return error;
 };
-
-const generateToken = (id) =>
-  jwt.sign({ id, type: "CRM_PANEL" }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
 
 const formatRelativeTime = (value) => {
   if (!value) {
@@ -579,9 +577,19 @@ exports.login = asyncHandler(async (req, res) => {
     throw createHttpError(403, "CRM account is inactive");
   }
 
+  const tokenPair = await issueTokenPair({
+    user,
+    source: "CRM",
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: formatCrmUser(user),
   });
 });

@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const authController = require("../controllers/auth.controller");
 const controller = require("../controllers/state-manager.controller");
 const leadGeneratorController = require("../controllers/lead-generator.controller");
 const { protectCRM } = require("../middleware/auth.middleware");
@@ -7,6 +8,8 @@ const role = require("../middleware/role.middleware");
 const uploadProfilePhoto = require("../middleware/profile-image-upload.middleware");
 
 router.post("/auth/login", controller.login);
+router.post("/auth/refresh", authController.refresh);
+router.post("/auth/logout", authController.logout);
 
 router.use(protectCRM);
 router.use(role("STATE_MANAGER", "ADMIN"));

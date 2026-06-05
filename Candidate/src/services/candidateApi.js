@@ -33,10 +33,12 @@ export function getStoredSession() {
 
 export function setStoredSession(session) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event("candidate-session-updated"));
 }
 
 export function clearStoredSession() {
   sessionStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new Event("candidate-session-updated"));
 }
 
 export function getStoredCandidateUser() {
@@ -51,7 +53,42 @@ const isFormDataPayload = (value) =>
   value instanceof FormData || 
   (Boolean(value) && typeof value === 'object' && typeof value.append === 'function');
 
-async function request(path, { method = "GET", body, auth = true } = {}) {
+async function refreshAuthSession() {
+  const response = await fetch(`${API_ROOT}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  const payload = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    clearStoredSession();
+    throw new Error(payload.message || "Session expired");
+  }
+
+  setStoredSession({
+    token: payload.accessToken || payload.token,
+    user: payload.user,
+  });
+
+  return payload.accessToken || payload.token;
+}
+
+export async function restoreStoredSession() {
+  const token = await refreshAuthSession();
+  const profile = await getCandidateMe();
+  setStoredSession({
+    token,
+    user: profile.user,
+    profile: profile.profile,
+  });
+  return getStoredSession();
+}
+
+async function request(
+  path,
+  { method = "GET", body, auth = true, retryOnUnauthorized = true, tokenOverride = "" } = {},
+) {
   const headers = {};
   const isFormData = isFormDataPayload(body);
 
@@ -60,24 +97,41 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
   }
 
   if (auth) {
-    const token = getStoredToken();
+    const token = tokenOverride || getStoredToken();
 
     if (!token) {
-      throw new Error("Authentication required");
+      const refreshedToken = await refreshAuthSession();
+      headers.Authorization = `Bearer ${refreshedToken}`;
+    } else {
+      headers.Authorization = `Bearer ${token}`;
     }
-
-    headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_ROOT}${path}`, {
     method,
     headers,
+    credentials: "include",
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
   });
 
   const payload = await parseJsonSafely(response);
 
   if (!response.ok) {
+    if (auth && response.status === 401 && retryOnUnauthorized) {
+      try {
+        const refreshedToken = await refreshAuthSession();
+        return request(path, {
+          method,
+          body,
+          auth,
+          retryOnUnauthorized: false,
+          tokenOverride: refreshedToken,
+        });
+      } catch {
+        clearStoredSession();
+      }
+    }
+
     if (auth && [401, 403].includes(response.status)) {
       clearStoredSession();
     }
@@ -91,6 +145,7 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 export async function registerCandidate(payload) {
   const response = await fetch(`${API_ROOT}/auth/register`, {
     method: "POST",
+    credentials: "include",
     body: payload,
     // The browser natively handles FormData payloads and applies the correct 
     // Content-Type: multipart/form-data boundary automatically without JSON serialization.
@@ -111,6 +166,13 @@ export function loginCandidate(payload) {
     body: payload,
     auth: false,
   });
+}
+
+export function logoutCandidate() {
+  return request("/auth/logout", {
+    method: "POST",
+    auth: false,
+  }).finally(clearStoredSession);
 }
 
 export function getCandidateMe() {

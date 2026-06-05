@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuLock, LuMail } from "react-icons/lu";
-import { loginCompany } from "../api/companyApi";
-
-const SESSION_KEY = "company_panel_session";
+import { loginCompany, setStoredCompanySession } from "../api/companyApi";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -23,14 +21,11 @@ export default function Login() {
       };
 
       const response = await loginCompany(payload);
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({
-          token: response.token,
-          user: response.user,
-          company: response.company,
-        }),
-      );
+      setStoredCompanySession({
+        token: response.token,
+        user: response.user,
+        company: response.company,
+      });
 
       navigate("/", { replace: true });
     } catch (requestError) {

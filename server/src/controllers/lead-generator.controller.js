@@ -21,6 +21,10 @@ const {
 } = require("../constants/lead-generator.constants");
 const { replaceCrmProfileImage } = require("../services/profile-image-storage.service");
 const { uploadClientJdFile } = require("../services/client-intake-storage.service");
+const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
@@ -1225,10 +1229,15 @@ exports.signup = asyncHandler(async (req, res) => {
     isActive: true,
   });
 
+  const tokenPair = await issueTokenPair({ user, source: "CRM", req });
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(201).json({
     success: true,
     message: "Registration successful. You can now log in.",
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: String(user._id),
       fullName: user.fullName,
@@ -1278,9 +1287,14 @@ exports.login = asyncHandler(async (req, res) => {
     throw createHttpError(401, "Invalid credentials or zone");
   }
 
+  const tokenPair = await issueTokenPair({ user, source: "CRM", req });
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: String(user._id),
       fullName: user.fullName,

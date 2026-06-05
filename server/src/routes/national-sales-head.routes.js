@@ -1,4 +1,5 @@
 const express = require("express");
+const authController = require("../controllers/auth.controller");
 const controller = require("../controllers/national-sales-head.controller");
 const { protectCRM } = require("../middleware/auth.middleware");
 
@@ -6,6 +7,8 @@ const router = express.Router();
 
 // Public
 router.post("/auth/login", controller.login);
+router.post("/auth/refresh", authController.refresh);
+router.post("/auth/logout", authController.logout);
 
 // Protected - NSH only (enforced in controller guards)
 router.use(protectCRM);

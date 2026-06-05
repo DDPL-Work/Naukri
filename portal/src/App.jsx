@@ -13,6 +13,7 @@ import Services from "./pages/candidates/Services";
 import MavenPro from "./pages/candidates/MavenPro";
 import Premium from "./pages/candidates/Premium";
 import Info from "./pages/candidates/Info";
+import FooterPage from "./pages/candidates/FooterPage";
 import Blogs from "./pages/candidates/Blogs";
 import BlogAIRex from "./pages/candidates/Blogsx";
 import DailyQuiz from "./pages/candidates/DailyQuiz";
@@ -74,6 +75,7 @@ function AppContent() {
         <Route path="/" element={<NaukriLandingPage />} />
         <Route path="/employer-login" element={<EmployerLandingPage />} />
         <Route path="/jobs" element={<JobListingPage />} />
+        <Route path="/jobs/:filter" element={<JobListingPage />} />
         <Route path="/job/:id" element={<JobDetailsPage />} />
         <Route path="/buy-online" element={<Buyonline />} />
         <Route path="/profile" element={<ProfileDashboard />} />
@@ -84,6 +86,7 @@ function AppContent() {
         <Route path="/premium" element={<Premium />} />
         <Route path="/expert-assist" element={<ExpertAssist />} />
         <Route path="/info" element={<Info />} />
+        <Route path="/company/:slug/info" element={<FooterPage />} />
         <Route path="/blogs" element={<Blogs />} />
         <Route path="/blog-article" element={<BlogAIRex />} />
         <Route path="/daily-quiz" element={<DailyQuiz />} />

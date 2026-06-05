@@ -1,5 +1,6 @@
 const express = require("express");
 const multer = require("multer");
+const authController = require("../controllers/auth.controller");
 const candidateController = require("../controllers/candidate.controller");
 const chatController = require("../controllers/chat.controller");
 const {
@@ -18,6 +19,8 @@ const upload = multer({
 
 router.post("/auth/register", upload.single("resume"), candidateController.register);
 router.post("/auth/login", candidateController.login);
+router.post("/auth/refresh", authController.refresh);
+router.post("/auth/logout", authController.logout);
 router.get("/landing/:token", candidateController.getLanding);
 
 router.get("/auth/me", protectCandidate, candidateController.me);
@@ -28,8 +31,10 @@ router.post("/quiz/today/submit", protectCandidate, candidateController.submitTo
 router.get("/jobs", protectCandidate, candidateController.getJobs);
 router.get("/jobs/:id", protectCandidate, candidateController.getJobDetail);
 router.get("/jobs/:id/similar", protectCandidate, candidateController.getSimilarJobs);
+router.patch("/jobs/:id/save", protectCandidate, candidateController.toggleSavedJob);
 router.get("/companies", protectCandidate, candidateController.getCompanies);
 router.get("/companies/:id", protectCandidate, candidateController.getCompanyDetail);
+router.patch("/companies/:id/follow", protectCandidate, candidateController.toggleCompanyFollow);
 router.post("/companies/:id/reviews", protectCandidate, candidateController.submitCompanyReview);
 router.get("/applications", protectCandidate, candidateController.getApplications);
 router.post("/applications", protectCandidate, candidateController.createApplication);

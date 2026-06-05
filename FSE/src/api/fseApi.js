@@ -2,18 +2,32 @@ import axios from "axios";
 
 const SESSION_KEY = "crm_panel_session";
 
-const getAuthToken = () => {
+export const getStoredCrmSession = () => {
   const raw = sessionStorage.getItem(SESSION_KEY);
   if (!raw) {
-    return "";
+    return null;
   }
 
   try {
-    const parsed = JSON.parse(raw);
-    return parsed?.token || "";
+    return JSON.parse(raw);
   } catch {
-    return "";
+    sessionStorage.removeItem(SESSION_KEY);
+    return null;
   }
+};
+
+export const setStoredCrmSession = (session) => {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event("crm-session-updated"));
+};
+
+export const clearStoredCrmSession = () => {
+  sessionStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new Event("crm-session-updated"));
+};
+
+const getAuthToken = () => {
+  return getStoredCrmSession()?.token || "";
 };
 
 const normalizeApiV1BaseUrl = (value = "") => {
@@ -52,14 +66,17 @@ const API_V1_BASE_URL = resolveApiV1BaseUrl();
 
 const http = axios.create({
   baseURL: resolveModuleApiBaseUrl("/fse"),
+  withCredentials: true,
 });
 
 const crmHttp = axios.create({
   baseURL: `${API_V1_BASE_URL}/crm-panel`,
+  withCredentials: true,
 });
 
 const coreHttp = axios.create({
   baseURL: API_V1_BASE_URL,
+  withCredentials: true,
 });
 
 const attachAuthHeader = (config) => {
@@ -73,6 +90,60 @@ const attachAuthHeader = (config) => {
 http.interceptors.request.use(attachAuthHeader);
 crmHttp.interceptors.request.use(attachAuthHeader);
 coreHttp.interceptors.request.use(attachAuthHeader);
+
+async function refreshCrmSession() {
+  const { data } = await http.post("/auth/refresh", null, { _skipAuthRefresh: true });
+  const token = data.accessToken || data.token;
+  setStoredCrmSession({
+    token,
+    user: data.user,
+  });
+  return token;
+}
+
+const attachRefreshRetry = (client) => {
+  client.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
+
+      if (
+        error.response?.status === 401 &&
+        originalRequest &&
+        !originalRequest._retry &&
+        !originalRequest._skipAuthRefresh
+      ) {
+        originalRequest._retry = true;
+
+        try {
+          const token = await refreshCrmSession();
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return client(originalRequest);
+        } catch {
+          clearStoredCrmSession();
+        }
+      }
+
+      if ([401, 403].includes(error.response?.status)) {
+        clearStoredCrmSession();
+      }
+
+      return Promise.reject(error);
+    },
+  );
+};
+
+attachRefreshRetry(http);
+attachRefreshRetry(crmHttp);
+attachRefreshRetry(coreHttp);
+
+export async function restoreCrmSession() {
+  const token = await refreshCrmSession();
+  return {
+    ...getStoredCrmSession(),
+    token,
+  };
+}
 
 export async function loginFSE(payload) {
   const { data } = await http.post("/auth/login", payload);

@@ -1,5 +1,6 @@
 const express = require("express");
 const multer = require("multer");
+const authController = require("../controllers/auth.controller");
 const controller = require("../controllers/lead-generator.controller");
 const { protectCRM } = require("../middleware/auth.middleware");
 const role = require("../middleware/role.middleware");
@@ -15,6 +16,8 @@ const uploadClientJd = multer({
 });
 
 router.post("/auth/login", controller.login);
+router.post("/auth/refresh", authController.refresh);
+router.post("/auth/logout", authController.logout);
 router.post("/client-intakes", uploadClientJd.array("jdFiles", 5), controller.submitClientIntake);
 
 router.use(protectCRM);

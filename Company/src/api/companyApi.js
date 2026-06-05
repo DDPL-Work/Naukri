@@ -20,22 +20,35 @@ const resolveApiV1BaseUrl = () => {
 
 const API_V1_BASE_URL = resolveApiV1BaseUrl();
 
-const getAuthToken = () => {
+export const getStoredCompanySession = () => {
   const raw = sessionStorage.getItem(SESSION_KEY);
   if (!raw) {
-    return "";
+    return null;
   }
 
   try {
-    const parsed = JSON.parse(raw);
-    return parsed?.token || "";
+    return JSON.parse(raw);
   } catch {
-    return "";
+    sessionStorage.removeItem(SESSION_KEY);
+    return null;
   }
 };
 
+export const setStoredCompanySession = (session) => {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event("company-session-updated"));
+};
+
+export const clearStoredCompanySession = () => {
+  sessionStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new Event("company-session-updated"));
+};
+
+const getAuthToken = () => getStoredCompanySession()?.token || "";
+
 const http = axios.create({
   baseURL: `${API_V1_BASE_URL}/company-panel`,
+  withCredentials: true,
 });
 
 http.interceptors.request.use((config) => {
@@ -46,9 +59,67 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
+async function refreshCompanySession() {
+  const { data } = await http.post("/auth/refresh", null, { _skipAuthRefresh: true });
+  const token = data.accessToken || data.token;
+
+  setStoredCompanySession({
+    token,
+    user: data.user,
+  });
+
+  return token;
+}
+
+http.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest._skipAuthRefresh
+    ) {
+      originalRequest._retry = true;
+
+      try {
+        const token = await refreshCompanySession();
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return http(originalRequest);
+      } catch {
+        clearStoredCompanySession();
+      }
+    }
+
+    if ([401, 403].includes(error.response?.status)) {
+      clearStoredCompanySession();
+    }
+
+    return Promise.reject(error);
+  },
+);
+
+export async function restoreCompanySession() {
+  const token = await refreshCompanySession();
+  return {
+    ...getStoredCompanySession(),
+    token,
+  };
+}
+
 export async function loginCompany(payload) {
   const { data } = await http.post("/auth/login", payload);
   return data;
+}
+
+export async function logoutCompany() {
+  try {
+    await http.post("/auth/logout");
+  } finally {
+    clearStoredCompanySession();
+  }
 }
 
 export async function fetchCompanyDashboard() {

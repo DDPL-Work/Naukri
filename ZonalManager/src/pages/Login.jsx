@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuEye, LuEyeOff } from "react-icons/lu";
 import { toast } from "sonner";
+import { setStoredCrmSession } from "../api/leadApi";
 
 const resolveRootApiBaseUrl = () => {
   const configuredBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "").trim();
@@ -15,12 +16,11 @@ const resolveRootApiBaseUrl = () => {
 };
 
 const API_BASE = resolveRootApiBaseUrl();
-const SESSION_KEY = "crm_panel_session";
-
 async function loginZonalManager({ email, zone, password }) {
   const response = await fetch(`${API_BASE}/zonal-manager/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ email, zone, password }),
   });
 
@@ -57,11 +57,7 @@ export default function Login() {
         password,
       });
 
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({ token: response.token, user: response.user }),
-      );
-      window.dispatchEvent(new Event("crm-session-updated"));
+      setStoredCrmSession({ token: response.token, user: response.user });
       navigate("/", { replace: true });
     } catch (requestError) {
       toast.error(requestError.message || "Unable to sign in.");

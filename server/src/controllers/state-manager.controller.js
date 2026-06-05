@@ -14,6 +14,10 @@ const {
   buildZoneRegex,
 } = require("../utils/zone.util");
 const { replaceCrmProfileImage } = require("../services/profile-image-storage.service");
+const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
 
 const FULL_NAME_MIN_LENGTH = 2;
 const FULL_NAME_MAX_LENGTH = 80;
@@ -350,9 +354,14 @@ exports.login = asyncHandler(async (req, res) => {
     throw createHttpError(401, "Invalid email, zone, or password");
   }
 
+  const tokenPair = await issueTokenPair({ user, source: "CRM", req });
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: String(user._id),
       fullName: user.fullName,

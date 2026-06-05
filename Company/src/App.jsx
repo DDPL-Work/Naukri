@@ -18,26 +18,50 @@ import Dashboard from "./pages/Dashboard";
 import CreateJob from "./pages/CreateJob";
 import Profile from "./pages/Profile";
 import Applies from "./pages/Applies";
-
-const SESSION_KEY = "company_panel_session";
+import {
+  clearStoredCompanySession,
+  getStoredCompanySession,
+  restoreCompanySession,
+} from "./api/companyApi";
 
 const parseSession = () => {
-  const raw = sessionStorage.getItem(SESSION_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    sessionStorage.removeItem(SESSION_KEY);
-    return null;
-  }
+  return getStoredCompanySession();
 };
 
 function RequireAuth({ children }) {
-  const session = parseSession();
-  if (!session?.token) {
+  const [status, setStatus] = useState(() => (parseSession()?.token ? "authenticated" : "checking"));
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (status !== "checking") {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    restoreCompanySession()
+      .then(() => {
+        if (isMounted) {
+          setStatus("authenticated");
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus("unauthenticated");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [status]);
+
+  if (status === "checking") {
+    return null;
+  }
+
+  if (status !== "authenticated") {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -96,7 +120,7 @@ function PanelLayout() {
   const syncSession = () => setSession(parseSession());
 
   const handleLogout = () => {
-    sessionStorage.removeItem(SESSION_KEY);
+    clearStoredCompanySession();
     syncSession();
     navigate("/login", { replace: true });
   };

@@ -1,18 +1,33 @@
 import axios from "axios";
 
-const getAuthToken = () => {
-  const crmSession = sessionStorage.getItem("crm_panel_session");
-  if (crmSession) {
-    try {
-      const parsed = JSON.parse(crmSession);
-      if (parsed?.token) {
-        return parsed.token;
-      }
-    } catch {
-      // ignore
-    }
+const SESSION_KEY = "crm_panel_session";
+
+export const getStoredCrmSession = () => {
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (!raw) {
+    return null;
   }
-  return "";
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+};
+
+export const setStoredCrmSession = (session) => {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event("crm-session-updated"));
+};
+
+export const clearStoredCrmSession = () => {
+  sessionStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new Event("crm-session-updated"));
+};
+
+const getAuthToken = () => {
+  return getStoredCrmSession()?.token || "";
 };
 
 const normalizeApiV1BaseUrl = (value = "") => {
@@ -44,6 +59,7 @@ const resolveModuleApiBaseUrl = (modulePath) => {
 
 const http = axios.create({
   baseURL: resolveModuleApiBaseUrl("/national-sales-head"),
+  withCredentials: true,
 });
 
 http.interceptors.request.use((config) => {
@@ -53,6 +69,54 @@ http.interceptors.request.use((config) => {
   }
   return config;
 });
+
+async function refreshCrmSession() {
+  const { data } = await http.post("/auth/refresh", null, { _skipAuthRefresh: true });
+  const token = data.accessToken || data.token;
+  setStoredCrmSession({
+    token,
+    user: data.user,
+  });
+  return token;
+}
+
+http.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest._skipAuthRefresh
+    ) {
+      originalRequest._retry = true;
+
+      try {
+        const token = await refreshCrmSession();
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return http(originalRequest);
+      } catch {
+        clearStoredCrmSession();
+      }
+    }
+
+    if ([401, 403].includes(error.response?.status)) {
+      clearStoredCrmSession();
+    }
+
+    return Promise.reject(error);
+  },
+);
+
+export async function restoreCrmSession() {
+  const token = await refreshCrmSession();
+  return {
+    ...getStoredCrmSession(),
+    token,
+  };
+}
 
 export async function loginNSH(credentials) {
   const { data } = await http.post("/auth/login", credentials);

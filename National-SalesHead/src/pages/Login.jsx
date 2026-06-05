@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuEye, LuEyeOff } from "react-icons/lu";
-import { loginNSH } from "../api/nshApi";
-
-const SESSION_KEY = "crm_panel_session";
+import { loginNSH, setStoredCrmSession } from "../api/nshApi";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -26,10 +24,7 @@ export default function Login() {
 
     try {
       const response = await loginNSH({ email: email.trim(), password });
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({ token: response.token, user: response.user })
-      );
+      setStoredCrmSession({ token: response.token, user: response.user });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err?.response?.data?.message || "Unable to sign in.");

@@ -41,6 +41,14 @@ const candidateProfileSchema = new mongoose.Schema(
     projectLink: { type: String, default: "" },
     projectDescription: { type: String, default: "" },
     lastScannedQrToken: { type: String, default: "" },
+    savedJobIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Job",
+    }],
+    followedCompanyIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+    }],
     profilePic: {
       url: { type: String, default: "" },
       publicId: { type: String, default: "" },

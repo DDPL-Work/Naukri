@@ -3,6 +3,7 @@ const Job = require("../models/Job");
 const User = require("../models/User");
 const Company = require("../models/Company");
 const Application = require("../models/Application");
+const CandidateProfile = require("../models/CandidateProfile");
 
 const formatCompactCount = (value = 0) => {
   const count = Number(value || 0);
@@ -134,6 +135,42 @@ const jobMatchesExperience = (job, experience = "") => {
   return jobMinimumExperience <= candidateExperience;
 };
 
+const jobMatchesFilter = (job, filter = "") => {
+  const normalizedFilter = normalizeSearch(filter).replace(/-/g, " ");
+  if (!normalizedFilter) return true;
+
+  const aliases = {
+    "it jobs": "it",
+    "sales jobs": "sales",
+    "marketing jobs": "marketing",
+    "data science jobs": "data science",
+    "hr jobs": "hr",
+    "engineering jobs": "engineering",
+    "fresher jobs": "fresher",
+    "mnc jobs": "mnc",
+    "remote jobs": "remote",
+    "work from home": "remote",
+    "walk in jobs": "walk in",
+    "part time jobs": "part time",
+  };
+  const term = aliases[normalizedFilter] || normalizedFilter.replace(/\s+jobs?$/i, "");
+
+  const haystack = [
+    job.title,
+    job.department,
+    job.location,
+    job.experience,
+    job.jobType,
+    job.workplaceType,
+    job.companyId?.name,
+    job.companyId?.industry,
+    job.companyId?.packageType,
+    ...(Array.isArray(job.skills) ? job.skills : []),
+  ].join(" ").toLowerCase();
+
+  return haystack.includes(term);
+};
+
 const formatPublicJob = (job) => ({
   id: String(job._id),
   companyId: String(job.companyId?._id || job.companyId || ""),
@@ -169,6 +206,7 @@ exports.getPublicJobs = async (req, res) => {
     const search = String(req.query.search || "").trim();
     const location = String(req.query.location || "").trim();
     const experience = String(req.query.experience || "").trim();
+    const filter = String(req.query.filter || "").trim();
     const limit = Math.min(Math.max(Number(req.query.limit || 60), 1), 100);
 
     const jobs = await Job.find({
@@ -181,6 +219,7 @@ exports.getPublicJobs = async (req, res) => {
 
     const filteredJobs = jobs
       .filter((job) => jobMatchesSearch(job, search))
+      .filter((job) => jobMatchesFilter(job, filter))
       .filter((job) => jobMatchesLocation(job, location))
       .filter((job) => jobMatchesExperience(job, experience))
       .slice(0, limit);
@@ -189,7 +228,7 @@ exports.getPublicJobs = async (req, res) => {
       success: true,
       data: {
         jobs: filteredJobs.map(formatPublicJob),
-        filters: { search, location, experience },
+        filters: { search, location, experience, filter },
       },
     });
   } catch (error) {
@@ -212,11 +251,14 @@ exports.getPublicCompanyDetail = async (req, res) => {
       });
     }
 
-    const jobs = await Job.find({
+    const [jobs, followersCount] = await Promise.all([
+      Job.find({
       companyId: company._id,
       isActive: true,
       approvalStatus: "APPROVED",
-    }).sort({ createdAt: -1 });
+      }).sort({ createdAt: -1 }),
+      CandidateProfile.countDocuments({ followedCompanyIds: company._id }),
+    ]);
 
     return res.json({
       success: true,
@@ -235,6 +277,8 @@ exports.getPublicCompanyDetail = async (req, res) => {
           locationFull: [company.location?.city, company.location?.region].filter(Boolean).join(", ") || "",
           activelyHiring: company.activelyHiring !== false,
           activeJobCount: jobs.length,
+          followersCount,
+          isFollowing: false,
           logo: initialsFor(company.name),
           logoUrl: company.logoUrl || "",
           coverImageUrl: company.coverImageUrl || "",

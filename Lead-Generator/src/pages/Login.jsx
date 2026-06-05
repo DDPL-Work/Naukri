@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { setStoredCrmSession } from "../api/leadApi";
 import { LuEye, LuEyeOff } from "react-icons/lu";
 
 const resolveRootApiBaseUrl = () => {
@@ -15,12 +16,11 @@ const resolveRootApiBaseUrl = () => {
 
 const API_BASE = resolveRootApiBaseUrl();
 
-const SESSION_KEY = "crm_panel_session";
-
 async function loginLeadGenerator({ email, zone, password }) {
   const response = await fetch(`${API_BASE}/lead-generator/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ email, zone, password }),
   });
 
@@ -59,10 +59,7 @@ export default function Login() {
         zone: zone.trim(),
         password,
       });
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({ token: response.token, user: response.user }),
-      );
+      setStoredCrmSession({ token: response.token, user: response.user });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err.message || "Unable to sign in.");

@@ -17,21 +17,50 @@ import ValidationQueue from "./pages/ValidationQueue";
 import StateManagers from "./pages/StateManagers";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
-
-const SESSION_KEY = "crm_panel_session";
+import {
+  clearStoredCrmSession,
+  getStoredCrmSession,
+  restoreCrmSession,
+} from "./api/leadApi";
 
 function getStoredSession() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return getStoredCrmSession();
 }
 
 function RequireAuth({ children }) {
-  const session = getStoredSession();
-  if (!session?.token) {
+  const [status, setStatus] = useState(() => (getStoredSession()?.token ? "authenticated" : "checking"));
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (status !== "checking") {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    restoreCrmSession()
+      .then(() => {
+        if (isMounted) {
+          setStatus("authenticated");
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus("unauthenticated");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [status]);
+
+  if (status === "checking") {
+    return null;
+  }
+
+  if (status !== "authenticated") {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -65,8 +94,7 @@ export default function App() {
   const profileImage = user?.profileImage || "";
 
   const handleLogout = () => {
-    sessionStorage.removeItem(SESSION_KEY);
-    window.dispatchEvent(new Event("crm-session-updated"));
+    clearStoredCrmSession();
     navigate("/login", { replace: true });
   };
 

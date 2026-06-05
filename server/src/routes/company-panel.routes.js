@@ -1,4 +1,5 @@
 const express = require("express");
+const authController = require("../controllers/auth.controller");
 const controller = require("../controllers/company-panel.controller");
 const chatController = require("../controllers/chat.controller");
 const { protectUser } = require("../middleware/auth.middleware");
@@ -9,6 +10,8 @@ const router = express.Router();
 
 router.post("/auth/register", controller.register);
 router.post("/auth/login", controller.login);
+router.post("/auth/refresh", authController.refresh);
+router.post("/auth/logout", authController.logout);
 
 router.use(protectUser);
 router.use(role("CLIENT"));

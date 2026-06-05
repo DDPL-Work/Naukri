@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuEye, LuEyeOff } from "react-icons/lu";
-import { loginFSE } from "../api/fseApi";
-
-const SESSION_KEY = "crm_panel_session";
+import { loginFSE, setStoredCrmSession } from "../api/fseApi";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -21,7 +19,7 @@ export default function Login() {
 
     try {
       const response = await loginFSE({ email: email.trim(), zone, password });
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: response.token, user: response.user }));
+      setStoredCrmSession({ token: response.token, user: response.user });
       navigate("/", { replace: true });
     } catch (requestError) {
       setError(requestError?.response?.data?.message || requestError.message || "Unable to sign in.");

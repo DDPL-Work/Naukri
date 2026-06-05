@@ -6,6 +6,10 @@ const asyncHandler = require("../middleware/async.middleware");
 const createHttpError = require("http-errors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
 
 const ZONES = ["North", "South", "East", "West"];
 const PENDING_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "FOLLOW_UP"];
@@ -493,9 +497,14 @@ exports.login = asyncHandler(async (req, res) => {
     throw createHttpError(401, "Invalid credentials");
   }
 
+  const tokenPair = await issueTokenPair({ user, source: "CRM", req });
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateToken(user._id),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: user._id,
       fullName: user.fullName,

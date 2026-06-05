@@ -36,10 +36,12 @@ export function getStoredSession() {
 
 export function setStoredSession(session) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event("crm-session-updated"));
 }
 
 export function clearStoredSession() {
   sessionStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new Event("crm-session-updated"));
 }
 
 export function getStoredCrmUser() {
@@ -50,6 +52,37 @@ function getStoredToken() {
   return getStoredSession()?.token || "";
 }
 
+async function refreshAuthSession() {
+  const response = await fetch(`${API_ROOT}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  const payload = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    clearStoredSession();
+    throw new Error(payload.message || "Session expired");
+  }
+
+  setStoredSession({
+    token: payload.accessToken || payload.token,
+    user: payload.user,
+  });
+
+  return payload.accessToken || payload.token;
+}
+
+export async function restoreStoredSession() {
+  const token = await refreshAuthSession();
+  const profile = await getCrmProfile();
+  setStoredSession({
+    token,
+    user: profile.user,
+  });
+  return getStoredSession();
+}
+
 async function request(path, { method = "GET", body, auth = true } = {}) {
   return requestTo(API_ROOT, path, { method, body, auth });
 }
@@ -57,7 +90,7 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 async function requestTo(
   baseUrl,
   path,
-  { method = "GET", body, auth = true } = {},
+  { method = "GET", body, auth = true, retryOnUnauthorized = true, tokenOverride = "" } = {},
 ) {
   const isMultipartPayload = typeof FormData !== "undefined" && body instanceof FormData;
 
@@ -68,24 +101,41 @@ async function requestTo(
       };
 
   if (auth) {
-    const token = getStoredToken();
+    const token = tokenOverride || getStoredToken();
 
     if (!token) {
-      throw new Error("Authentication required");
+      const refreshedToken = await refreshAuthSession();
+      headers.Authorization = `Bearer ${refreshedToken}`;
+    } else {
+      headers.Authorization = `Bearer ${token}`;
     }
-
-    headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
+    credentials: "include",
     body: body ? (isMultipartPayload ? body : JSON.stringify(body)) : undefined,
   });
 
   const payload = await parseJsonSafely(response);
 
   if (!response.ok) {
+    if (auth && response.status === 401 && retryOnUnauthorized) {
+      try {
+        const refreshedToken = await refreshAuthSession();
+        return requestTo(baseUrl, path, {
+          method,
+          body,
+          auth,
+          retryOnUnauthorized: false,
+          tokenOverride: refreshedToken,
+        });
+      } catch {
+        clearStoredSession();
+      }
+    }
+
     if (auth && [401, 403].includes(response.status)) {
       clearStoredSession();
     }
@@ -102,6 +152,13 @@ export function loginCrm(credentials) {
     body: credentials,
     auth: false,
   });
+}
+
+export function logoutCrm() {
+  return request("/auth/logout", {
+    method: "POST",
+    auth: false,
+  }).finally(clearStoredSession);
 }
 
 export function getCrmProfile() {
@@ -262,6 +319,7 @@ export function updateCandidate(candidateId, payload) {
 export async function downloadResume(candidateId) {
   const token = getStoredToken();
   const response = await fetch(`${API_ROOT}/candidates/${candidateId}/resume/download`, {
+    credentials: "include",
     headers: {
       Authorization: `Bearer ${token}`,
     },

@@ -34,10 +34,12 @@ export function getStoredSession() {
 
 export function setStoredSession(session) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event("admin-session-updated"));
 }
 
 export function clearStoredSession() {
   sessionStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new Event("admin-session-updated"));
 }
 
 export function getStoredAdmin() {
@@ -48,30 +50,81 @@ export function getStoredToken() {
   return getStoredSession()?.token || "";
 }
 
-async function request(path, { method = "GET", body, auth = true } = {}) {
+async function refreshAuthSession() {
+  const response = await fetch(`${API_ROOT}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  const payload = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    clearStoredSession();
+    throw new Error(payload.message || "Session expired");
+  }
+
+  setStoredSession({
+    token: payload.accessToken || payload.token,
+    user: payload.user,
+  });
+
+  return payload.accessToken || payload.token;
+}
+
+export async function restoreStoredSession() {
+  const token = await refreshAuthSession();
+  const profile = await getAdminProfile();
+  setStoredSession({
+    token,
+    user: profile.user,
+  });
+  return getStoredSession();
+}
+
+async function request(
+  path,
+  { method = "GET", body, auth = true, retryOnUnauthorized = true, tokenOverride = "" } = {},
+) {
   const headers = {
     "Content-Type": "application/json",
   };
 
   if (auth) {
-    const token = getStoredToken();
+    const token = tokenOverride || getStoredToken();
 
     if (!token) {
-      throw new Error("Authentication required");
+      const refreshedToken = await refreshAuthSession();
+      headers.Authorization = `Bearer ${refreshedToken}`;
+    } else {
+      headers.Authorization = `Bearer ${token}`;
     }
-
-    headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_ROOT}${path}`, {
     method,
     headers,
+    credentials: "include",
     body: body ? JSON.stringify(body) : undefined,
   });
 
   const payload = await parseJsonSafely(response);
 
   if (!response.ok) {
+    if (auth && response.status === 401 && retryOnUnauthorized) {
+      try {
+        const refreshedToken = await refreshAuthSession();
+        return request(path, {
+          method,
+          body,
+          auth,
+          retryOnUnauthorized: false,
+          tokenOverride: refreshedToken,
+        });
+      } catch {
+        clearStoredSession();
+      }
+    }
+
     if (auth && [401, 403].includes(response.status)) {
       clearStoredSession();
     }
@@ -88,6 +141,13 @@ export async function loginAdmin(credentials) {
     body: credentials,
     auth: false,
   });
+}
+
+export async function logoutAdmin() {
+  return request("/auth/logout", {
+    method: "POST",
+    auth: false,
+  }).finally(clearStoredSession);
 }
 
 export async function getAdminProfile() {

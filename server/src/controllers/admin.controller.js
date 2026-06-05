@@ -10,6 +10,10 @@ const AdminSetting = require("../models/AdminSetting");
 const AdminAuditLog = require("../models/AdminAuditLog");
 const asyncHandler = require("../middleware/async.middleware");
 const {
+  issueTokenPair,
+  setRefreshCookie,
+} = require("../services/auth.service");
+const {
   buildPermissionPreset,
   defaultAdminRoles,
   defaultAdminSettings,
@@ -909,9 +913,19 @@ exports.login = asyncHandler(async (req, res) => {
 
   const profile = formatAdminUser(account.doc, account.source);
 
+  const tokenPair = await issueTokenPair({
+    user: account.doc,
+    source: account.source,
+    req,
+  });
+
+  setRefreshCookie(res, tokenPair.refreshToken);
+
   res.status(200).json({
     success: true,
-    token: generateToken(account.doc._id, account.source),
+    token: tokenPair.accessToken,
+    accessToken: tokenPair.accessToken,
+    expiresInSeconds: tokenPair.expiresInSeconds,
     user: {
       id: profile.id,
       email: profile.email,

@@ -70,6 +70,19 @@ const socialLinks = [
 
 const CATS_ICONS = [FiMonitor, FiBarChart2, FiHeart, FiBookOpen, FiTrendingUp, FiTool, FiShoppingBag, FiCompass];
 
+const toFilterSlug = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const jobFilterPath = (label = "") => {
+  const slug = toFilterSlug(label);
+  return slug ? `/jobs/${slug}` : "/jobs";
+};
+
 export default function NaukriLandingPage() {
   const navigate = useNavigate();
   const { user, logout, openLogin, openRegister } = useAuth();
@@ -98,7 +111,8 @@ export default function NaukriLandingPage() {
     if (String(keyword || "").trim()) params.set("q", String(keyword).trim());
     if (String(location || "").trim()) params.set("location", String(location).trim());
     if (String(experience || "").trim()) params.set("experience", String(experience).trim());
-    navigate(`/jobs${params.toString() ? `?${params.toString()}` : ""}`);
+    const filterSlug = toFilterSlug(keyword || location || "");
+    navigate(`${filterSlug ? `/jobs/${filterSlug}` : "/jobs"}${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
   useEffect(() => {
@@ -184,23 +198,23 @@ export default function NaukriLandingPage() {
             <div className="lp-nav__links">
               {[
                 { label: "Jobs", to: "/jobs", cols: [
-                  { title: "Popular categories", links: [["IT jobs","/jobs"],["Sales jobs","/jobs"],["Marketing jobs","/jobs"],["Data Science jobs","/jobs"],["HR jobs","/jobs"],["Engineering jobs","/jobs"]] },
-                  { title: "Jobs in demand", links: [["Fresher jobs","/jobs"],["MNC jobs","/jobs"],["Remote jobs","/jobs"],["Work from home","/jobs"],["Walk-in jobs","/jobs"],["Part-time jobs","/jobs"]] },
-                  { title: "Jobs by location", links: [["Delhi","/jobs"],["Mumbai","/jobs"],["Bangalore","/jobs"],["Hyderabad","/jobs"],["Chennai","/jobs"],["Pune","/jobs"]] },
+                  { title: "Popular categories", links: [["IT jobs",jobFilterPath("IT jobs")],["Sales jobs",jobFilterPath("Sales jobs")],["Marketing jobs",jobFilterPath("Marketing jobs")],["Data Science jobs",jobFilterPath("Data Science jobs")],["HR jobs",jobFilterPath("HR jobs")],["Engineering jobs",jobFilterPath("Engineering jobs")]] },
+                  { title: "Jobs in demand", links: [["Fresher jobs",jobFilterPath("Fresher jobs")],["MNC jobs",jobFilterPath("MNC jobs")],["Remote jobs",jobFilterPath("Remote jobs")],["Work from home",jobFilterPath("Work from home")],["Walk-in jobs",jobFilterPath("Walk-in jobs")],["Part-time jobs",jobFilterPath("Part-time jobs")]] },
+                  { title: "Jobs by location", links: [["Delhi",jobFilterPath("Delhi")],["Mumbai",jobFilterPath("Mumbai")],["Bangalore",jobFilterPath("Bangalore")],["Hyderabad",jobFilterPath("Hyderabad")],["Chennai",jobFilterPath("Chennai")],["Pune",jobFilterPath("Pune")]] },
                 ]},
                 { label: "Companies", to: "/companies", cols: [
-                  { title: "Explore categories", links: [["Unicorn","/companies"],["MNC","/companies"],["Startup","/companies"],["Product based","/companies"],["Internet","/companies"]] },
-                  { title: "Explore collections", links: [["Top companies","/companies"],["IT companies","/companies"],["Fintech companies","/companies"],["Sponsored","/companies"],["Featured","/companies"]] },
-                  { title: "Research companies", links: [["Interview questions","/companies"],["Company salaries","/companies"],["Company reviews","/companies"],["Salary Calculator","/companies"]] },
+                  { title: "Explore categories", links: [["Unicorn","/companies?type=unicorn"],["MNC","/companies?type=mnc"],["Startup","/companies?type=startup"],["Product based","/companies?type=product"],["Internet","/companies?type=internet"]] },
+                  { title: "Explore collections", links: [["Top companies","/companies?sort=popular"],["IT companies","/companies?q=IT"],["Fintech companies","/companies?q=Fintech"],["Sponsored","/companies?tag=sponsored"],["Featured","/companies?tag=featured"]] },
+                  { title: "Research companies", links: [["Interview questions","/blogs"],["Company salaries","/jobs/salary-insights"],["Company reviews","/companies?tab=reviews"],["Salary Calculator","/services/salary-calculator"]] },
                 ]},
                 { label: "Services", to: "/services", cols: [
-                  { title: "Resume writing", links: [["Text resume","/services"],["Visual resume","/services"],["Resume critique","/services"]] },
-                  { title: "Get recruiter's attention", links: [["Resume display","/services"],["Priority applicant","/premium"]] },
-                  { title: "Free resume resources", links: [["Resume maker","/services"],["Resume quality score","/services"],["Resume samples","/services"],["Job letter samples","/services"]] },
+                  { title: "Resume writing", links: [["Text resume","/services/resume-writing"],["Visual resume","/services/visual-resume"],["Resume critique","/services/resume-critique"]] },
+                  { title: "Get recruiter's attention", links: [["Resume display","/services/resume-display"],["Priority applicant","/premium"]] },
+                  { title: "Free resume resources", links: [["Resume maker","/services/resume-maker"],["Resume quality score","/services/resume-score"],["Resume samples","/services/resume-samples"],["Job letter samples","/services/letters"]] },
                 ]},
                 { label: "Courses", to: "#courses", cols: [
-                  { title: "Tech courses", links: [["Full Stack Dev","#"],["Data Science & ML","#"],["Cloud Computing","#"],["Cybersecurity","#"],["DevOps","#"]] },
-                  { title: "Business & management", links: [["Project Management","#"],["Product Management","#"],["Business Analytics","#"],["Digital Marketing","#"],["HR Management","#"]] },
+                  { title: "Tech courses", links: [["Full Stack Dev","/jobs/full-stack-dev"],["Data Science & ML","/jobs/data-science-ml"],["Cloud Computing","/jobs/cloud-computing"],["Cybersecurity","/jobs/cybersecurity"],["DevOps","/jobs/devops"]] },
+                  { title: "Business & management", links: [["Project Management","/jobs/project-management"],["Product Management","/jobs/product-management"],["Business Analytics","/jobs/business-analytics"],["Digital Marketing","/jobs/digital-marketing"],["HR Management","/jobs/hr-management"]] },
                   { title: "Career prep", links: [["Resume building","/blogs"],["Interview prep","/blogs"],["Communication skills","/blogs"],["Leadership","/blogs"],["Aptitude","/blogs"]] },
                 ]},
               ].map(({ label, to, cols }) => (
@@ -323,7 +337,7 @@ export default function NaukriLandingPage() {
               {trendingTags.slice(0, 7).map(tag => {
                 const Icon = tag.icon;
                 return (
-                  <button key={tag.label} type="button" className="lp-tag-badge">
+                  <button key={tag.label} type="button" className="lp-tag-badge" onClick={() => goToJobs({ keyword: tag.label })}>
                     <span className="lp-tag-badge__icon" style={{ background: tag.color }}><Icon /></span>
                     <span className="lp-tag-badge__label">{tag.label}</span>
                     <FiChevronRight className="lp-tag-badge__arrow" />
@@ -395,7 +409,7 @@ export default function NaukriLandingPage() {
     const company = pagedCompanies[i];
     if (!company) return <div key={`ghost-${i}`} className="lp-co-card lp-co-card--ghost" aria-hidden="true" />;
     return (
-      <div key={company.name + i} className="lp-co-card">
+      <div key={company.name + i} className="lp-co-card" onClick={() => company.id && navigate(`/company/${company.id}`)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" && company.id) navigate(`/company/${company.id}`); }}>
         <div className="lp-co-card__head">
           <div className="lp-co-card__logo" style={{ background: company.color }}>
             {company.logoUrl ? <img src={company.logoUrl} alt="" /> : company.logo}
@@ -416,7 +430,7 @@ export default function NaukriLandingPage() {
             {company.id && (
               <Link to={`/company/${company.id}`} className="lp-co-card__profile">Profile</Link>
             )}
-            <Link to={`/jobs?q=${encodeURIComponent(company.name || "")}`} className="lp-co-card__jobs">
+            <Link to={`/jobs/${toFilterSlug(company.name || "company")}?q=${encodeURIComponent(company.name || "")}`} className="lp-co-card__jobs" onClick={(event) => event.stopPropagation()}>
               View Jobs <FiArrowRight />
             </Link>
           </div>
@@ -442,14 +456,14 @@ export default function NaukriLandingPage() {
               {dynamicCategories.map(cat => {
                 const Icon = cat.icon;
                 return (
-                  <div key={cat.label} className="lp-cat-card">
+                  <Link key={cat.label} to={jobFilterPath(cat.label)} className="lp-cat-card">
                     <div className="lp-cat-card__icon"><Icon /></div>
                     <div className="lp-cat-card__body">
                       <h3>{cat.label}</h3>
                       <p>{cat.description}</p>
                     </div>
                     <span className="lp-cat-card__count">{cat.count}</span>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -467,7 +481,7 @@ export default function NaukriLandingPage() {
             </div>
             <div className="lp-roles-grid">
               {dynamicJobRoles.map(role => (
-                <Link to="/jobs" key={role.name} className="lp-role">
+                <Link to={jobFilterPath(role.name)} key={role.name} className="lp-role">
                   <span className="lp-role__name">{role.name}</span>
                   <span className="lp-role__count">{role.count}</span>
                   <FiArrowRight className="lp-role__arrow" />
@@ -489,7 +503,7 @@ export default function NaukriLandingPage() {
             </div>
             <div className="lp-events-grid">
               {events.map(ev => (
-                <div key={ev.title} className="lp-ev-card">
+                <Link key={ev.title} to={`/jobs/${toFilterSlug(ev.tags[0] || ev.provider)}`} className="lp-ev-card">
                   <div className="lp-ev-card__img-wrap">
                     <img src={ev.image} alt={ev.title} className="lp-ev-card__img" />
                     <span className={`lp-ev-badge lp-ev-badge--${ev.badge.toLowerCase()}`}>{ev.badge}</span>
@@ -506,7 +520,7 @@ export default function NaukriLandingPage() {
                       <span><FiUsers size={11} /> {ev.enrolled} enrolled</span>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -570,7 +584,7 @@ export default function NaukriLandingPage() {
               <Link to="/companies">Companies</Link>
               <Link to="/blogs">Career advice</Link>
               <Link to="/services">Resume builder</Link>
-              <Link to="/jobs">Salary insights</Link>
+              <Link to="/jobs/salary-insights">Salary insights</Link>
             </div>
             <div className="lp-footer__col">
               <h4>For Employers</h4>
@@ -579,11 +593,11 @@ export default function NaukriLandingPage() {
             </div>
             <div className="lp-footer__col">
               <h4>Company</h4>
-              <Link to="/info">About us</Link>
+              <Link to="/company/about/info">About us</Link>
               <Link to="/blogs">Blog</Link>
-              <Link to="/info">Press</Link>
-              <Link to="/info">Careers at Maven</Link>
-              <Link to="/info">Contact</Link>
+              <Link to="/company/press/info">Press</Link>
+              <Link to="/company/careers/info">Careers at Maven</Link>
+              <Link to="/company/contact/info">Contact</Link>
             </div>
             <div className="lp-footer__app">
               <h4>Get the App</h4>
@@ -598,9 +612,9 @@ export default function NaukriLandingPage() {
           <div className="lp-footer__bottom">
             <span>© {new Date().getFullYear()} Maven Jobs. All rights reserved.</span>
             <div>
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms of Service</a>
-              <a href="#">Cookie Settings</a>
+              <Link to="/company/privacy/info">Privacy Policy</Link>
+              <Link to="/company/terms/info">Terms of Service</Link>
+              <Link to="/company/cookies/info">Cookie Settings</Link>
             </div>
           </div>
         </footer>

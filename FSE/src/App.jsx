@@ -23,25 +23,50 @@ import Profile from "./pages/Profile";
 import ClientAccounts from "./pages/ClientAccounts";
 import QRManagement from "./pages/QRManagement";
 import NonVisitDays from "./pages/NonVisitDays";
-
-const SESSION_KEY = "crm_panel_session";
+import {
+  clearStoredCrmSession,
+  getStoredCrmSession,
+  restoreCrmSession,
+} from "./api/fseApi";
 
 const getSession = () => {
-  const raw = sessionStorage.getItem(SESSION_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return getStoredCrmSession();
 };
 
 function RequireAuth({ children }) {
-  const session = getSession();
-  if (!session?.token) {
+  const [status, setStatus] = useState(() => (getSession()?.token ? "authenticated" : "checking"));
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (status !== "checking") {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    restoreCrmSession()
+      .then(() => {
+        if (isMounted) {
+          setStatus("authenticated");
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus("unauthenticated");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [status]);
+
+  if (status === "checking") {
+    return null;
+  }
+
+  if (status !== "authenticated") {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -75,7 +100,7 @@ export default function App() {
   const profileImage = user.profileImage || "";
 
   const handleLogout = () => {
-    sessionStorage.removeItem(SESSION_KEY);
+    clearStoredCrmSession();
     window.dispatchEvent(new Event("crm-session-updated"));
     navigate("/login", { replace: true });
   };

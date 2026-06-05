@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link, useParams, useSearchParams } from "react-router-dom";
 import {
   FiSearch, FiMapPin, FiBriefcase, FiChevronDown, FiFilter,
   FiCheck, FiClock, FiBookmark, FiArrowRight, FiTrendingUp, FiAward,
@@ -42,8 +42,28 @@ const FILTER_CATEGORIES = [
   },
 ];
 
+const toFilterSlug = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const fromFilterSlug = (value = "") =>
+  String(value || "").replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+
+const appendUnique = (items, value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return items;
+  return items.some((item) => item.toLowerCase() === normalized.toLowerCase())
+    ? items
+    : [...items, normalized];
+};
+
 export default function JobListingPage() {
   const navigate = useNavigate();
+  const { filter: routeFilter = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollRef = React.useRef(null);
   const [filters, setFilters] = useState({});
@@ -63,6 +83,8 @@ export default function JobListingPage() {
   const [backendJobs, setBackendJobs] = useState([]);
   const [backendCompanies, setBackendCompanies] = useState([]);
   const [loadingBackend, setLoadingBackend] = useState(true);
+  const [savedJobs, setSavedJobs] = useState({});
+  const [savingJobId, setSavingJobId] = useState("");
 
   const JOBS_PER_PAGE = 15;
   const { user, logout, openLogin, openRegister } = useAuth();
@@ -89,6 +111,7 @@ export default function JobListingPage() {
         search,
         location: locSearch,
         experience: expRange ? `${expRange} years` : "",
+        filter: routeFilter ? fromFilterSlug(routeFilter) : "",
         limit: 100,
       }).catch(() => null),
       authService.getCompanies({ limit: 4 }).catch(() => null)
@@ -132,6 +155,7 @@ export default function JobListingPage() {
             logo: j.companyLogo || company[0],
             logoUrl: companyLogoUrl,
             featured: i < 3,
+            hasSaved: Boolean(j.hasSaved),
             dept: j.department || 'Engineering',
             mode: j.workplaceType || 'Remote',
             loc: j.location || 'Bengaluru',
@@ -155,7 +179,7 @@ export default function JobListingPage() {
     }, 250);
 
     return () => window.clearTimeout(requestTimer);
-  }, [search, locSearch, expRange]);
+  }, [search, locSearch, expRange, routeFilter]);
 
   useEffect(() => {
     const nextSearch = searchParams.get("q") || searchParams.get("search") || "";
@@ -167,14 +191,22 @@ export default function JobListingPage() {
     setLocSearch(nextLocation);
     setExpRange(nextExperienceNumber);
     setCurrentPage(1);
-  }, [searchParams]);
+  }, [searchParams, routeFilter]);
+
+  useEffect(() => {
+    const nextSaved = {};
+    backendJobs.forEach((job) => {
+      if (job.hasSaved) nextSaved[job.id] = true;
+    });
+    setSavedJobs(nextSaved);
+  }, [backendJobs]);
 
   const syncSearchParams = () => {
     const params = new URLSearchParams();
     if (search.trim()) params.set("q", search.trim());
     if (locSearch.trim()) params.set("location", locSearch.trim());
     if (expRange > 0) params.set("experience", `${expRange} years`);
-    setSearchParams(params);
+    navigate(`/jobs${params.toString() ? `?${params.toString()}` : ""}`);
     setCurrentPage(1);
   };
 
@@ -182,7 +214,14 @@ export default function JobListingPage() {
     setFilters(prev => {
       const cur = prev[catId] || [];
       const updated = cur.includes(option) ? cur.filter(o => o !== option) : [...cur, option];
-      return { ...prev, [catId]: updated };
+      const nextFilters = { ...prev, [catId]: updated };
+      const firstActive = Object.values(nextFilters).flat().filter(Boolean)[0] || "";
+      const params = new URLSearchParams(searchParams);
+      if (search.trim()) params.set("q", search.trim());
+      if (locSearch.trim()) params.set("location", locSearch.trim());
+      if (expRange > 0) params.set("experience", `${expRange} years`);
+      navigate(`${firstActive ? `/jobs/${toFilterSlug(firstActive)}` : "/jobs"}${params.toString() ? `?${params.toString()}` : ""}`);
+      return nextFilters;
     });
     setCurrentPage(1);
   };
@@ -204,6 +243,12 @@ export default function JobListingPage() {
     setFilters(draftFilters);
     setCurrentPage(1);
     setActiveModal(null);
+    const firstActive = Object.values(draftFilters).flat().filter(Boolean)[0] || "";
+    const params = new URLSearchParams(searchParams);
+    if (search.trim()) params.set("q", search.trim());
+    if (locSearch.trim()) params.set("location", locSearch.trim());
+    if (expRange > 0) params.set("experience", `${expRange} years`);
+    navigate(`${firstActive ? `/jobs/${toFilterSlug(firstActive)}` : "/jobs"}${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
   useEffect(() => {
@@ -218,6 +263,18 @@ export default function JobListingPage() {
   const hasFilters = Object.values(filters).some(arr => arr.length > 0);
 
   const activeJobsPool = backendJobs;
+
+  const dynamicFilterCategories = FILTER_CATEGORIES.map((category) => {
+    const options = activeJobsPool.reduce((acc, job) => {
+      if (category.id === "dept") return appendUnique(acc, job.dept);
+      if (category.id === "mode") return appendUnique(acc, job.mode);
+      if (category.id === "loc") return appendUnique(acc, job.loc || job.location);
+      if (category.id === "salaryRange") return appendUnique(acc, job.salaryRange);
+      if (category.id === "type") return appendUnique(acc, job.type);
+      return acc;
+    }, []);
+    return { ...category, options: options.length ? options : category.options };
+  });
 
   const normalizeWorkMode = (mode) => {
     const m = String(mode || "").toLowerCase();
@@ -309,8 +366,27 @@ export default function JobListingPage() {
     setSearch(term);
     const params = new URLSearchParams(searchParams);
     params.set("q", term);
-    setSearchParams(params);
+    navigate(`/jobs/${toFilterSlug(cat)}?${params.toString()}`);
     setCurrentPage(1);
+  };
+
+  const handleSaveJob = async (job) => {
+    if (!user) {
+      openLogin();
+      return;
+    }
+
+    const nextValue = !savedJobs[job.id];
+    setSavingJobId(job.id);
+    setSavedJobs((current) => ({ ...current, [job.id]: nextValue }));
+
+    try {
+      await authService.saveJob(job.id, nextValue);
+    } catch {
+      setSavedJobs((current) => ({ ...current, [job.id]: !nextValue }));
+    } finally {
+      setSavingJobId("");
+    }
   };
 
 
