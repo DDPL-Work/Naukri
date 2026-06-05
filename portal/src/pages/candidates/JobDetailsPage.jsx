@@ -20,6 +20,8 @@ export default function JobDetailsPage() {
   const { user, openLogin, logout } = useAuth();
   const [job, setJob] = useState(null);
   const [hasApplied, setHasApplied] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [similarJobs, setSimilarJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -83,9 +85,11 @@ export default function JobDetailsPage() {
           locationMatch: j.locationMatch,
           experienceMatch: j.experienceMatch,
           roleMatch: j.roleMatch,
-          hasApplied: j.hasApplied || false
+          hasApplied: j.hasApplied || false,
+          hasSaved: j.hasSaved || false
         });
         setHasApplied(j.hasApplied || false);
+        setIsSaved(j.hasSaved || false);
 
         if (res.data.similarJobs?.length > 0) {
           setSimilarJobs(res.data.similarJobs.map((sj, i) => ({
@@ -148,6 +152,25 @@ export default function JobDetailsPage() {
       setHasApplied(true);
     }
     setApplying(false);
+  };
+
+  const handleSaveJob = async () => {
+    if (!user) { openLogin(); return; }
+    if (saveLoading) return;
+    setSaveLoading(true);
+    const newSave = !isSaved;
+    setIsSaved(newSave); // optimistic
+    try {
+      const res = await authService.saveJob(job.id, newSave);
+      if (res?.success && res?.data) {
+        setIsSaved(res.data.savedJobIds?.includes(job.id) ?? newSave);
+      }
+    } catch (err) {
+      console.error('Save job failed:', err);
+      setIsSaved(!newSave); // rollback
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   if (loading) {
@@ -265,8 +288,8 @@ export default function JobDetailsPage() {
                     {applyMessage}
                   </span>
                 )}
-                <button className="jdp-save-btn">
-                  <FiBookmark size={18} /> Save
+                <button className={`jdp-save-btn${isSaved ? ' saved' : ''}`} onClick={handleSaveJob} disabled={saveLoading}>
+                  <FiBookmark size={18} fill={isSaved ? 'currentColor' : 'none'} /> {isSaved ? 'Saved' : 'Save'}
                 </button>
                 {user ? (
                   hasApplied ? (

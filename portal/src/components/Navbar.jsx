@@ -60,13 +60,7 @@ export default function Navbar() {
             <Link to="/companies">Companies</Link>
           </div>
 
-          <div 
-            className="shared-nav-link-item"
-            onMouseEnter={() => setActiveNavDropdown('Services')}
-            onMouseLeave={() => setActiveNavDropdown(null)}
-          >
-            <Link to="#">Services <span className="nav-badge">1</span></Link>
-          </div>
+
         </div>
 
         {/* Right Actions */}

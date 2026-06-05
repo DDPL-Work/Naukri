@@ -102,6 +102,15 @@ const authService = {
     }
   },
 
+  getCompanyStats: async () => {
+    try {
+      const response = await api.get('/candidate/companies/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch company stats' };
+    }
+  },
+
   getCompanies: async (params) => {
     try {
       const response = await api.get('/candidate/companies', { params });

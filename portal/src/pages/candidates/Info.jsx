@@ -214,7 +214,7 @@ function SavedJobsModal({ onClose }) {
                                         {job.jobType && <span style={{ fontSize: 11.5, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '3px 9px', borderRadius: 6 }}>{job.jobType}</span>}
                                         <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Saved {relDate(job.savedAt)}</span>
                                     </div>
-                                    <Link to={`/jobs/${job.id}`} onClick={handleClose} style={{ background: '#002366', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: 'var(--fd)', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    <Link to={`/job/${job.id}`} onClick={handleClose} style={{ background: '#002366', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: 'var(--fd)', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                         View <FiExternalLink size={11} />
                                     </Link>
                                 </div>

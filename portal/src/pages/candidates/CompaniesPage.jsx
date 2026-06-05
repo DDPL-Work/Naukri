@@ -78,14 +78,31 @@ const CompaniesPage = () => {
     });
   };
 
+  const [stats, setStats] = useState({ mncs: 0, internet: 0, manufacturing: 0, fortune500: 0, product: 0 });
+
+  const fetchStats = async () => {
+    try {
+      const res = await authService.getCompanyStats();
+      if (res?.success && res?.data) {
+        setStats(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
   const clearAll = () => setActiveFilters({});
 
   const categories = [
-    { name: 'MNCs', count: '2.3K+ Companies', icon: <FiGlobe />, accent: '#1E5EFF' },
-    { name: 'Internet', count: '247 Companies', icon: <FiZap />, accent: '#7C3AED' },
-    { name: 'Manufacturing', count: '1.1K+ Companies', icon: <FiLayers />, accent: '#0DBF7B' },
-    { name: 'Fortune 500', count: '164 Companies', icon: <FiAward />, accent: '#F59E0B' },
-    { name: 'Product', count: '1.3K+ Companies', icon: <FiBox />, accent: '#EF4444' },
+    { name: 'MNCs', count: `${stats.mncs} Companies`, icon: <FiGlobe />, accent: '#1E5EFF' },
+    { name: 'Internet', count: `${stats.internet} Companies`, icon: <FiZap />, accent: '#7C3AED' },
+    { name: 'Manufacturing', count: `${stats.manufacturing} Companies`, icon: <FiLayers />, accent: '#0DBF7B' },
+    { name: 'Fortune 500', count: `${stats.fortune500} Companies`, icon: <FiAward />, accent: '#F59E0B' },
+    { name: 'Product', count: `${stats.product} Companies`, icon: <FiBox />, accent: '#EF4444' },
   ];
 
   const filterGroups = {

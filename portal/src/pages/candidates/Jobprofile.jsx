@@ -23,7 +23,10 @@ const Jobprofile = () => {
   const [reviewText, setReviewText] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
   const [savedJobs, setSavedJobs] = useState({});
+  const [saveLoading, setSaveLoading] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const fallbackCoverImage = 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200';
@@ -57,6 +60,10 @@ const Jobprofile = () => {
           });
           const departments = Object.entries(deptMap).map(([name, openings]) => ({ name, openings }));
 
+          // Set follow state from API
+          setIsFollowing(c.isFollowing || false);
+          setFollowersCount(c.followersCount || 0);
+
           setCompany({
             name: c.name || '',
             fullName: c.fullName || c.name || '',
@@ -69,7 +76,6 @@ const Jobprofile = () => {
             founded: c.founded || '',
             website: c.website || '',
             location: c.locationFull || c.location || '',
-            followers: '—',
             rating: 3.4,
             reviews: '—',
             reviewsList: res.data.reviews || [],
@@ -110,43 +116,49 @@ const Jobprofile = () => {
     fetchCompany();
   }, [id]);
 
-  // Production ready saved jobs state
-  useEffect(() => {
+  // Production-ready: toggle follow via backend API
+  const handleFollowToggle = async () => {
+    if (!user) return;
+    if (followLoading) return;
+    setFollowLoading(true);
+    const newFollow = !isFollowing;
+    // Optimistic update
+    setIsFollowing(newFollow);
+    setFollowersCount(prev => newFollow ? prev + 1 : Math.max(0, prev - 1));
     try {
-      const stored = localStorage.getItem('maven_saved_jobs');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const map = {};
-        parsed.forEach(job => map[job.id || job._id] = true);
-        setSavedJobs(map);
-      }
-    } catch (e) {
-      console.error('Failed to parse saved jobs', e);
+      await authService.followCompany(id, newFollow);
+    } catch (err) {
+      console.error('Follow toggle failed:', err);
+      // Rollback on error
+      setIsFollowing(!newFollow);
+      setFollowersCount(prev => newFollow ? Math.max(0, prev - 1) : prev + 1);
+    } finally {
+      setFollowLoading(false);
     }
-  }, []);
+  };
 
-  const toggleSave = (jobId) => {
-    setSavedJobs(prev => {
-      const next = { ...prev, [jobId]: !prev[jobId] };
-      try {
-        const stored = localStorage.getItem('maven_saved_jobs');
-        let parsed = stored ? JSON.parse(stored) : [];
-        if (next[jobId]) {
-          // Find the full job object from company.jobs
-          const jobData = company.jobs.find(j => j.id === jobId) || { id: jobId };
-          // Don't add duplicate
-          if (!parsed.some(j => j.id === jobId)) {
-            parsed.push(jobData);
-          }
-        } else {
-          parsed = parsed.filter(j => j.id !== jobId && j._id !== jobId);
-        }
-        localStorage.setItem('maven_saved_jobs', JSON.stringify(parsed));
-      } catch (e) {
-        console.error('Failed to update localStorage', e);
+  // Production-ready: save job via backend API
+  const toggleSave = async (jobId) => {
+    if (!user) return;
+    if (saveLoading[jobId]) return;
+    setSaveLoading(prev => ({ ...prev, [jobId]: true }));
+    const isCurrentlySaved = !!savedJobs[jobId];
+    // Optimistic update
+    setSavedJobs(prev => ({ ...prev, [jobId]: !isCurrentlySaved }));
+    try {
+      const res = await authService.saveJob(jobId, !isCurrentlySaved);
+      if (res?.success && res?.data?.savedJobIds) {
+        const newMap = {};
+        res.data.savedJobIds.forEach(sid => newMap[sid] = true);
+        setSavedJobs(newMap);
       }
-      return next;
-    });
+    } catch (err) {
+      console.error('Save job failed:', err);
+      // Rollback on error
+      setSavedJobs(prev => ({ ...prev, [jobId]: isCurrentlySaved }));
+    } finally {
+      setSaveLoading(prev => ({ ...prev, [jobId]: false }));
+    }
   };
 
   const ratingBreakdown = [
@@ -322,15 +334,17 @@ const Jobprofile = () => {
             {/* Action Buttons */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 16, marginBottom: 24 }}>
               <button
-                onClick={() => setIsFollowing(f => !f)}
+                onClick={handleFollowToggle}
+                disabled={followLoading || !user}
                 style={{
                   padding: '9px 22px', borderRadius: 11,
                   background: isFollowing ? '#E8FBF3' : '#002366',
                   color: isFollowing ? '#0DBF7B' : 'white',
                   border: isFollowing ? '1.5px solid #0DBF7B' : '1.5px solid #002366',
                   fontWeight: 800, fontSize: '0.85rem',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7,
-                  fontFamily: "'Sora', sans-serif", transition: 'all 0.18s'
+                  cursor: followLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 7,
+                  fontFamily: "'Sora', sans-serif", transition: 'all 0.18s',
+                  opacity: followLoading ? 0.7 : 1
                 }}
               >
                 {isFollowing ? <FiCheckCircle size={15} /> : <FiPlus size={15} />}
@@ -387,7 +401,7 @@ const Jobprofile = () => {
                   { icon: <FiMapPin size={13} />, text: company.location },
                   { icon: <FiUsers size={13} />, text: `${company.size} employees` },
                   { icon: <FiCalendar size={13} />, text: `Founded ${company.founded}` },
-                  { icon: <FiCheckCircle size={13} />, text: `${company.followers} followers`, highlight: true },
+                  { icon: <FiCheckCircle size={13} />, text: `${followersCount} followers`, highlight: true },
                 ].map((m, i) => (
                   <div key={i} style={{
                     display: 'flex', alignItems: 'center', gap: 6,

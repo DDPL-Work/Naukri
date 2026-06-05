@@ -370,6 +370,17 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
+.jdp-save-btn.saved {
+  background: #EEF2FF;
+  border-color: #143f86;
+  color: #143f86;
+}
+
+.jdp-save-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .jdp-apply-btn {
   padding: 10px 32px;
   border-radius: 20px;

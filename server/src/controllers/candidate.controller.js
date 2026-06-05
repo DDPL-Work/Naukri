@@ -1264,7 +1264,7 @@ exports.toggleCompanyFollow = asyncHandler(async (req, res) => {
   const companyId = String(req.params.id || "").trim();
   const follow = req.body?.follow !== false;
 
-  const company = await Company.findById(companyId).select("_id status");
+  const company = await Company.findById(companyId).select("_id status name");
   if (!company || company.status !== "ACTIVE") {
     throw createHttpError(404, "Company not found");
   }
@@ -1273,7 +1273,17 @@ exports.toggleCompanyFollow = asyncHandler(async (req, res) => {
   const followedIds = new Set((profile.followedCompanyIds || []).map((id) => String(id)));
 
   if (follow) {
-    followedIds.add(String(company._id));
+    if (!followedIds.has(String(company._id))) {
+      followedIds.add(String(company._id));
+      await CandidateNotification.create({
+        candidateId: req.user._id,
+        companyId: company._id,
+        title: `Following ${company.name || "Company"}`,
+        message: `You are now following ${company.name || "this company"}. You will receive updates about their new jobs.`,
+        category: "SYSTEM",
+        actionUrl: `/company/${company._id}`,
+      });
+    }
   } else {
     followedIds.delete(String(company._id));
   }
@@ -1770,6 +1780,27 @@ const companyColor = (id) => {
   const idx = parseInt(hex, 16) % COMPANY_PALETTE.length;
   return COMPANY_PALETTE[Math.abs(idx)];
 };
+
+exports.getCompanyStats = asyncHandler(async (req, res) => {
+  const [mncs, internet, manufacturing, fortune500, product] = await Promise.all([
+    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "MNC|Corporate", $options: "i" } }),
+    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "Internet|IT|Software", $options: "i" } }),
+    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "Manufacturing", $options: "i" } }),
+    Company.countDocuments({ status: "ACTIVE", packageType: "ELITE" }),
+    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "Product", $options: "i" } }),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      mncs,
+      internet,
+      manufacturing,
+      fortune500,
+      product,
+    },
+  });
+});
 
 exports.getCompanies = asyncHandler(async (req, res) => {
   const { q = "", sort = "popular", page = 1, limit = 20 } = req.query;

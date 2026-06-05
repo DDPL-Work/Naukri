@@ -208,14 +208,14 @@ export default function NaukriLandingPage() {
                   { title: "Research companies", links: [["Interview questions","/blogs"],["Company salaries","/jobs/salary-insights"],["Company reviews","/companies?tab=reviews"],["Salary Calculator","/services/salary-calculator"]] },
                 ]},
                 { label: "Services", to: "/services", cols: [
-                  { title: "Resume writing", links: [["Text resume","/services/resume-writing"],["Visual resume","/services/visual-resume"],["Resume critique","/services/resume-critique"]] },
-                  { title: "Get recruiter's attention", links: [["Resume display","/services/resume-display"],["Priority applicant","/premium"]] },
-                  { title: "Free resume resources", links: [["Resume maker","/services/resume-maker"],["Resume quality score","/services/resume-score"],["Resume samples","/services/resume-samples"],["Job letter samples","/services/letters"]] },
-                ]},
-                { label: "Courses", to: "#courses", cols: [
-                  { title: "Tech courses", links: [["Full Stack Dev","/jobs/full-stack-dev"],["Data Science & ML","/jobs/data-science-ml"],["Cloud Computing","/jobs/cloud-computing"],["Cybersecurity","/jobs/cybersecurity"],["DevOps","/jobs/devops"]] },
-                  { title: "Business & management", links: [["Project Management","/jobs/project-management"],["Product Management","/jobs/product-management"],["Business Analytics","/jobs/business-analytics"],["Digital Marketing","/jobs/digital-marketing"],["HR Management","/jobs/hr-management"]] },
-                  { title: "Career prep", links: [["Resume building","/blogs"],["Interview prep","/blogs"],["Communication skills","/blogs"],["Leadership","/blogs"],["Aptitude","/blogs"]] },
+                  // { title: "Resume writing", links: [["Text resume","/services/resume-writing"],["Visual resume","/services/visual-resume"],["Resume critique","/services/resume-critique"]] },
+                  // { title: "Get recruiter's attention", links: [["Resume display","/services/resume-display"],["Priority applicant","/premium"]] },
+                  // { title: "Free resume resources", links: [["Resume maker","/services/resume-maker"],["Resume quality score","/services/resume-score"],["Resume samples","/services/resume-samples"],["Job letter samples","/services/letters"]] },
+                // ]},
+                // { label: "Courses", to: "#courses", cols: [
+                //   { title: "Tech courses", links: [["Full Stack Dev","/jobs/full-stack-dev"],["Data Science & ML","/jobs/data-science-ml"],["Cloud Computing","/jobs/cloud-computing"],["Cybersecurity","/jobs/cybersecurity"],["DevOps","/jobs/devops"]] },
+                  // { title: "Business & management", links: [["Project Management","/jobs/project-management"],["Product Management","/jobs/product-management"],["Business Analytics","/jobs/business-analytics"],["Digital Marketing","/jobs/digital-marketing"],["HR Management","/jobs/hr-management"]] },
+                  // { title: "Career prep", links: [["Resume building","/blogs"],["Interview prep","/blogs"],["Communication skills","/blogs"],["Leadership","/blogs"],["Aptitude","/blogs"]] },
                 ]},
               ].map(({ label, to, cols }) => (
                 <div key={label} className="lp-nav__item"

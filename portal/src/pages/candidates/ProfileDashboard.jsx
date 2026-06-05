@@ -1,4 +1,4 @@
-﻿//ProfileDashboard.js
+//ProfileDashboard.js
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import { buildRtcConfig as buildWebRtcConfig, createPeerConnection as createRtcPeerConnection, flushIceCandidates, stopMediaStream } from '../../utils/webrtc';
@@ -183,6 +183,23 @@ export default function ProfileDashboard() {
 
   const [recommendedJobs, setRecommendedJobs] = useState({});
   const [candidateProfile, setCandidateProfile] = useState(null);
+
+  const handleSaveJob = async (jobId) => {
+    if (!jobId) return;
+    try {
+      const isCurrentlySaved = candidateProfile?.savedJobIds?.includes(jobId) || false;
+      const res = await authService.saveJob(jobId, !isCurrentlySaved);
+      if (res?.success && res?.data) {
+        setCandidateProfile(prev => ({
+          ...prev,
+          savedJobIds: res.data.savedJobIds
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to save job:', err);
+    }
+  };
+
   const [recentApplications, setRecentApplications] = useState([]);
   const [showApplyMatchModal, setShowApplyMatchModal] = useState(false);
   const [nvites, setNvites] = useState([]);
@@ -1025,7 +1042,9 @@ export default function ProfileDashboard() {
                       <p className="pd-job-loc"><FiMapPin size={11} /> {job.loc}</p>
                       <div className="pd-job-actions">
                         <button className="pd-job-apply" onClick={() => navigate(`/job/${job.id}`)}>Quick Apply</button>
-                        <button className="pd-job-save"><FiBookmark size={14} /></button>
+                        <button className="pd-job-save" onClick={() => handleSaveJob(job.id)}>
+                          <FiBookmark size={14} fill={candidateProfile?.savedJobIds?.includes(job.id) ? "currentColor" : "none"} />
+                        </button>
                       </div>
                     </div>
                   ))
