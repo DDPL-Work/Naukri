@@ -1803,7 +1803,7 @@ exports.getCompanyStats = asyncHandler(async (req, res) => {
 });
 
 exports.getCompanies = asyncHandler(async (req, res) => {
-  const { q = "", sort = "popular", page = 1, limit = 20 } = req.query;
+  const { q = "", sort = "popular", page = 1, limit = 20, industry = "" } = req.query;
 
   const filter = { status: "ACTIVE" };
   if (q) {
@@ -1812,6 +1812,9 @@ exports.getCompanies = asyncHandler(async (req, res) => {
       { industry: { $regex: q, $options: "i" } },
       { tagline: { $regex: q, $options: "i" } },
     ];
+  }
+  if (industry && industry !== 'All') {
+    filter.industry = { $regex: industry, $options: "i" };
   }
 
   let sortQuery = { activeJobCount: -1, createdAt: -1 };

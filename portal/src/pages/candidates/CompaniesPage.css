@@ -689,6 +689,14 @@
   color: white;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
   letter-spacing: -0.02em;
+  overflow: hidden;
+}
+
+.cp-comp-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 14px;
 }
 
 .cp-comp-body {

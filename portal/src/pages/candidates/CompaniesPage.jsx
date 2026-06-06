@@ -15,24 +15,29 @@ const CompaniesPage = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [sortBy, setSortBy] = useState('Most Popular');
   const [activePage, setActivePage] = useState(1);
+  const [activeCategory, setActiveCategory] = useState('All');
   const [activeFilters, setActiveFilters] = useState({});
   const [companies, setCompanies] = useState([]);
   const [totalCompanies, setTotalCompanies] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const fetchCompanies = async (page = 1, query = '') => {
+  const fetchCompanies = async (page = 1, query = '', category = '') => {
     setLoading(true);
     try {
       let sortParam = 'popular';
       if (sortBy === 'Highest Rated') sortParam = 'name';
       if (sortBy === 'Recently Added') sortParam = 'newest';
 
+      // Map category names to industry search terms
+      const industryFilter = category && category !== 'All' ? getIndustryFilter(category) : '';
+
       const res = await authService.getCompanies({
         q: query,
         sort: sortParam,
         page,
         limit: 20,
+        industry: industryFilter,
       });
 
       if (res?.success && res?.data) {
@@ -50,19 +55,19 @@ const CompaniesPage = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetchCompanies(1, searchQuery);
-  }, [sortBy]);
+    fetchCompanies(1, searchQuery, activeCategory);
+  }, [sortBy, activeCategory]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      fetchCompanies(1, searchQuery);
+      fetchCompanies(1, searchQuery, activeCategory);
     }, 400);
     return () => clearTimeout(timeout);
-  }, [searchQuery]);
+  }, [searchQuery, activeCategory]);
 
   const handlePageChange = (page) => {
     if (typeof page === 'number' && page >= 1 && page <= totalPages) {
-      fetchCompanies(page, searchQuery);
+      fetchCompanies(page, searchQuery, activeCategory);
     }
   };
 
@@ -105,11 +110,25 @@ const CompaniesPage = () => {
     { name: 'Product', count: `${stats.product} Companies`, icon: <FiBox />, accent: '#EF4444' },
   ];
 
-  const filterGroups = {
-    'Company Type': ['Corporate', 'Foreign MNC', 'Startup', 'Indian MNC'],
-    'Location': ['Bengaluru', 'Pune', 'Mumbai', 'Noida'],
-    'Industry': ['IT Services', 'E-Learning', 'Finance', 'Healthcare'],
-  };
+// Industry keyword mapping for category filters
+const categoryIndustryMap = {
+  'MNCs': 'MNC',
+  'Internet': 'Internet',
+  'Manufacturing': 'Manufacturing',
+  'Fortune 500': 'Fortune 500',
+  'Product': 'Product',
+};
+
+const filterGroups = {
+  'Company Type': ['Corporate', 'Foreign MNC', 'Startup', 'Indian MNC'],
+  'Location': ['Bengaluru', 'Pune', 'Mumbai', 'Noida'],
+  'Industry': ['IT Services', 'E-Learning', 'Finance', 'Healthcare'],
+};
+
+const getIndustryFilter = (category) => {
+  if (!category || category === 'All') return '';
+  return categoryIndustryMap[category] || '';
+};
 
   const totalActiveFilters = Object.values(activeFilters).reduce((sum, arr) => sum + arr.length, 0);
 
@@ -192,7 +211,11 @@ const CompaniesPage = () => {
 
         {/* Category Grid */}
         <div className="cp-cat-grid-layout">
-          <div className="cp-cat-pill" style={{ '--accent': categories[0].accent, width: '100%' }}>
+          <div
+            className="cp-cat-pill"
+            style={{ '--accent': categories[0].accent, width: '100%' }}
+            onClick={() => setActiveCategory(activeCategory === 'MNCs' ? 'All' : 'MNCs')}
+          >
             <span className="cp-cat-icon" style={{ color: categories[0].accent }}>{categories[0].icon}</span>
             <div>
               <div className="cp-cat-name">{categories[0].name}</div>
@@ -203,7 +226,12 @@ const CompaniesPage = () => {
 
           <div className="cp-cat-right-row">
             {categories.slice(1).map((cat, i) => (
-              <div key={i} className="cp-cat-pill" style={{ '--accent': cat.accent, flex: 1 }}>
+              <div
+                key={i}
+                className="cp-cat-pill"
+                style={{ '--accent': cat.accent, flex: 1 }}
+                onClick={() => setActiveCategory(activeCategory === cat.name ? 'All' : cat.name)}
+              >
                 <span className="cp-cat-icon" style={{ color: cat.accent }}>{cat.icon}</span>
                 <div>
                   <div className="cp-cat-name">{cat.name}</div>
@@ -307,9 +335,13 @@ const CompaniesPage = () => {
                     <div className="cp-comp-logo-wrap">
                       <div
                         className="cp-comp-logo"
-                        style={{ background: company.color }}
+                        style={{ background: company.logoUrl ? 'transparent' : company.color }}
                       >
-                        {company.logo}
+                        {company.logoUrl ? (
+                          <img src={company.logoUrl} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12 }} />
+                        ) : (
+                          company.logo
+                        )}
                       </div>
                     </div>
 

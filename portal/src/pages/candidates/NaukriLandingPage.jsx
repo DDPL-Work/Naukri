@@ -402,45 +402,39 @@ export default function NaukriLandingPage() {
               )}
             </div>
 
-            {/* Cards — single row, 4 equal columns */}
-{/* Cards — strict single row, always exactly COMPANIES_PER_PAGE slots */}
-<div className="lp-companies__grid">
-  {Array.from({ length: COMPANIES_PER_PAGE }).map((_, i) => {
-    const company = pagedCompanies[i];
-    if (!company) return <div key={`ghost-${i}`} className="lp-co-card lp-co-card--ghost" aria-hidden="true" />;
-    return (
-      <div key={company.name + i} className="lp-co-card" onClick={() => company.id && navigate(`/company/${company.id}`)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" && company.id) navigate(`/company/${company.id}`); }}>
-        <div className="lp-co-card__head">
-          <div className="lp-co-card__logo" style={{ background: company.color }}>
-            {company.logoUrl ? <img src={company.logoUrl} alt="" /> : company.logo}
-          </div>
-          <div className="lp-co-card__meta">
-            <h3 title={company.name}>{company.name}</h3>
-            <div className="lp-co-card__rating">
-              <FaStar className="lp-star" />
-              <span>{Number(company.rating || 4.1).toFixed(1)}</span>
-              <span className="lp-co-card__reviews">({company.reviews || "0"} reviews)</span>
+            {/* Companies grid */}
+              <div className="lp-companies__grid">
+                {Array.from({ length: COMPANIES_PER_PAGE }).map((_, i) => {
+                  const company = pagedCompanies[i];
+                  if (!company) return <div key={`ghost-${i}`} className="lp-co-card lp-co-card--ghost" aria-hidden="true" />;
+                  return (
+                    <div key={company.name + i} className="lp-co-card" onClick={() => company.id && navigate(`/company/${company.id}`)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" && company.id) navigate(`/company/${company.id}`); }}>
+                      <div className="lp-co-card__head">
+                        <div className="lp-co-card__logo" style={{ background: company.color }}>
+                          {company.logoUrl ? <img src={company.logoUrl} alt="" /> : company.logo}
+                        </div>
+                        <div className="lp-co-card__meta">
+                          <h3 title={company.name}>{company.name}</h3>
+                          <div className="lp-co-card__rating">
+                            <FaStar className="lp-star" />
+                            <span>{Number(company.rating || 4.1).toFixed(1)}</span>
+                            <span className="lp-co-card__reviews">({company.reviews || "0"} reviews)</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="lp-co-card__desc">{company.desc || "Verified employer hiring on MavenJobs."}</p>
+                      <div className="lp-co-card__foot">
+                        <span className="lp-co-card__badge"><FiBriefcase /> {Number(company.jobs || 0)} open roles</span>
+                        <Link to={`/jobs/${toFilterSlug(company.name || "company")}?q=${encodeURIComponent(company.name || "")}`} className="lp-co-card__jobs" onClick={(event) => event.stopPropagation()}>
+                          View Jobs <FiArrowRight />
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </div>
-        <p className="lp-co-card__desc">{company.desc || "Verified employer hiring on MavenJobs."}</p>
-        <div className="lp-co-card__foot">
-          <span className="lp-co-card__badge"><FiBriefcase /> {Number(company.jobs || 0)} open roles</span>
-          <div className="lp-co-card__actions">
-            {company.id && (
-              <Link to={`/company/${company.id}`} className="lp-co-card__profile">Profile</Link>
-            )}
-            <Link to={`/jobs/${toFilterSlug(company.name || "company")}?q=${encodeURIComponent(company.name || "")}`} className="lp-co-card__jobs" onClick={(event) => event.stopPropagation()}>
-              View Jobs <FiArrowRight />
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  })}
-</div>
-          </div>
-        </section>
+          </section>
 
         {/* ── JOB CATEGORIES ── */}
         <section className="lp-section lp-bg-alt">

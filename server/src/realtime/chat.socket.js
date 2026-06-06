@@ -45,7 +45,7 @@ const ensureThreadAccess = async ({ user, threadId }) => {
   if (user.role === "CLIENT" && !isCompanyParticipant) {
     throw new Error("Conversation access denied");
   }
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
   if (user.role === "CANDIDATE" && !isCandidateParticipant) {
     throw new Error("Conversation access denied");
   }
