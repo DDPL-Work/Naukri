@@ -8,6 +8,7 @@ const Application = require("../models/Application");
 const AdminRole = require("../models/AdminRole");
 const AdminSetting = require("../models/AdminSetting");
 const AdminAuditLog = require("../models/AdminAuditLog");
+const AdminNotification = require("../models/AdminNotification");
 const asyncHandler = require("../middleware/async.middleware");
 const {
   issueTokenPair,
@@ -362,6 +363,23 @@ const appendAuditLog = async ({
       role: performedBy?.role || "",
     },
   });
+
+  const notifyActions = ["CREATE", "UPDATE", "DELETE", "ASSIGN"];
+  if (notifyActions.includes(action)) {
+    const typeMap = {
+      USER: "USER", ROLE: "ROLE", SETTING: "SYSTEM",
+      COMPANY: "SECTION", JOB: "SECTION", CANDIDATE: "SECTION",
+      APPLICATION: "SECTION",
+    };
+    await AdminNotification.create({
+      title: `${action === "ASSIGN" ? "Assignment" : action === "CREATE" ? "New" : action === "UPDATE" ? "Updated" : "Deleted"} ${entityType.toLowerCase()}`,
+      message,
+      type: typeMap[entityType] || "SYSTEM",
+      severity,
+      actionUrl: entityId ? `/admin/${entityType.toLowerCase()}s${entityType === "ROLE" ? "" : `/${entityId}`}` : "",
+      metadata: { ...metadata, entityType, entityId, auditAction: action },
+    });
+  }
 };
 
 const ensureDefaultAdminAccount = async () => {
@@ -1448,4 +1466,70 @@ exports.assignRole = asyncHandler(async (req, res) => {
     success: true,
     data: buildRoleResponse(refreshedRole),
   });
+});
+
+exports.getNotifications = asyncHandler(async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const skip = (page - 1) * limit;
+
+  const [notifications, total] = await Promise.all([
+    AdminNotification.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    AdminNotification.countDocuments(),
+  ]);
+
+  const unreadCount = await AdminNotification.countDocuments({ status: "UNREAD" });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      notifications: notifications.map((n) => ({
+        id: String(n._id),
+        title: n.title,
+        message: n.message,
+        type: n.type,
+        severity: n.severity,
+        status: n.status,
+        actionUrl: n.actionUrl,
+        metadata: n.metadata,
+        createdAt: n.createdAt,
+        relativeTime: formatRelativeTime(n.createdAt),
+      })),
+      unreadCount,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    },
+  });
+});
+
+exports.markNotificationRead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const notification = await AdminNotification.findByIdAndUpdate(
+    id,
+    { status: "READ" },
+    { new: true },
+  );
+
+  if (!notification) {
+    throw createHttpError(404, "Notification not found");
+  }
+
+  res.status(200).json({ success: true });
+});
+
+exports.markAllNotificationsRead = asyncHandler(async (req, res) => {
+  await AdminNotification.updateMany(
+    { status: "UNREAD" },
+    { status: "READ" },
+  );
+
+  res.status(200).json({ success: true });
 });

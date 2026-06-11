@@ -23,4 +23,8 @@ router.post("/roles", protectAdmin, adminController.createRole);
 router.patch("/roles/:id/permissions", protectAdmin, adminController.updateRolePermissions);
 router.post("/roles/:id/assign", protectAdmin, adminController.assignRole);
 
+router.get("/notifications", protectAdmin, adminController.getNotifications);
+router.patch("/notifications/:id/read", protectAdmin, adminController.markNotificationRead);
+router.patch("/notifications/read-all", protectAdmin, adminController.markAllNotificationsRead);
+
 module.exports = router;

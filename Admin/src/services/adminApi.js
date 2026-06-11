@@ -1,5 +1,5 @@
 const API_ROOT =
-  import.meta.env.VITE_ADMIN_API_URL || "http://localhost:3000/api/v1/admin";
+  import.meta.env.VITE_ADMIN_API_URL || "http://localhost:5050/api/v1/admin";
 
 const SESSION_KEY = "admin_panel_session";
 
@@ -208,5 +208,21 @@ export async function assignAdminRole({ id, source, userId }) {
   return request(`/roles/${id}/assign`, {
     method: "POST",
     body: { source, userId },
+  });
+}
+
+export async function getNotifications(page = 1, limit = 20) {
+  return request(`/notifications?page=${page}&limit=${limit}`);
+}
+
+export async function markNotificationRead(id) {
+  return request(`/notifications/${id}/read`, {
+    method: "PATCH",
+  });
+}
+
+export async function markAllNotificationsRead() {
+  return request("/notifications/read-all", {
+    method: "PATCH",
   });
 }
