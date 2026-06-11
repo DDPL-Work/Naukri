@@ -1,37 +1,98 @@
-import axios from 'axios';
+import axios from "axios";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "https://naukri-6v4n.onrender.com/api/v1";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+  baseURL: API_BASE_URL,
+  withCredentials: true,
 });
 
-// Add a request interceptor to include the auth token
+const CANDIDATE_COOKIE = "mvn_refresh_token";
+const STORAGE_TOKEN_KEY = "token";
+const STORAGE_USER_KEY = "user";
+
+const getStoredToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem(STORAGE_TOKEN_KEY) : null;
+
+const clearStoredSession = () => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(STORAGE_TOKEN_KEY);
+    localStorage.removeItem(STORAGE_USER_KEY);
+  }
+};
+
+const setStoredSession = (token, user) => {
+  if (typeof window !== "undefined") {
+    if (token) localStorage.setItem(STORAGE_TOKEN_KEY, token);
+    if (user) localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+  }
+};
+
+const candidateRefresh = async () => {
+  const baseUrl = API_BASE_URL.replace(/\/+$/, "");
+  const res = await axios.post(
+    `${baseUrl}/candidate/auth/refresh`,
+    null,
+    { withCredentials: true }
+  );
+  const token = res.data?.accessToken || res.data?.token;
+  if (!token) {
+    throw new Error("No access token in refresh response");
+  }
+  const user =
+    res.data?.user ||
+    (() => {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_USER_KEY) || "{}");
+      } catch {
+        return {};
+      }
+    })();
+  setStoredSession(token, res.data?.user ?? user);
+  return token;
+};
+
 api.interceptors.request.use(
   (config) => {
-    const candidateToken = localStorage.getItem('token');
-    const employerToken = localStorage.getItem('employerToken');
-    const isEmployerRoute = typeof window !== 'undefined' && window.location?.pathname?.startsWith('/employer');
-    const token = isEmployerRoute ? (employerToken || candidateToken) : (candidateToken || employerToken);
+    const token = getStoredToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Add a response interceptor to handle common errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized error (e.g., redirect to login or logout)
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('employerToken');
-      localStorage.removeItem('employerUser');
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest._skipAuthRefresh
+    ) {
+      originalRequest._retry = true;
+
+      try {
+        const newToken = await candidateRefresh();
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch {
+        clearStoredSession();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("candidate-session-expired"));
+        }
+      }
     }
+
+    if (error.response?.status === 401) {
+      clearStoredSession();
+    }
+
     return Promise.reject(error);
   }
 );

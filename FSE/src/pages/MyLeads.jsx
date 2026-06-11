@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   LuBuilding2,
   LuListFilter,
@@ -18,8 +18,10 @@ import {
   LuShare2,
   LuChevronDown,
   LuChevronUp,
-  LuFilter
+  LuFilter,
+  LuPlus,
 } from "react-icons/lu";
+import AddLeadModal from "../components/AddLeadModal";
 import LeadDetailModal from "../components/LeadDetailModal";
 import LogActivityModal from "../components/LogActivityModal";
 import ActionConfirmModal from "../components/ActionConfirmModal";
@@ -92,6 +94,7 @@ export default function MyLeads() {
   const [editingActivityIndex, setEditingActivityIndex] = useState(null);
   const [activitySubmitting, setActivitySubmitting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [transferring, setTransferring] = useState(false);
 
   // Transfer candidate fetch
@@ -280,12 +283,20 @@ export default function MyLeads() {
           <div className="breadcrumb">
             <span>Dashboard</span>
             <span className="separator">/</span>
-            <span className="current">Assigned Leads</span>
+            <span className="current">Lead Management</span>
           </div>
-          <h1 className="page-title-premium">Assigned Leads</h1>
-          <p className="page-subtitle">Manage and track your lead pipeline with real-time interaction history.</p>
+          <h1 className="page-title-premium">Lead Management</h1>
+          <p className="page-subtitle">Manage your entire lead pipeline — create, view, edit, and transfer in one place.</p>
         </div>
         <div className="header-right">
+          <button
+            className="add-lead-header-btn"
+            onClick={() => setShowAddModal(true)}
+            title="Create new lead"
+          >
+            <LuPlus size={18} />
+            <span>Add Lead</span>
+          </button>
           <button className="refresh-btn" onClick={() => loadLeads()} title="Refresh Data">
             <LuRefreshCw className={loading ? "spin" : ""} />
             <span>Sync</span>
@@ -569,6 +580,12 @@ export default function MyLeads() {
           setCandidateSM(null);
         }}
         onConfirm={performTransfer}
+      />
+
+      <AddLeadModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => loadLeads()}
       />
     </div>
   );

@@ -121,6 +121,7 @@ export default function ProfileDashboard() {
   const [showQuickAnswer, setShowQuickAnswer] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [isGeneratingShareLink, setIsGeneratingShareLink] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { updateProfile } = useAuth();
@@ -173,13 +174,26 @@ export default function ProfileDashboard() {
     setIsDownloading(false);
   };
 
-  // Production ready unique profile link generation like LinkedIn
-  const getUniqueId = () => {
-    if (user?._id) return user._id.toString().slice(-6);
-    if (user?.id) return user.id.toString().slice(-6);
-    return Math.random().toString(36).substr(2, 6);
-  };
-  const profileLink = `${window.location.host}/in/${user?.name?.toLowerCase().replace(/\s+/g, '-') || 'user'}-${getUniqueId()}`;
+  // Production ready unique profile link generation (backend-backed)
+  const [publicShareId, setPublicShareId] = useState(
+    user?.publicShareId ||
+    user?.profile?.publicShareId ||
+    user?.user?.publicShareId ||
+    ""
+  );
+
+  useEffect(() => {
+    const nextId =
+      user?.publicShareId ||
+      user?.profile?.publicShareId ||
+      user?.user?.publicShareId ||
+      "";
+    setPublicShareId(nextId);
+  }, [user]);
+
+  const shareUrl = publicShareId
+    ? `${window.location.origin}/in/${String(publicShareId).trim()}`
+    : `${window.location.origin}/in/`;
 
   const [recommendedJobs, setRecommendedJobs] = useState({});
   const [candidateProfile, setCandidateProfile] = useState(null);
@@ -2329,9 +2343,10 @@ export default function ProfileDashboard() {
       `}</style>
       {/* â”€â”€â”€ Share Profile Modal â”€â”€â”€ */}
       {showShareModal && (
-        <div className="cm-modal-overlay" style={{ backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }} onClick={() => setShowShareModal(false)}>
+              <div className="cm-modal-overlay" style={{ backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }} onClick={() => setShowShareModal(false)}>
           <div className="cm-modal-box" style={{ maxWidth: 540, padding: 0, borderRadius: 28, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }} onClick={e => e.stopPropagation()}>
             <div className="cm-modal-header" style={{ borderBottom: 'none', padding: '32px 32px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
               <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', fontFamily: 'var(--fd)' }}>Share Profile</h3>
               <button className="cm-modal-close" style={{ background: '#f1f5f9', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', border: 'none' }} onClick={() => setShowShareModal(false)}>
                 <FiX size={20} color="#64748b" />
@@ -2340,6 +2355,13 @@ export default function ProfileDashboard() {
 
             <div className="cm-modal-body" style={{ padding: '0 32px 36px' }}>
               <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '28px', fontWeight: 500 }}>Share your professional profile with your network or recruiters.</p>
+
+              {isGeneratingShareLink && (
+                <div style={{ marginBottom: 16, color: '#2563eb', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 999, background: '#2563eb', boxShadow: '0 0 0 6px rgba(37,99,235,0.1)' }} />
+                  Generating share link...
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '36px' }}>
                 {[
@@ -2373,22 +2395,22 @@ export default function ProfileDashboard() {
               </div>
 
               <div style={{
-                position: 'relative',
-                background: '#f8fafc',
-                border: '2px solid #e2e8f0',
-                borderRadius: '16px',
-                padding: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                transition: 'all 0.2s'
-              }} onFocusCapture={e => e.currentTarget.style.borderColor = '#1e5eff'}>
+                    position: 'relative',
+                    background: '#f8fafc',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '16px',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'all 0.2s'
+                  }} onFocusCapture={e => e.currentTarget.style.borderColor = '#1e5eff'}>
                 <div style={{ padding: '0 16px', color: '#94a3b8' }}>
                   <FiGlobe size={18} />
                 </div>
                 <input
                   type="text"
                   readOnly
-                  value={profileLink}
+                  value={isGeneratingShareLink ? "Generating share link..." : (publicShareId ? shareUrl : "Generating share link...")}
                   style={{
                     flex: 1, background: 'transparent', border: 'none',
                     padding: '12px 0', outline: 'none', color: '#0f172a',
@@ -2407,7 +2429,7 @@ export default function ProfileDashboard() {
                     boxShadow: linkCopied ? '0 4px 12px rgba(16, 185, 129, 0.2)' : '0 4px 12px rgba(30, 94, 255, 0.2)'
                   }}
                   onClick={() => {
-                    navigator.clipboard.writeText(`https://${profileLink}`);
+                    navigator.clipboard.writeText(shareUrl);
                     setLinkCopied(true);
                     setTimeout(() => setLinkCopied(false), 2000);
                   }}

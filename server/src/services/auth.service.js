@@ -382,7 +382,7 @@ const revokeRefreshTokenById = async ({
         replacedByTokenId: replacementTokenId,
       },
     },
-    { new: true },
+    { returnDocument: "after" },
   );
 };
 

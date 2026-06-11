@@ -163,8 +163,8 @@ const formatCompanyForClient = (company, options = {}) => {
 
 const formatCompanyReview = (review) => ({
   id: String(review._id),
-  candidateName: review.isAnonymous ? "Anonymous Candidate" : (review.candidateName || "Candidate"),
-  candidateTitle: review.isAnonymous ? "Verified employee" : (review.candidateTitle || "Verified employee"),
+  candidateName: review.candidateName || "Candidate",
+  candidateTitle: review.candidateTitle || "Verified employee",
   candidateCity: review.candidateCity || "",
   rating: Number(review.rating || 0),
   headline: review.headline || "",
@@ -1219,4 +1219,78 @@ exports.previewApplicationResume = asyncHandler(async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
 
   upstream.data.pipe(res);
+});
+
+exports.getNotifications = asyncHandler(async (req, res) => {
+  const { company } = await resolveClientUserAndCompany(req.user._id);
+
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.max(1, Math.min(50, Number.parseInt(req.query.limit, 10) || 20));
+  const skip = (page - 1) * limit;
+
+  const notifications = await CandidateNotification.find({ companyId: company._id })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  const notificationsPayload = notifications.map((n) => ({
+    id: String(n._id),
+    title: n.title || "Notification",
+    message: n.message || "",
+    desc: n.message || "",
+    category: n.category || "",
+    actionUrl: n.actionUrl || "",
+    status: String(n.status || "UNREAD").toUpperCase(),
+    createdAt: n.createdAt || null,
+    updatedAt: n.updatedAt || null,
+    lastUpdated: formatRelativeTime(n.updatedAt || n.createdAt),
+  }));
+
+  res.status(200).json({
+    success: true,
+    data: {
+      notifications: notificationsPayload,
+      pagination: {
+        page,
+        limit,
+        totalItems: await CandidateNotification.countDocuments({ companyId: company._id }),
+      },
+    },
+  });
+});
+
+exports.markNotificationRead = asyncHandler(async (req, res) => {
+  const { company } = await resolveClientUserAndCompany(req.user._id);
+
+  const notificationId = String(req.params.id || "").trim();
+  if (!notificationId) {
+    throw createHttpError(400, "Notification id is required");
+  }
+
+  const notification = await CandidateNotification.findOne({
+    _id: notificationId,
+    companyId: company._id,
+  });
+
+  if (!notification) {
+    throw createHttpError(404, "Notification not found");
+  }
+
+  notification.status = "READ";
+  await notification.save();
+
+  res.status(200).json({
+    success: true,
+    data: {
+      notification: {
+        id: String(notification._id),
+        title: notification.title || "Notification",
+        message: notification.message || "",
+        status: String(notification.status || "READ").toUpperCase(),
+        createdAt: notification.createdAt || null,
+        updatedAt: notification.updatedAt || null,
+        lastUpdated: formatRelativeTime(notification.updatedAt || notification.createdAt),
+      },
+    },
+  });
 });

@@ -17,14 +17,14 @@ router.get("/home", getHomeLandingData);
 // /api/v1/landing/jobs
 router.get("/jobs", getPublicJobs);
 
+// /api/v1/landing/companies/:id - MUST come before /:token to avoid catching as token param
+router.get("/companies/:id", getPublicCompanyDetail);
+
 // /api/v1/landing/employer
 router.get("/employer", getEmployerLandingData);
 
-// /api/v1/landing/companies/:id
-router.get("/companies/:id", getPublicCompanyDetail);
-
 // Final URL:
-// /api/v1/landing/:token
+// /api/v1/landing/:token - MUST be last to avoid catching specific routes
 router.get("/:token", getLandingPageData);
 
 module.exports = router;

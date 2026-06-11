@@ -361,113 +361,118 @@ exports.getEmployerLandingData = async (req, res) => {
   }
 };
 
-exports.getHomeLandingData = async (req, res) => {
-  try {
-    const [activeJobs, candidates, activeCompanies, monthlyOffers, companies, categoryRows, roleRows] =
-      await Promise.all([
-        Job.countDocuments({ isActive: true, approvalStatus: "APPROVED" }),
-        User.countDocuments({ role: "CANDIDATE", isActive: true }),
-        Company.countDocuments({ status: "ACTIVE", activelyHiring: true }),
-        Application.countDocuments({
-          status: { $in: ["OFFERED", "HIRED"] },
-          updatedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        }),
-        Company.find({ status: "ACTIVE", activelyHiring: true })
-          .sort({ activeJobCount: -1, openRoles: -1, updatedAt: -1 })
-          .limit(8)
-          .select("name tagline industry activeJobCount openRoles logoUrl"),
-        Job.aggregate([
-          { $match: { isActive: true, approvalStatus: "APPROVED" } },
-          {
-            $group: {
-              _id: { $ifNull: ["$department", "General"] },
-              count: { $sum: 1 },
-            },
+const fetchHomeLandingData = async () => {
+  const [activeJobs, candidates, activeCompanies, monthlyOffers, companies, categoryRows, roleRows] =
+    await Promise.all([
+      Job.countDocuments({ isActive: true, approvalStatus: "APPROVED" }),
+      User.countDocuments({ role: "CANDIDATE", isActive: true }),
+      Company.countDocuments({ status: "ACTIVE", activelyHiring: true }),
+      Application.countDocuments({
+        status: { $in: ["OFFERED", "HIRED"] },
+        updatedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      }),
+      Company.find({ status: "ACTIVE", activelyHiring: true })
+        .sort({ activeJobCount: -1, openRoles: -1, updatedAt: -1 })
+        .limit(8)
+        .select("name tagline industry activeJobCount openRoles logoUrl"),
+      Job.aggregate([
+        { $match: { isActive: true, approvalStatus: "APPROVED" } },
+        {
+          $group: {
+            _id: { $ifNull: ["$department", "General"] },
+            count: { $sum: 1 },
           },
-          { $sort: { count: -1 } },
-          { $limit: 8 },
-        ]),
-        Job.aggregate([
-          { $match: { isActive: true, approvalStatus: "APPROVED" } },
-          {
-            $group: {
-              _id: "$title",
-              count: { $sum: 1 },
-            },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 8 },
+      ]),
+      Job.aggregate([
+        { $match: { isActive: true, approvalStatus: "APPROVED" } },
+        {
+          $group: {
+            _id: "$title",
+            count: { $sum: 1 },
           },
-          { $sort: { count: -1 } },
-          { $limit: 12 },
-        ]),
-      ]);
-
-    const industryRows = await Job.aggregate([
-      { $match: { isActive: true, approvalStatus: "APPROVED" } },
-      {
-        $lookup: {
-          from: "companies",
-          localField: "companyId",
-          foreignField: "_id",
-          as: "company",
         },
-      },
-      { $unwind: "$company" },
-      {
-        $group: {
-          _id: { $ifNull: ["$company.industry", "General"] },
-          jobs: { $sum: 1 },
-        },
-      },
-      { $sort: { jobs: -1 } },
-      { $limit: 6 },
+        { $sort: { count: -1 } },
+        { $limit: 12 },
+      ]),
     ]);
 
+  const industryRows = await Job.aggregate([
+    { $match: { isActive: true, approvalStatus: "APPROVED" } },
+    {
+      $lookup: {
+        from: "companies",
+        localField: "companyId",
+        foreignField: "_id",
+        as: "company",
+      },
+    },
+    { $unwind: "$company" },
+    {
+      $group: {
+        _id: { $ifNull: ["$company.industry", "General"] },
+        jobs: { $sum: 1 },
+      },
+    },
+    { $sort: { jobs: -1 } },
+    { $limit: 6 },
+  ]);
+
+  return {
+    stats: activeJobs || candidates || activeCompanies || monthlyOffers ? [
+      { num: formatCompactCount(activeJobs), label: "Active Job Listings" },
+      { num: formatCompactCount(candidates), label: "Registered Job Seekers" },
+      { num: formatCompactCount(activeCompanies), label: "Companies Hiring" },
+      { num: formatCompactCount(monthlyOffers), label: "Offers This Month" },
+    ] : fallbackStats,
+    topCategories: industryRows.length
+      ? ["All", ...industryRows.map((item) => item._id).filter(Boolean)]
+      : ["All", "IT Services", "Technology", "Banking", "Consumer Internet", "Retail", "Engineering", "Fintech"],
+    companies: companies.length ? companies.map((company, index) => ({
+      id: String(company._id),
+      name: company.name,
+      logo: initialsFor(company.name),
+      logoUrl: company.logoUrl || "",
+      color: companyColors[index % companyColors.length],
+      rating: 4 + ((index % 6) / 10),
+      reviews: formatCompactCount(Math.max(25, Number(company.activeJobCount || company.openRoles || 0) * 31)),
+      desc: company.tagline || `${company.industry || "Growing"} company hiring on MavenJobs.`,
+      jobs: Number(company.activeJobCount || company.openRoles || 0),
+      category: company.industry || "General",
+    })) : fallbackCompanies.map((company, index) => ({
+      id: "",
+      name: company.name,
+      logo: initialsFor(company.name),
+      logoUrl: "",
+      color: company.color || companyColors[index % companyColors.length],
+      rating: 4 + ((index % 6) / 10),
+      reviews: formatCompactCount(Math.max(80, company.jobs * 18)),
+      desc: company.tagline,
+      jobs: company.jobs,
+      category: company.industry,
+    })),
+    categories: categoryRows.length ? categoryRows.map((item) => ({
+      label: item._id || "General",
+      count: `${formatCompactCount(item.count)} jobs`,
+      description: `Explore active ${item._id || "general"} openings from verified employers.`,
+    })) : fallbackCategories,
+    popularSearches: roleRows.length ? roleRows.map((item) => item._id).filter(Boolean) : fallbackRoles.map((role) => role.name),
+    jobRoles: roleRows.length ? roleRows.map((item) => ({
+      name: item._id || "Open Role",
+      count: `${formatCompactCount(item.count)} jobs`,
+    })) : fallbackRoles,
+    trustedBrands: companies.length ? companies.slice(0, 5).map((company) => company.name) : fallbackCompanies.slice(0, 5).map((company) => company.name),
+  };
+};
+
+exports.getHomeLandingData = async (req, res) => {
+  try {
+    const data = await fetchHomeLandingData();
     return res.json({
       success: true,
-      data: {
-        stats: activeJobs || candidates || activeCompanies || monthlyOffers ? [
-          { num: formatCompactCount(activeJobs), label: "Active Job Listings" },
-          { num: formatCompactCount(candidates), label: "Registered Job Seekers" },
-          { num: formatCompactCount(activeCompanies), label: "Companies Hiring" },
-          { num: formatCompactCount(monthlyOffers), label: "Offers This Month" },
-        ] : fallbackStats,
-        topCategories: industryRows.length
-          ? ["All", ...industryRows.map((item) => item._id).filter(Boolean)]
-          : ["All", "IT Services", "Technology", "Banking", "Consumer Internet", "Retail", "Engineering", "Fintech"],
-        companies: companies.length ? companies.map((company, index) => ({
-          id: String(company._id),
-          name: company.name,
-          logo: initialsFor(company.name),
-          logoUrl: company.logoUrl || "",
-          color: companyColors[index % companyColors.length],
-          rating: 4 + ((index % 6) / 10),
-          reviews: formatCompactCount(Math.max(25, Number(company.activeJobCount || company.openRoles || 0) * 31)),
-          desc: company.tagline || `${company.industry || "Growing"} company hiring on MavenJobs.`,
-          jobs: Number(company.activeJobCount || company.openRoles || 0),
-          category: company.industry || "General",
-        })) : fallbackCompanies.map((company, index) => ({
-          id: "",
-          name: company.name,
-          logo: initialsFor(company.name),
-          logoUrl: "",
-          color: company.color || companyColors[index % companyColors.length],
-          rating: 4 + ((index % 6) / 10),
-          reviews: formatCompactCount(Math.max(80, company.jobs * 18)),
-          desc: company.tagline,
-          jobs: company.jobs,
-          category: company.industry,
-        })),
-        categories: categoryRows.length ? categoryRows.map((item) => ({
-          label: item._id || "General",
-          count: `${formatCompactCount(item.count)} jobs`,
-          description: `Explore active ${item._id || "general"} openings from verified employers.`,
-        })) : fallbackCategories,
-        popularSearches: roleRows.length ? roleRows.map((item) => item._id).filter(Boolean) : fallbackRoles.map((role) => role.name),
-        jobRoles: roleRows.length ? roleRows.map((item) => ({
-          name: item._id || "Open Role",
-          count: `${formatCompactCount(item.count)} jobs`,
-        })) : fallbackRoles,
-        trustedBrands: companies.length ? companies.slice(0, 5).map((company) => company.name) : fallbackCompanies.slice(0, 5).map((company) => company.name),
-      },
+      data,
     });
   } catch (error) {
     console.error("Home landing error:", error);
@@ -477,6 +482,8 @@ exports.getHomeLandingData = async (req, res) => {
     });
   }
 };
+
+exports.fetchHomeLandingData = fetchHomeLandingData;
 
 exports.getLandingPageData = async (req, res) => {
   try {

@@ -6,6 +6,7 @@ import {
   LuBriefcaseBusiness,
   LuExternalLink,
   LuFileText,
+  LuHeart,
   LuMapPin,
   LuQrCode,
   LuRepeat2,
@@ -150,10 +151,11 @@ export default function Dashboard() {
     };
   }, []);
 
-  const company = dashboard?.company || {};
+const company = dashboard?.company || {};
   const tracking = dashboard?.tracking || {};
   const packageChange = dashboard?.packageChange || {};
   const activePackageRequest = packageChange?.activeRequest || null;
+  const followers = Array.isArray(dashboard?.followers) ? dashboard.followers : [];
   const packageCatalog = Array.isArray(dashboard?.packageCatalog) ? dashboard.packageCatalog : [];
   const packageCatalogForRequests = packageCatalog.length
     ? packageCatalog
@@ -187,6 +189,12 @@ export default function Dashboard() {
         value: Number(tracking.activeApprovedJobs || 0),
         icon: LuQrCode,
         tone: "emerald",
+      },
+      {
+        label: "Followers",
+        value: Number(tracking.followers || 0),
+        icon: LuHeart,
+        tone: "red",
       },
     ],
     [tracking],
@@ -374,7 +382,13 @@ export default function Dashboard() {
         >
           Upgrade Package
         </button>
-      </nav>
+        <button
+          className={`company-tab-btn ${activeTab === "followers" ? "active" : ""}`}
+          onClick={() => setActiveTab("followers")}
+        >
+          Followers
+        </button>
+        </nav>
 
       {packageActionNote ? <div className="status-banner success-banner">{packageActionNote}</div> : null}
       {packageActionError ? <div className="status-banner">{packageActionError}</div> : null}
@@ -786,6 +800,62 @@ export default function Dashboard() {
                 </p>
               )}
             </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === "followers" && (
+        <div className="company-stack-y company-fade-in">
+          <section className="company-panel-card">
+            <div className="company-section-head">
+              <h2 className="company-section-title">Company Followers</h2>
+            </div>
+            {followers.length ? (
+              <div className="company-jobs-table-wrap">
+                <table className="company-jobs-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Current Role</th>
+                      <th>Location</th>
+                      <th>Followed On</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {followers.map((follower) => (
+                      <tr key={follower.candidateId}>
+                        <td>
+                          <p className="company-table-main">{follower.candidateName}</p>
+                        </td>
+                        <td>
+                          <p className="company-table-sub">{follower.candidateEmail || "-"}</p>
+                        </td>
+                        <td>
+                          <p className="company-table-sub">{follower.candidatePhone || "-"}</p>
+                        </td>
+                        <td>
+                          <p className="company-table-sub">{follower.candidateCurrentTitle || "-"}</p>
+                        </td>
+                        <td>
+                          <p className="company-table-sub">
+                            {follower.candidateCity && follower.candidateState
+                              ? `${follower.candidateCity}, ${follower.candidateState}`
+                              : follower.candidateCity || follower.candidateState || "-"}
+                          </p>
+                        </td>
+                        <td>
+                          <p className="company-table-sub">{follower.lastUpdated || "-"}</p>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="company-empty-copy">No followers yet. Candidates will appear here when they follow your company.</p>
+            )}
           </section>
         </div>
       )}

@@ -14,6 +14,16 @@ const parsePositiveInt = (value, fallback) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+/* **********************************************************************
+ * MONGODB CONNECTION URL FORMAT
+ * ─────────────────────────────
+ * Production:
+ *   mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<database>
+ *
+ * Local / single-node:
+ *   mongodb://127.0.0.1:27017/<database>
+ **********************************************************************/
+
 const getConnectionOptions = () => ({
   serverSelectionTimeoutMS: parsePositiveInt(
     process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS,
@@ -67,6 +77,10 @@ const connectDB = async () => {
   }
 
   bindConnectionListeners();
+
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
 
   const maxRetries = parsePositiveInt(
     process.env.MONGO_CONNECT_MAX_RETRIES,

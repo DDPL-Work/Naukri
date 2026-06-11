@@ -132,7 +132,7 @@ async function request(
       }
     }
 
-    if (auth && [401, 403].includes(response.status)) {
+    if (auth && response.status === 401) {
       clearStoredSession();
     }
 
@@ -253,5 +253,16 @@ export function getNotifications() {
 export function markNotificationRead(id) {
   return request(`/notifications/${id}/read`, {
     method: "PATCH",
+  });
+}
+
+export function getSavedJobs() {
+  return request("/jobs/saved");
+}
+
+export function toggleSavedJob(jobId, save = true) {
+  return request(`/jobs/${jobId}/save`, {
+    method: "PATCH",
+    body: JSON.stringify({ save }),
   });
 }

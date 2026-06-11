@@ -446,7 +446,7 @@ const getOrCreatePolicy = async () => {
       },
     },
     {
-      new: true,
+      returnDocument: "after",
       upsert: true,
       setDefaultsOnInsert: true,
     },
@@ -1442,7 +1442,7 @@ exports.updateApprovalPolicy = asyncHandler(async (req, res) => {
       },
     },
     {
-      new: true,
+      returnDocument: "after",
       upsert: true,
       setDefaultsOnInsert: true,
       runValidators: true,

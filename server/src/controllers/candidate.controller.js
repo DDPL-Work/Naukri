@@ -6,7 +6,7 @@ const User = require("../models/User");
 const Job = require("../models/Job");
 const Company = require("../models/Company");
 const CompanyReview = require("../models/CompanyReview");
-const QRCode = require("../models/QRCode");
+const QRCode = require("../models/QRCode");                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 const Application = require("../models/Application");
 const CandidateProfile = require("../models/CandidateProfile");
 const CandidateProfileHistory = require("../models/CandidateProfileHistory");
@@ -18,6 +18,7 @@ const {
   issueTokenPair,
   setRefreshCookie,
 } = require("../services/auth.service");
+const { fetchHomeLandingData } = require("./landing.controller");
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
@@ -220,6 +221,7 @@ const formatCandidateUser = (user = null) => ({
 
 const formatProfile = (profile = {}, user = null) => ({
   id: String(profile?._id || ""),
+  publicShareId: profile?.publicShareId || "",
   user: formatCandidateUser(user),
   phone: profile?.phone || "",
   altPhone: profile?.altPhone || "",
@@ -500,8 +502,21 @@ const ensureCandidateProfile = async (user) => {
     });
   }
 
+  if (!profile.publicShareId) {
+    const deterministicPart = `in_${String(user._id).slice(-6)}`;
+    const randomPart =
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID().replace(/-/g, "").slice(0, 10)
+        : crypto.randomBytes(6).toString("hex");
+
+    profile.publicShareId = `${deterministicPart}_${randomPart}`;
+  }
+
   if (!String(profile.currentTitle || "").trim() && String(user.department || "").trim()) {
     profile.currentTitle = String(user.department).trim();
+  }
+
+  if (profile.isModified()) {
     await profile.save();
   }
 
@@ -939,37 +954,59 @@ exports.me = asyncHandler(async (req, res) => {
   });
 });
 
-exports.getLanding = asyncHandler(async (req, res) => {
-  const { qrCode, company, jobs } = await resolveQrContext(req.params.token);
+exports.getLandingHome = asyncHandler(async (_req, res) => {
+  try {
+    const landingData = await fetchHomeLandingData();
+    return res.status(200).json({
+      success: true,
+      data: landingData,
+    });
+  } catch (error) {
+    console.error("Home landing error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch landing data",
+    });
+  }
+});
 
-  qrCode.scans += 1;
-  await qrCode.save();
+exports.getLandingByToken = asyncHandler(async (req, res) => {
+  const token = String(req.params.token || "").trim();
+
+  if (!token) {
+    throw createHttpError(400, "QR token is required");
+  }
+
+  const context = await resolveQrContext(token);
+
+  context.qrCode.scans += 1;
+  await context.qrCode.save();
 
   res.status(200).json({
     success: true,
     data: {
-      token: qrCode.token,
+      token: context.qrCode.token,
       company: {
-        id: String(company._id),
-        name: company.name,
-        tagline: company.tagline || "",
-        industry: company.industry || "",
-        companySize: company.companySize || "",
-        foundedYear: company.foundedYear || "",
-        employeesCount: company.employeesCount || "",
-        headquarters: company.headquarters || "",
-        website: company.website || "",
-        linkedIn: company.linkedIn || "",
-        activelyHiring: Boolean(company.activelyHiring),
-        openRoles: Number(company.openRoles || company.activeJobCount || 0),
-        about: company.about || "",
-        mission: company.mission || "",
-        vision: company.vision || "",
-        whyJoinUs: company.whyJoinUs || [],
-        location: company.location || {},
+        id: String(context.company._id),
+        name: context.company.name,
+        tagline: context.company.tagline || "",
+        industry: context.company.industry || "",
+        companySize: context.company.companySize || "",
+        foundedYear: context.company.foundedYear || "",
+        employeesCount: context.company.employeesCount || "",
+        headquarters: context.company.headquarters || "",
+        website: context.company.website || "",
+        linkedIn: context.company.linkedIn || "",
+        activelyHiring: Boolean(context.company.activelyHiring),
+        openRoles: Number(context.company.openRoles || context.company.activeJobCount || 0),
+        about: context.company.about || "",
+        mission: context.company.mission || "",
+        vision: context.company.vision || "",
+        whyJoinUs: context.company.whyJoinUs || [],
+        location: context.company.location || {},
       },
-      jobs: jobs.map((job) => formatJob(job)),
-      scans: qrCode.scans,
+      jobs: context.jobs.map((job) => formatJob(job)),
+      scans: context.qrCode.scans,
     },
   });
 });
@@ -1260,6 +1297,35 @@ exports.toggleSavedJob = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getSavedJobs = asyncHandler(async (req, res) => {
+  const profile = await ensureCandidateProfile(req.user);
+
+  const savedJobIds = (profile.savedJobIds || [])
+    .map((id) => String(id))
+    .filter(Boolean);
+
+  if (!savedJobIds.length) {
+    return res.status(200).json({
+      success: true,
+      data: [],
+      total: 0,
+    });
+  }
+
+  const jobs = await Job.find({ _id: { $in: savedJobIds } })
+    .populate("companyId", "name logoUrl industry city website")
+    .sort({ postedAt: -1 })
+    .lean();
+
+  const formatted = jobs.map((job) => formatJob(job, {}, { savedJobIds: new Set(savedJobIds) }));
+
+  return res.status(200).json({
+    success: true,
+    data: formatted,
+    total: formatted.length,
+  });
+});
+
 exports.toggleCompanyFollow = asyncHandler(async (req, res) => {
   const companyId = String(req.params.id || "").trim();
   const follow = req.body?.follow !== false;
@@ -1324,6 +1390,35 @@ exports.getProfile = asyncHandler(async (req, res) => {
     data: {
       profile: formatProfile(profile, req.user),
       history: history.map((item) => formatHistoryItem(item)),
+    },
+  });
+});
+
+exports.getPublicProfileByShareId = asyncHandler(async (req, res) => {
+  const shareId = String(req.params.shareId || "").trim();
+  if (!shareId) {
+    throw createHttpError(400, "Share id is required");
+  }
+
+  const profile = await CandidateProfile.findOne({ publicShareId: shareId }).populate("userId");
+
+  // If we get a lean profile without user populated for some reason, fallback to manual user query
+  // (keeps endpoint resilient).
+  if (!profile) {
+    throw createHttpError(404, "Candidate profile not found");
+  }
+
+  let user = null;
+  try {
+    user = await User.findById(profile.userId || profile._id).select("name email role department accessStatus");
+  } catch {
+    user = null;
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      profile: formatProfile(profile, user),
     },
   });
 });

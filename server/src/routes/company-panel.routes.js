@@ -31,4 +31,8 @@ router.get("/profile", controller.getProfile);
 router.patch("/profile", controller.updateProfile);
 router.patch("/profile/media", uploadCompanyMedia, controller.updateCompanyMedia);
 
+// Notifications
+router.get("/notifications", controller.getNotifications);
+router.patch("/notifications/:id/read", controller.markNotificationRead);
+
 module.exports = router;

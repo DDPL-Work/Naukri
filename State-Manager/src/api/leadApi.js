@@ -102,7 +102,7 @@ http.interceptors.response.use(
       }
     }
 
-    if ([401, 403].includes(error.response?.status)) {
+    if (error.response?.status === 401) {
       clearStoredCrmSession();
     }
 

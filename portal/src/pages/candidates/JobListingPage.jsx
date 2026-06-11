@@ -12,6 +12,7 @@ import { TOP_CATEGORIES } from "../../data/jobs";
 import authService from "../../services/authService";
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
 import "./JobListingPage.css";
+import Loading from "../../components/Loading";
 
 // Data moved to data/jobs.js
 const FILTER_CATEGORIES = [
@@ -597,22 +598,7 @@ export default function JobListingPage() {
           </div>
 
           {loadingBackend ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="jlp-job-card skeleton" style={{ minHeight: '180px', background: 'white', borderRadius: 20, border: '1px solid #E2E8F0', padding: '24px 28px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: '#F1F5F9', opacity: 0.6 }} />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ width: '40%', height: 16, background: '#F1F5F9', borderRadius: 4 }} />
-                    <div style={{ width: '25%', height: 12, background: '#F1F5F9', borderRadius: 4 }} />
-                  </div>
-                </div>
-                <div style={{ width: '100%', height: 40, background: '#F1F5F9', borderRadius: 8 }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <div style={{ width: '30%', height: 20, background: '#F1F5F9', borderRadius: 6 }} />
-                  <div style={{ width: '20%', height: 28, background: '#F1F5F9', borderRadius: 8 }} />
-                </div>
-              </div>
-            ))
+            <Loading fullScreen={false} size={80} color="#002366" secondaryColor="#10b981" />
           ) : currentJobs.length > 0 ? (
             currentJobs.map(job => (
               <div key={job.id} className={`jlp-job-card${job.featured ? " featured" : ""}`}>

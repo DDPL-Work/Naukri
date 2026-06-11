@@ -9,6 +9,13 @@ const candidateProfileSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    /**
+     * Public share identifier (LinkedIn-like)
+     * Used to resolve a candidate profile without authentication.
+     * NOTE: Existing profiles will get a generated value on first update
+     *       or via a one-time migration (recommended).
+     */
+    publicShareId: { type: String, default: null, unique: true, index: true },
     phone: { type: String, default: "" },
     altPhone: { type: String, default: "" },
     headline: { type: String, default: "" },

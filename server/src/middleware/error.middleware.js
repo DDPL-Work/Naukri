@@ -16,11 +16,15 @@ const errorMiddleware = (err, req, res, next) => {
   }
 
   const statusCode = err.statusCode || 500;
-  const safeMessage = err.message || "Internal Server Error";
+  const safeMessage =
+    statusCode >= 500
+      ? process.env.NODE_ENV === "production"
+        ? "Internal Server Error"
+        : err.message || "Internal Server Error"
+      : err.message || "Internal Server Error";
 
-  // Keep logs production-friendly: full stack for server faults, concise logs for expected client/auth errors.
   if (statusCode >= 500) {
-    console.error(err);
+    console.error(`[${req.method} ${req.originalUrl}]`, err);
   } else {
     console.warn(`[${req.method} ${req.originalUrl}] ${statusCode} ${safeMessage}`);
   }
@@ -28,7 +32,9 @@ const errorMiddleware = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message: safeMessage,
-    stack: process.env.NODE_ENV === "development" && statusCode >= 500 ? err.stack : undefined,
+    ...(process.env.NODE_ENV !== "production" && err.stack && statusCode >= 500
+      ? { stack: err.stack }
+      : {}),
   });
 };
 

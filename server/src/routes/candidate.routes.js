@@ -21,7 +21,11 @@ router.post("/auth/register", upload.single("resume"), candidateController.regis
 router.post("/auth/login", candidateController.login);
 router.post("/auth/refresh", authController.refresh);
 router.post("/auth/logout", authController.logout);
-router.get("/landing/:token", candidateController.getLanding);
+router.get("/landing/home", candidateController.getLandingHome);
+router.get("/landing/:token", candidateController.getLandingByToken);
+
+// Public share viewer (LinkedIn-like)
+router.get("/public/landing/:shareId", candidateController.getPublicProfileByShareId);
 
 router.get("/auth/me", protectCandidate, candidateController.me);
 router.get("/dashboard", protectCandidate, candidateController.getDashboard);
@@ -32,6 +36,7 @@ router.get("/jobs", protectCandidate, candidateController.getJobs);
 router.get("/jobs/:id", protectCandidate, candidateController.getJobDetail);
 router.get("/jobs/:id/similar", protectCandidate, candidateController.getSimilarJobs);
 router.patch("/jobs/:id/save", protectCandidate, candidateController.toggleSavedJob);
+router.get("/jobs/saved", protectCandidate, candidateController.getSavedJobs);
 router.get("/companies/stats", candidateController.getCompanyStats);
 router.get("/companies", candidateController.getCompanies);
 router.get("/companies/:id", protectCandidate, candidateController.getCompanyDetail);

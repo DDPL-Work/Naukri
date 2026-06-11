@@ -290,7 +290,7 @@ const saveUserRecord = async ({
       return {
         source,
         doc: await User.findByIdAndUpdate(existingDoc._id, writePayload, {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         }),
       };
@@ -322,7 +322,7 @@ const saveUserRecord = async ({
     return {
       source,
       doc: await CrmUser.findByIdAndUpdate(existingDoc._id, writePayload, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }),
     };
@@ -425,11 +425,11 @@ const ensureAdminSetup = async () => {
         {
           $setOnInsert: role,
         },
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-        },
+          {
+            upsert: true,
+            returnDocument: "after",
+            setDefaultsOnInsert: true,
+          },
       ),
     ),
   );
@@ -441,11 +441,11 @@ const ensureAdminSetup = async () => {
         {
           $setOnInsert: setting,
         },
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-        },
+          {
+            upsert: true,
+            returnDocument: "after",
+            setDefaultsOnInsert: true,
+          },
       ),
     ),
   );

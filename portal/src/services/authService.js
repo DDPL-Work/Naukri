@@ -12,8 +12,6 @@ const authService = {
 
   register: async (userData) => {
     try {
-      // Registration expects multipart/form-data for resume, but we can send JSON if no resume
-      // Based on candidate.controller.js, it expects name, designation, phone, email, password
       const response = await api.post('/candidate/auth/register', userData);
       return response.data;
     } catch (error) {
@@ -375,6 +373,24 @@ const authService = {
     }
   },
 
+  getEmployerNotifications: async () => {
+    try {
+      const response = await api.get('/company-panel/notifications');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch employer notifications' };
+    }
+  },
+
+  markEmployerNotificationRead: async (notificationId) => {
+    try {
+      const response = await api.patch(`/company-panel/notifications/${notificationId}/read`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to mark employer notification as read' };
+    }
+  },
+
   getCandidateNotifications: async () => {
     try {
       const response = await api.get('/candidate/notifications');
@@ -391,7 +407,44 @@ const authService = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to mark notification as read' };
     }
+  },
+
+  getSavedJobs: async () => {
+    try {
+      const response = await api.get('/candidate/jobs/saved');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch saved jobs' };
+    }
+  },
+
+  toggleSavedJob: async (jobId, save = true) => {
+    try {
+      const response = await api.patch(`/candidate/jobs/${jobId}/save`, { save });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update saved job' };
+    }
+  },
+  getPublicCandidateProfileByShareId: async (shareId) => {
+    try {
+      const response = await api.get(`/candidate/public/landing/${shareId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch public candidate profile' };
+    }
+  },
+
+  // Protected: ensures backend lazily generates/saves publicShareId if missing
+  getCandidateProfile: async () => {
+    try {
+      const response = await api.get('/candidate/profile');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch candidate profile' };
+    }
   }
 };
 
 export default authService;
+

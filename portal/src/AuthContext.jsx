@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }) => {
         projectLink: data.profile?.projectLink || "",
         projectDescription: data.profile?.projectDescription || "",
         profileCompletion: data.profile?.profileCompletion || 0,
+        publicShareId: data.profile?.publicShareId || "",
       };
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
@@ -75,6 +76,7 @@ export const AuthProvider = ({ children }) => {
         projectLink: data.profile?.projectLink || "",
         projectDescription: data.profile?.projectDescription || "",
         profileCompletion: data.profile?.profileCompletion || 0,
+        publicShareId: data.profile?.publicShareId || "",
       };
       setUser(userObj);
       localStorage.setItem("user", JSON.stringify(userObj));
@@ -116,10 +118,14 @@ export const AuthProvider = ({ children }) => {
           ? updatedProfile.coverPic
           : updatedProfile.coverPic?.url || user?.coverPic || "";
 
-        // Update local user with new profile info
+        const profileWithShareId = {
+          ...updatedProfile,
+          publicShareId: updatedProfile.publicShareId || user?.publicShareId || "",
+        };
+
         updateUser({
           ...profileData,
-          ...updatedProfile,
+          ...profileWithShareId,
           headline: updatedProfile.headline || "",
           summary: updatedProfile.summary || "",
           currentTitle: updatedProfile.currentTitle || "",

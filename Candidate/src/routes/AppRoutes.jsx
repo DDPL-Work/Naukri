@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 import CandidateLayout from "../layout/CandidateLayout";
 import ApplicationsPage from "../pages/ApplicationsPage";
 import CandidateDashboard from "../pages/CandidateDashboard";
+import SavedJobsPage from "../pages/SavedJobsPage";
 import JobsPage from "../pages/JobsPage";
 import LandingPage from "../pages/LandingPage";
 import Login from "../pages/Login";

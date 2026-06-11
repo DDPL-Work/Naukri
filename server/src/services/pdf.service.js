@@ -50,23 +50,23 @@ function sanitize(str) {
     .trim();
 }
 
-function drawMavenWordmark(doc, pageWidth, y) {
-  const badgeWidth = 198;
-  const badgeHeight = 40;
+function drawMavenWordmark(doc, pageWidth, y, height = 40) {
+  const badgeWidth = 200;
+  const badgeHeight = height;
   const badgeX = (pageWidth - badgeWidth) / 2;
 
   doc
-    .roundedRect(badgeX, y, badgeWidth, badgeHeight, 12)
+    .roundedRect(badgeX, y, badgeWidth, badgeHeight, 10)
     .fillAndStroke("#f3f8ff", "#d2e0f2");
 
-  doc.circle(badgeX + 18, y + badgeHeight / 2, 6).fill("#a7d933");
+  doc.circle(badgeX + 16, y + badgeHeight / 2, 5).fill("#a7d933");
 
   doc
     .fillColor("#163060")
     .font("Helvetica-Bold")
-    .fontSize(16)
-    .text("MAVEN JOBS", badgeX + 32, y + 12, {
-      width: badgeWidth - 40,
+    .fontSize(15)
+    .text("MAVEN JOBS", badgeX + 28, y + 11, {
+      width: badgeWidth - 36,
       align: "left",
       lineBreak: false,
     });

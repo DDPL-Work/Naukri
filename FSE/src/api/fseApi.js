@@ -1,28 +1,59 @@
 import axios from "axios";
 
 const SESSION_KEY = "crm_panel_session";
+const ACCESS_COOKIE_NAME = "mvn_access_token";
+
+const setAccessTokenCookie = (token) => {
+  if (typeof document !== "undefined") {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + 15 * 60 * 1000);
+    document.cookie = `${ACCESS_COOKIE_NAME}=${encodeURIComponent(token)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+  }
+};
+
+const getAccessTokenCookie = () => {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(new RegExp(`(?:^|; )${ACCESS_COOKIE_NAME}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : "";
+};
+
+const clearAccessTokenCookie = () => {
+  if (typeof document !== "undefined") {
+    document.cookie = `${ACCESS_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`;
+  }
+};
 
 export const getStoredCrmSession = () => {
+  const cookieToken = getAccessTokenCookie();
   const raw = sessionStorage.getItem(SESSION_KEY);
-  if (!raw) {
+  if (!raw && !cookieToken) {
     return null;
   }
 
   try {
-    return JSON.parse(raw);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const token = cookieToken || parsed.token || "";
+    if (!token) return null;
+    return { ...parsed, token };
   } catch {
     sessionStorage.removeItem(SESSION_KEY);
-    return null;
+    const fallbackToken = getAccessTokenCookie();
+    return fallbackToken ? { token: fallbackToken } : null;
   }
 };
 
 export const setStoredCrmSession = (session) => {
+  const token = session?.token || "";
+  if (token) {
+    setAccessTokenCookie(token);
+  }
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   window.dispatchEvent(new Event("crm-session-updated"));
 };
 
 export const clearStoredCrmSession = () => {
   sessionStorage.removeItem(SESSION_KEY);
+  clearAccessTokenCookie();
   window.dispatchEvent(new Event("crm-session-updated"));
 };
 
@@ -124,7 +155,7 @@ const attachRefreshRetry = (client) => {
         }
       }
 
-      if ([401, 403].includes(error.response?.status)) {
+      if (error.response?.status === 401) {
         clearStoredCrmSession();
       }
 
@@ -197,7 +228,7 @@ export const fetchFseLeads = async (params = {}) => {
 };
 
 export const fetchTransferCandidate = async (leadId) => {
-  const { data } = await http.get(`/leads/${leadId}/transfer-candidate`);
+  const { data } = await http.get(`/transfer-candidate/${leadId}`);
   return data.data;
 };
 

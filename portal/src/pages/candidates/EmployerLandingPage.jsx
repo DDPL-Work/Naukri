@@ -124,12 +124,13 @@ const EmployerLandingPage = () => {
     { value: '98%', label: 'Placement success rate' },
     { value: '48hrs', label: 'Average time-to-hire' },
   ];
+  // Production-ready fallback partners (no hardcoded internal/test brands)
   const fallbackPartners = [
     { id: 'mavenjobs', name: 'Maven Jobs' },
     { id: 'mks-industrial-solutions', name: 'MKS Industrial Solutions' },
     { id: 'hello-ltd', name: 'HELLO LTD' },
-    { id: 'godslayer', name: 'GODSLAYER' },
   ];
+
   const stats = employerData.stats?.length ? employerData.stats : fallbackStats;
   const partners = employerData.partners?.length
     ? employerData.partners

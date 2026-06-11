@@ -29,6 +29,7 @@ import ResumeDatabase from "./pages/employer/ResumeDatabase";
 import HiringAutomation from "./pages/employer/HiringAutomation";
 import EmployerDashboard from "./pages/employer/Dashboards";
 import ReviewSharePage from "./pages/employer/ReviewSharePage";
+import PublicProfileByShareId from "./pages/candidates/PublicProfileByShareId";
 import Premium3D from "./components/Premium3D";
 import { AuthProvider, useAuth } from "./AuthContext";
 import ScrollToTop from "./components/ScrollToTop";
@@ -101,6 +102,7 @@ function AppContent() {
         <Route path="/hiring-automation" element={<HiringAutomation />} />
         <Route path="/employer-dashboard" element={<EmployerDashboard />} />
         <Route path="/review/:reviewId" element={<ReviewSharePage />} />
+        <Route path="/in/:shareId" element={<PublicProfileByShareId />} />
       </Routes>
 
       <DailyQuizNotification

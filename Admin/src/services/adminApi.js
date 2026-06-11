@@ -125,7 +125,7 @@ async function request(
       }
     }
 
-    if (auth && [401, 403].includes(response.status)) {
+    if (auth && response.status === 401) {
       clearStoredSession();
     }
 

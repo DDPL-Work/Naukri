@@ -152,7 +152,7 @@ const ensureCrmSetup = async () => {
       Package.findOneAndUpdate(
         { name: pkg.name },
         { $setOnInsert: pkg },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
       ),
     ),
   );
@@ -1371,7 +1371,7 @@ exports.upsertPackage = asyncHandler(async (req, res) => {
       jobLimit: nextJobLimit,
       description: req.body.description?.trim() || "",
     },
-    { new: true, upsert: true, runValidators: true },
+    { returnDocument: "after", upsert: true, runValidators: true },
   );
 
   const impactedCompanies = await Company.find({ packageType: name });

@@ -21,6 +21,7 @@ const TYPE_OPTIONS = [
 ];
 
 export default function NonVisitDays() {
+  const [success, setSuccess] = useState("");
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

@@ -13,6 +13,7 @@ import { JOBS, EXTENDED_JOBS } from "../../data/jobs";
 import authService from "../../services/authService";
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
 import "./JobDetailsPage.css";
+import Loading from "../../components/Loading";
 
 export default function JobDetailsPage() {
   const { id } = useParams();
@@ -175,12 +176,7 @@ export default function JobDetailsPage() {
 
   if (loading) {
     return (
-      <div className="jdp-root flex items-center justify-center" style={{ minHeight: '60vh' }}>
-        <div className="text-center p-20">
-          <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <h2 className="text-xl font-bold text-gray-700">Loading Job Details...</h2>
-        </div>
-      </div>
+      <Loading fullScreen={false} size={80} color="#002366" secondaryColor="#10b981" />
     );
   }
 

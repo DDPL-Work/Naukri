@@ -1,112 +1,162 @@
-// index.js
-require("dotenv").config();
+const dotenv = require("dotenv");
+const dotenvExpand = require("dotenv-expand");
+
+const envResult = dotenv.config();
+if (envResult.parsed) {
+  dotenvExpand.expand(envResult);
+}
 
 const http = require("http");
 const mongoose = require("mongoose");
-const helmet = require("helmet");
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
+const expressTimeoutHandler = require("express-timeout-handler");
 
 const app = require("./src/app");
 const connectDB = require("./src/config/db");
 const { initChatSocket } = require("./src/realtime/chat.socket");
+const logger = require("./src/config/logger");
 
 const APP_NAME = process.env.APP_NAME || "Application";
 const APP_VERSION = process.env.APP_VERSION || "1.0.0";
 const NODE_ENV = process.env.NODE_ENV || "development";
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || "5050", 10);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-app.use(helmet());
+const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || "30000", 10);
 
-if (NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
+app.use(expressTimeoutHandler.set(REQUEST_TIMEOUT_MS));
+app.use(expressTimeoutHandler.handler({
+  timeout: REQUEST_TIMEOUT_MS,
+  onTimeout: (req, res, next) => {
+    logger.warn("Request timeout", {
+      method: req.method,
+      url: req.originalUrl,
+      ip: req.ip,
+    });
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
+    if (!res.headersSent) {
+      res.status(503).json({
+        success: false,
+        message: "Request timed out. Please try again.",
+      });
+    }
+  },
+}));
+
+app.use((req, res, next) => {
+  res.setTimeout(
+    parseInt(process.env.REQUEST_TIMEOUT_MS || "30000", 10),
+    () => {
+      logger.warn("Response timeout", {
+        method: req.method,
+        url: req.originalUrl,
+        ip: req.ip,
+      });
+    },
+  );
+  next();
 });
 
-app.use(limiter);
+const startServer = (desiredPort) => {
+  const server = http.createServer(app);
+  initChatSocket(server);
 
-const startServer = async () => {
-  let server;
+  const attemptListen = (port) => {
+    server.listen(port, () => {
+      const mongooseState = mongoose.connection.readyState;
 
-  const closeMongoConnection = async () => {
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.connection.close();
-      console.log("[server] MongoDB connection closed.");
-    }
-  };
-
-  const shutdown = (signal, error = null) => {
-    if (error) {
-      console.error(`[server] ${signal}:`, error);
-    } else {
-      console.log(`[server] ${signal} received. Shutting down gracefully...`);
-    }
-
-    const exitCode = error ? 1 : 0;
-
-    if (!server) {
-      closeMongoConnection()
-        .catch((closeError) => {
-          console.error("[server] Error while closing MongoDB connection:", closeError);
-        })
-        .finally(() => process.exit(exitCode));
-      return;
-    }
-
-    server.close(async () => {
-      try {
-        await closeMongoConnection();
-      } catch (closeError) {
-        console.error("[server] Error while closing MongoDB connection:", closeError);
-      } finally {
-        process.exit(exitCode);
-      }
-    });
-  };
-
-  try {
-    const dbConnection = await connectDB();
-
-    server = http.createServer(app);
-    initChatSocket(server);
-
-    server.listen(PORT, () => {
       console.log("\n==================================================");
       console.log(`${APP_NAME} Started Successfully`);
       console.log("==================================================");
       console.log(`Version       : v${APP_VERSION}`);
       console.log(`Environment   : ${NODE_ENV}`);
-      console.log(`Database Host : ${dbConnection.connection.host}`);
-      console.log("Database      : Connected Successfully");
-      console.log(`Base URL      : ${BASE_URL}`);
-      console.log(`API Base      : ${BASE_URL}/api/v${APP_VERSION}`);
+      console.log(`Port          : ${server.address().port}`);
+      console.log(
+        `Database Host : ${mongoose.connection.host || "connecting..."}`,
+      );
+      console.log(
+        `Database      : ${mongooseState === 1 ? "Connected Successfully" : "Connecting..."}`,
+      );
+      console.log(`Base URL      : ${BASE_URL.replace(/:5\d{3}/, `:${server.address().port}`)}`);
+      console.log(`API Base      : ${BASE_URL.replace(/:5\d{3}/, `:${server.address().port}`)}/api/v${APP_VERSION}`);
       console.log("==================================================\n");
     });
 
-    process.on("unhandledRejection", (err) => {
-      shutdown("Unhandled Rejection", err);
+    server.on("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        logger.warn(`Port ${port} is in use, attempting next port...`);
+        server.close();
+        attemptListen(port + 1);
+      } else {
+        logger.error("Server error", { error });
+        process.exit(1);
+      }
     });
+  };
 
-    process.on("uncaughtException", (err) => {
-      shutdown("Uncaught Exception", err);
-    });
+  attemptListen(desiredPort);
 
-    process.on("SIGINT", () => {
-      shutdown("SIGINT");
-    });
-
-    process.on("SIGTERM", () => {
-      shutdown("SIGTERM");
-    });
-  } catch (error) {
-    console.error("[server] Failed to start server:", error);
+  process.on("unhandledRejection", (err) => {
+    logger.error("Unhandled Rejection", { error: err.message });
     process.exit(1);
-  }
+  });
+
+  process.on("uncaughtException", (err) => {
+    logger.error("Uncaught Exception", { error: err.message });
+    process.exit(1);
+  });
+
+  process.on("SIGINT", () => {
+    logger.info("SIGINT received. Shutting down gracefully...");
+    server.close(() => {
+      mongoose.disconnect().then(() => {
+        logger.info("MongoDB connection closed.");
+        process.exit(0);
+      });
+    });
+
+    setTimeout(() => {
+      logger.warn("Forcing shutdown after timeout...");
+      process.exit(1);
+    }, 10000);
+  });
+
+  process.on("SIGTERM", () => {
+    logger.info("SIGTERM received. Shutting down gracefully...");
+    server.close(() => {
+      mongoose.disconnect().then(() => {
+        logger.info("MongoDB connection closed.");
+        process.exit(0);
+      });
+    });
+
+    setTimeout(() => {
+      logger.warn("Forcing shutdown after timeout...");
+      process.exit(1);
+    }, 10000);
+  });
 };
 
-startServer();
+const shutdown = async (signal, error = null) => {
+  if (error) {
+    console.error(`[server] ${signal}:`, error);
+    logger.error(signal, { error: error.message, stack: error.stack });
+  } else {
+    console.log(`[server] ${signal} received. Shutting down...`);
+    logger.info(`${signal} received`);
+  }
+  process.exit(error ? 1 : 0);
+};
+
+process.on("exit", (code) => {
+  logger.info(`Process exiting with code: ${code}`);
+});
+
+connectDB()
+  .then(() => {
+    startServer(PORT);
+  })
+  .catch((error) => {
+    console.error("[server] Failed to connect to database:", error);
+    logger.error("Failed to start server", { error: error.message });
+    process.exit(1);
+  });

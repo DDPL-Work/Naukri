@@ -5,6 +5,7 @@ const User = require("../models/User");
 const Company = require("../models/Company");
 const ChatThread = require("../models/ChatThread");
 const chatController = require("../controllers/chat.controller");
+const ChatBotService = require("../services/openai/ChatBotService");
 
 const SOCKET_ROOM_PREFIX = "thread:";
 
@@ -144,6 +145,43 @@ const initChatSocket = (server) => {
         ack({ ok: true, threadId: String(thread._id), message: formattedMessage, thread: formattedThread });
       } catch (error) {
         ack({ ok: false, message: error.message || "Unable to send message" });
+      }
+    });
+
+    // Chatbot via OpenAI (per-user threads)
+    socket.on("chatbot:message", async (payload = {}, ack = () => {}) => {
+      try {
+        const threadId = payload?.threadId ? String(payload.threadId).trim() : "";
+        const text = String(payload?.text || "").trim();
+
+        if (!text) {
+          ack({ ok: false, message: "Message text is required" });
+          return;
+        }
+
+        if (!currentUser) {
+          ack({ ok: false, message: "Unauthorized" });
+          return;
+        }
+
+        const userForBot = {
+          id: String(currentUser._id || currentUser.id),
+          role: currentUser.role || "CLIENT",
+          language: currentUser.language || "en",
+        };
+
+        const result = await ChatBotService.sendMessage({
+          threadId,
+          user: userForBot,
+          userRole: userForBot.role,
+          text,
+        });
+
+        // Send result back to the same socket. (If you later want shared rooms, we can emit by threadId.)
+        socket.emit("chatbot:message", result);
+        ack({ ok: true, ...result });
+      } catch (error) {
+        ack({ ok: false, message: error.message || "Unable to send chatbot message" });
       }
     });
 

@@ -93,8 +93,8 @@ http.interceptors.response.use(
       }
     }
 
-    if ([401, 403].includes(error.response?.status)) {
-      clearStoredCompanySession();
+    if (error.response?.status === 401) {
+      clearStoredCrmSession();
     }
 
     return Promise.reject(error);

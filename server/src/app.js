@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 
 const errorMiddleware = require("./middleware/error.middleware");
 
@@ -22,40 +23,60 @@ const companyPanelRoutes = require("./routes/company-panel.routes");
 
 const app = express();
 
-// Basic Middlewares
 const allowedOrigins = String(process.env.CLIENT_ORIGINS || process.env.CLIENT_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-app.use(helmet());
 app.use(
-  cors({
-    origin(origin, callback) {
-      const allowLocalFallback =
-        process.env.NODE_ENV !== "production" && allowedOrigins.length === 0;
-
-      if (!origin || allowedOrigins.includes(origin) || allowLocalFallback) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error("Origin is not allowed by CORS"));
-    },
-    credentials: true,
+  helmet({
+    crossOriginResourcePolicy: false,
+    crossOriginEmbedderPolicy: false,
   }),
 );
+
+const corsOptions = {
+  origin(origin, callback) {
+    const allowLocalFallback =
+      process.env.NODE_ENV !== "production" && allowedOrigins.length === 0;
+
+    if (!origin || allowedOrigins.includes(origin) || allowLocalFallback) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("Origin is not allowed by CORS"));
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.use(compression());
 app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
-// -----------------------------
-// API Versioning
-// -----------------------------
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  const ip = req.ip || req.connection.remoteAddress;
+  const referrer = req.get("referrer") || req.get("referer") || "direct";
+
+  console.log(
+    `REQUEST ${timestamp} [${ip}] ${req.method} ${req.originalUrl} ${referrer}`,
+  );
+
+  next();
+});
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  next();
+});
+
 const API_VERSION = process.env.APP_VERSION || "1";
-
-// Example: /api/v1/auth
 const BASE_ROUTE = `/api/v${API_VERSION}`;
 
-// Routes
 app.use(`${BASE_ROUTE}/auth`, authRoutes);
 app.use(`${BASE_ROUTE}/company`, companyRoutes);
 app.use(`${BASE_ROUTE}/job`, jobRoutes);
@@ -72,7 +93,6 @@ app.use(`${BASE_ROUTE}/candidate`, candidateRoutes);
 app.use(`${BASE_ROUTE}/national-sales-head`, nshRoutes);
 app.use(`${BASE_ROUTE}/company-panel`, companyPanelRoutes);
 
-// Health Route
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -82,7 +102,13 @@ app.get("/", (req, res) => {
   });
 });
 
-// Error Handler (must be last)
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
+
 app.use(errorMiddleware);
 
 module.exports = app;
