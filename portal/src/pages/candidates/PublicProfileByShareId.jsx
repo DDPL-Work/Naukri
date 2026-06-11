@@ -6,190 +6,192 @@ import authService from "../../services/authService";
 import Loading from "../../components/Loading";
 
 import {
-  FiMapPin, FiMail, FiPhone, FiBriefcase, FiCheckCircle, FiArrowRight,
-  FiEye, FiCalendar, FiGlobe, FiDownload, FiExternalLink, FiBookOpen,
-  FiCode, FiAward, FiClock, FiUserPlus, FiSend, FiCopy, FiLinkedin, FiStar
+  FiMapPin, FiMail, FiPhone, FiBriefcase, FiCheckCircle,
+  FiArrowRight, FiEye, FiCalendar, FiGlobe, FiDownload,
+  FiExternalLink, FiBookOpen, FiCode, FiAward, FiClock,
+  FiUserPlus, FiSend, FiCopy, FiStar, FiZap,
 } from "react-icons/fi";
 import { FaLinkedinIn, FaGraduationCap, FaBriefcase } from "react-icons/fa";
 import mavenLogo from "../../../assets/maven-logo-BdiSsfJk.svg";
-
 import "./PublicProfileByShareId.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const safeUrl = (value) => {
-  const url = String(value || "").trim();
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return "";
+/* ── helpers ── */
+const safeUrl = (v) => {
+  const u = String(v || "").trim();
+  return (u.startsWith("http://") || u.startsWith("https://")) ? u : "";
 };
 
-const getInitials = (name) => {
-  return String(name || "C")
-    .trim().split(/\s+/).slice(0, 2)
+const getInitials = (name) =>
+  String(name || "C").trim().split(/\s+/).slice(0, 2)
     .map((p) => p[0]).join("").toUpperCase();
-};
 
-function AnimatedCounter({ value, suffix = "", duration = 1.2 }) {
+/* ── Animated counter ── */
+function Counter({ value, suffix = "", duration = 1.2 }) {
   const ref = useRef(null);
-  const [displayed, setDisplayed] = useState("0");
-  const hasAnimated = useRef(false);
+  const [disp, setDisp] = useState("0");
+  const animated = useRef(false);
 
   useEffect(() => {
     const num = parseInt(value, 10);
-    if (isNaN(num)) { setDisplayed(value); return; }
-
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !hasAnimated.current) {
-        hasAnimated.current = true;
-        const obj = { val: 0 };
-        gsap.to(obj, {
-          val: num,
-          duration,
-          ease: "power3.out",
-          onUpdate: () => setDisplayed(Math.round(obj.val).toString()),
-          onComplete: () => setDisplayed(num.toString()),
+    if (isNaN(num)) { setDisp(String(value)); return; }
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !animated.current) {
+        animated.current = true;
+        const o = { v: 0 };
+        gsap.to(o, {
+          v: num, duration, ease: "power3.out",
+          onUpdate: () => setDisp(Math.round(o.v).toString()),
+          onComplete: () => setDisp(num.toString()),
         });
-        observer.disconnect();
+        obs.disconnect();
       }
     }, { threshold: 0.5 });
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
   }, [value, duration]);
 
-  return <span ref={ref}>{displayed}{suffix}</span>;
+  return <span ref={ref}>{disp}{suffix}</span>;
 }
 
-function SkillBar({ name, index }) {
-  const barRef = useRef(null);
-  useEffect(() => {
-    gsap.fromTo(barRef.current,
-      { scaleX: 0, transformOrigin: "left center" },
-      { scaleX: 1, duration: 0.6, delay: index * 0.04, ease: "power2.out" }
-    );
-  }, [index]);
-
+/* ── Section wrapper ── */
+function Section({ title, icon, children, empty = false, addRef }) {
+  if (empty) return null;
   return (
-    <span className="pp-skill-pill" ref={barRef}>
-      {name}
-    </span>
+    <div className="pp-section" ref={addRef}>
+      <div className="pp-section__hd">
+        {icon && <span className="pp-section__icon">{icon}</span>}
+        <h2 className="pp-section__title">{title}</h2>
+        <div className="pp-section__line" />
+      </div>
+      {children}
+    </div>
   );
 }
 
+/* ══════════════════════════════════════════
+   MAIN COMPONENT
+══════════════════════════════════════════ */
 export default function PublicProfileByShareId() {
   const { shareId } = useParams();
   const navigate = useNavigate();
+
   const rootRef = useRef(null);
   const navRef = useRef(null);
   const heroRef = useRef(null);
-  const contentRef = useRef(null);
   const sectionsRef = useRef([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
-  const [copySuccess, setCopySuccess] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const isValidShareId = useMemo(() => (
-    typeof shareId === "string" && shareId.trim().length > 0
-  ), [shareId]);
+  const isValidId = useMemo(() =>
+    typeof shareId === "string" && shareId.trim().length > 0,
+    [shareId]);
 
+  /* ── Fetch ── */
   useEffect(() => {
     let active = true;
-    const load = async () => {
+    (async () => {
       setIsLoading(true); setError(""); setProfile(null);
       try {
-        if (!isValidShareId) { setError("Invalid share link."); return; }
+        if (!isValidId) { setError("Invalid share link."); return; }
         const res = await authService.getPublicCandidateProfileByShareId(shareId);
         if (!active) return;
-        const publicProfile = res?.data?.profile;
-        if (!publicProfile) { setError("Profile not found or unavailable."); return; }
-        setProfile(publicProfile);
+        const p = res?.data?.profile;
+        if (!p) { setError("Profile not found or unavailable."); return; }
+        setProfile(p);
         setLoaded(true);
       } catch (e) {
         if (!active) return;
-        setError(e?.statusCode === 404 ? "Profile not found or unavailable." : "Failed to load profile.");
+        setError(e?.statusCode === 404
+          ? "Profile not found or unavailable."
+          : "Failed to load profile.");
       } finally { if (active) setIsLoading(false); }
-    };
-    load();
+    })();
     return () => { active = false; };
-  }, [shareId, isValidShareId]);
+  }, [shareId, isValidId]);
 
+  /* ── GSAP entrance ── */
   useEffect(() => {
     if (!loaded || !profile) return;
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-
-    tl.fromTo(navRef.current,
-      { y: -40, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.4 }
-    ).fromTo(heroRef.current,
-      { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.5 }, "-=0.1"
-    ).fromTo(heroRef.current.querySelectorAll(".pp-anim-hero > *"),
-      { y: 20, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.4, stagger: 0.08 }, "-=0.2"
-    );
-
-    const sections = sectionsRef.current.filter(Boolean);
-    sections.forEach((el) => {
-      gsap.fromTo(el,
+      tl.fromTo(navRef.current,
+        { y: -30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.45 }
+      ).fromTo(heroRef.current,
         { y: 40, opacity: 0 },
-        {
-          y: 0, opacity: 1, duration: 0.5, ease: "power2.out",
-          scrollTrigger: { trigger: el, start: "top 88%", toggleActions: "play none none reverse" }
-        }
+        { y: 0, opacity: 1, duration: 0.55 }, "-=0.15"
+      ).fromTo(heroRef.current.querySelectorAll(".pp-anim > *"),
+        { y: 18, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.45, stagger: 0.07 }, "-=0.25"
       );
-    });
 
-    const statEls = heroRef.current?.querySelectorAll(".pp-stat");
-    if (statEls?.length) {
-      gsap.fromTo(statEls,
-        { scale: 0.8, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.4, stagger: 0.1, ease: "back.out(1.7)" }
+      sectionsRef.current.filter(Boolean).forEach((el) => {
+        gsap.fromTo(el,
+          { y: 36, opacity: 0 },
+          {
+            y: 0, opacity: 1, duration: 0.5, ease: "power2.out",
+            scrollTrigger: { trigger: el, start: "top 88%", toggleActions: "play none none reverse" },
+          }
+        );
+      });
+
+      gsap.fromTo(heroRef.current?.querySelectorAll(".pp-stat"),
+        { scale: 0.75, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.45, stagger: 0.09, ease: "back.out(1.8)", delay: 0.4 }
       );
-    }
+    }, rootRef);
 
+    return () => ctx.revert();
   }, [loaded, profile]);
 
-  const addSectionRef = useCallback((el) => {
-    if (el && !sectionsRef.current.includes(el)) {
-      sectionsRef.current.push(el);
-    }
+  const addRef = useCallback((el) => {
+    if (el && !sectionsRef.current.includes(el)) sectionsRef.current.push(el);
   }, []);
 
-  const handleCopyLink = () => {
+  const handleCopy = () => {
     navigator.clipboard.writeText(window.location.href);
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 2000);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2200);
   };
 
+  /* ── Loading ── */
   if (isLoading) {
     return (
       <div className="pp-root" ref={rootRef}>
         <div className="pp-center">
-          <Loading size={48} />
+          <Loading variant="spinner" fullScreen={false} />
         </div>
       </div>
     );
   }
 
+  /* ── Error ── */
   if (error) {
     return (
       <div className="pp-root" ref={rootRef}>
-        <div className="pp-container">
-          <nav className="pp-nav" ref={navRef}>
-            <div className="pp-nav-inner">
-              <img src={mavenLogo} alt="MavenJobs" className="pp-nav-logo" />
+        <nav className="pp-nav" ref={navRef}>
+          <div className="pp-nav__inner">
+            <div className="pp-nav__brand">
+              <img src={mavenLogo} alt="MavenJobs" className="pp-nav__logo" />
             </div>
-          </nav>
-          <div className="pp-error-card">
-            <div className="pp-error-code">404</div>
-            <div className="pp-error-title">{error}</div>
-            <div className="pp-error-sub">The link may be invalid or the profile is no longer available.</div>
-            <button className="pp-btn pp-btn-primary" onClick={() => navigate("/")}>
-              Browse Jobs <FiArrowRight size={16} />
+          </div>
+        </nav>
+        <div className="pp-container">
+          <div className="pp-error">
+            <div className="pp-error__code">404</div>
+            <div className="pp-error__title">{error}</div>
+            <div className="pp-error__sub">
+              The link may be invalid or the profile is no longer available.
+            </div>
+            <button className="pp-btn pp-btn--primary" onClick={() => navigate("/")}>
+              Browse Jobs <FiArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -199,13 +201,14 @@ export default function PublicProfileByShareId() {
 
   if (!profile) return null;
 
+  /* ── Data extraction ── */
   const name = profile?.user?.name || "Candidate";
   const initials = getInitials(name);
   const headline = profile?.headline || "";
-  const location = [profile?.currentCity, profile?.currentState].filter(Boolean).join(", ") || "";
+  const location = [profile?.currentCity, profile?.currentState].filter(Boolean).join(", ");
   const phone = profile?.phone || profile?.altPhone || "";
   const email = profile?.user?.email || "";
-  const totalExperience = profile?.totalExperience || "";
+  const totalExp = profile?.totalExperience || "";
   const currentTitle = profile?.currentTitle || "";
   const currentCompany = profile?.currentCompany || "";
   const skills = Array.isArray(profile?.skills) ? profile.skills : [];
@@ -219,52 +222,43 @@ export default function PublicProfileByShareId() {
   const itSkills = profile?.itSkills || "";
   const projectTitle = profile?.projectTitle || "";
   const projectLink = safeUrl(profile?.projectLink);
-  const projectDescription = profile?.projectDescription || "";
-  const preferredLocations = Array.isArray(profile?.preferredLocations) ? profile.preferredLocations : [];
+  const projectDesc = profile?.projectDescription || "";
+  const preferredLocs = Array.isArray(profile?.preferredLocations) ? profile.preferredLocations : [];
   const noticePeriod = profile?.noticePeriod || "";
   const expectedSalary = profile?.expectedSalary || "";
   const updatedAt = profile?.lastUpdated || profile?.updatedAt || "";
+  const expNum = totalExp ? parseInt(totalExp, 10) : 0;
 
-  const sections = {
-    hasSummary: summary.length > 0,
-    hasExperience: !!(currentTitle || currentCompany || totalExperience),
-    hasEducation: education.length > 0,
-    hasSkills: skills.length > 0,
-    hasItSkills: itSkills.length > 0,
-    hasProjects: !!(projectTitle || projectDescription),
-    hasAdditional: !!(preferredLocations.length || noticePeriod || expectedSalary),
+  const has = {
+    summary: summary.length > 0,
+    experience: !!(currentTitle || currentCompany || totalExp),
+    education: education.length > 0,
+    skills: skills.length > 0,
+    itSkills: itSkills.length > 0,
+    projects: !!(projectTitle || projectDesc),
+    additional: !!(preferredLocs.length || noticePeriod || expectedSalary),
+    links: !!(linkedInUrl || portfolioUrl || resumeUrl),
+    contact: !!(email || phone),
   };
-
-  const Section = ({ title, icon, children, empty = false }) => {
-    if (empty) return null;
-    return (
-      <div className="pp-section" ref={addSectionRef}>
-        <div className="pp-section-header">
-          {icon && <span className="pp-section-icon">{icon}</span>}
-          <h2 className="pp-section-title">{title}</h2>
-          <div className="pp-section-line" />
-        </div>
-        <div className="pp-section-body">{children}</div>
-      </div>
-    );
-  };
-
-  const extNum = totalExperience ? parseInt(totalExperience, 10) : 0;
 
   return (
     <div className="pp-root" ref={rootRef}>
+
+      {/* ── NAV ── */}
       <nav className="pp-nav" ref={navRef}>
-        <div className="pp-nav-inner">
-          <div className="pp-nav-brand">
-            <img src={mavenLogo} alt="MavenJobs" className="pp-nav-logo" />
-            <span className="pp-nav-divider" />
-            <span className="pp-nav-tag">Candidate Profile</span>
+        <div className="pp-nav__inner">
+          <div className="pp-nav__brand">
+            <img src={mavenLogo} alt="MavenJobs" className="pp-nav__logo" />
+            <span className="pp-nav__divider" />
+            <span className="pp-nav__tag">Candidate Profile</span>
           </div>
-          <div className="pp-nav-actions">
-            <button className="pp-btn pp-btn-ghost" onClick={handleCopyLink}>
-              {copySuccess ? <><FiCheckCircle size={15} /> Copied</> : <><FiCopy size={15} /> Copy Link</>}
+          <div className="pp-nav__actions">
+            <button className="pp-btn pp-btn--ghost pp-btn--sm" onClick={handleCopy}>
+              {copied
+                ? <><FiCheckCircle size={14} /> Copied!</>
+                : <><FiCopy size={14} /> Share</>}
             </button>
-            <button className="pp-btn pp-btn-outline" onClick={() => navigate("/jobs")}>
+            <button className="pp-btn pp-btn--outline pp-btn--sm" onClick={() => navigate("/jobs")}>
               Browse Jobs
             </button>
           </div>
@@ -272,118 +266,152 @@ export default function PublicProfileByShareId() {
       </nav>
 
       <div className="pp-container">
+
+        {/* ── HERO ── */}
         <div className="pp-hero" ref={heroRef}>
+
+          {/* Cover */}
           <div
             className="pp-cover"
             style={{
               background: coverPicUrl
                 ? `url(${coverPicUrl}) center/cover no-repeat`
-                : "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)"
+                : "linear-gradient(135deg, #0a244d 0%, #143f86 50%, #1d55b3 80%, #2ea9c4 100%)",
             }}
           >
-            <div className="pp-cover-overlay" />
-            <div className="pp-cover-shine" />
+            <div className="pp-cover__overlay" />
+            <div className="pp-cover__grid" />
+            <div className="pp-cover__shine" />
           </div>
 
-          <div className="pp-hero-content pp-anim-hero">
-            <div className="pp-hero-main">
-              <div className="pp-avatar-section">
+          {/* Body */}
+          <div className="pp-hero__body">
+            <div className="pp-hero__top pp-anim">
+
+              {/* Avatar */}
+              <div className="pp-avatar-wrap">
                 <div className="pp-avatar-ring">
-                  {profilePicUrl ? (
-                    <img src={profilePicUrl} alt={name} className="pp-avatar" />
-                  ) : (
-                    <div className="pp-avatar pp-avatar-initials">{initials}</div>
-                  )}
+                  {profilePicUrl
+                    ? <img src={profilePicUrl} alt={name} className="pp-avatar" />
+                    : <div className="pp-avatar pp-avatar--initials">{initials}</div>
+                  }
                 </div>
-                <div className="pp-avatar-badge">
-                  <FiCheckCircle size={16} />
+                <div className="pp-avatar__badge">
+                  <FiCheckCircle size={15} />
                 </div>
               </div>
 
-              <div className="pp-hero-info">
-                <h1 className="pp-name">{name}</h1>
-                {headline && <div className="pp-headline">{headline}</div>}
-                <div className="pp-hero-meta">
+              {/* Info */}
+              <div className="pp-hero__info">
+                <h1 className="pp-hero__name">{name}</h1>
+                {headline && <p className="pp-hero__headline">{headline}</p>}
+                <div className="pp-hero__meta">
                   {location && (
-                    <span className="pp-meta-item"><FiMapPin size={13} /> {location}</span>
+                    <span className="pp-meta-item">
+                      <FiMapPin size={13} /> {location}
+                    </span>
                   )}
-                  {totalExperience && (
-                    <span className="pp-meta-item"><FiBriefcase size={13} /> {totalExperience}</span>
+                  {totalExp && (
+                    <span className="pp-meta-item">
+                      <FiBriefcase size={13} /> {totalExp}
+                    </span>
                   )}
                   {updatedAt && (
-                    <span className="pp-meta-item"><FiClock size={13} /> Updated {updatedAt}</span>
+                    <span className="pp-meta-item">
+                      <FiClock size={13} /> Updated {updatedAt}
+                    </span>
                   )}
+                  <span className="pp-verified-badge">
+                    <FiCheckCircle size={12} /> Verified Profile
+                  </span>
                 </div>
               </div>
             </div>
 
-            <div className="pp-hero-stats">
+            {/* Stats */}
+            <div className="pp-hero__stats pp-anim">
               <div className="pp-stat">
-                <span className="pp-stat-value">
-                  {totalExperience ? <AnimatedCounter value={extNum} suffix="+" /> : "—"}
+                <span className="pp-stat__val">
+                  {totalExp ? <Counter value={expNum} suffix="+" /> : "—"}
                 </span>
-                <span className="pp-stat-label">Years Exp.</span>
+                <span className="pp-stat__label">Years Exp.</span>
               </div>
               <div className="pp-stat">
-                <span className="pp-stat-value">
-                  <AnimatedCounter value={skills.length} />
+                <span className="pp-stat__val">
+                  <Counter value={skills.length} />
                 </span>
-                <span className="pp-stat-label">Skills</span>
+                <span className="pp-stat__label">Skills</span>
               </div>
               <div className="pp-stat">
-                <span className="pp-stat-value">
-                  <AnimatedCounter value={education ? 1 : 0} />
+                <span className="pp-stat__val">
+                  <Counter value={education ? 1 : 0} />
                 </span>
-                <span className="pp-stat-label">Education</span>
+                <span className="pp-stat__label">Education</span>
               </div>
               <div className="pp-stat">
-                <span className="pp-stat-value">
-                  <FiStar size={16} className="pp-stat-star" />
+                <span className="pp-stat__val pp-stat__star">
+                  <FiStar size={20} />
                 </span>
-                <span className="pp-stat-label">Verified</span>
+                <span className="pp-stat__label">Verified</span>
               </div>
             </div>
 
-            <div className="pp-hero-actions">
+            {/* Actions */}
+            <div className="pp-hero__actions pp-anim">
               {email && (
-                <a href={`mailto:${email}`} className="pp-btn pp-btn-primary">
-                  <FiSend size={14} /> Email
+                <a href={`mailto:${email}`} className="pp-btn pp-btn--primary">
+                  <FiSend size={14} /> Email Candidate
                 </a>
               )}
               {phone && (
-                <a href={`tel:${phone}`} className="pp-btn pp-btn-outline">
+                <a href={`tel:${phone}`} className="pp-btn pp-btn--outline">
                   <FiPhone size={14} /> Call
                 </a>
               )}
               {resumeUrl && (
-                <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="pp-btn pp-btn-outline">
+                <a href={resumeUrl} target="_blank" rel="noopener noreferrer"
+                  className="pp-btn pp-btn--outline">
                   <FiDownload size={14} /> Resume
+                </a>
+              )}
+              {linkedInUrl && (
+                <a href={linkedInUrl} target="_blank" rel="noopener noreferrer"
+                  className="pp-btn pp-btn--outline">
+                  <FaLinkedinIn size={13} /> LinkedIn
                 </a>
               )}
             </div>
           </div>
         </div>
 
-        <div className="pp-layout" ref={contentRef}>
-          <div className="pp-main-content">
-            <Section title="About" icon={<FiEye size={15} />} empty={!sections.hasSummary}>
-              <p className="pp-summary-text">{summary}</p>
+        {/* ── LAYOUT ── */}
+        <div className="pp-layout">
+
+          {/* Main */}
+          <div className="pp-main">
+
+            <Section title="About" icon={<FiEye size={15} />}
+              empty={!has.summary} addRef={addRef}>
+              <p className="pp-summary">{summary}</p>
             </Section>
 
-            <Section title="Experience" icon={<FaBriefcase size={15} />} empty={!sections.hasExperience}>
+            <Section title="Experience" icon={<FaBriefcase size={15} />}
+              empty={!has.experience} addRef={addRef}>
               <div className="pp-timeline">
-                <div className="pp-timeline-dot" />
+                <div className="pp-timeline__dot" />
+                <div className="pp-timeline__line" />
                 <div className="pp-exp-card">
-                  <div className="pp-exp-icon-wrap">
-                    <FaBriefcase size={18} />
+                  <div className="pp-exp-icon pp-exp-icon--work">
+                    <FaBriefcase size={19} />
                   </div>
                   <div className="pp-exp-body">
                     <h3 className="pp-exp-title">{currentTitle || "Professional"}</h3>
-                    {currentCompany && <div className="pp-exp-company">{currentCompany}</div>}
-                    {totalExperience && (
+                    {currentCompany && (
+                      <div className="pp-exp-company">{currentCompany}</div>
+                    )}
+                    {totalExp && (
                       <div className="pp-exp-period">
-                        <FiCalendar size={12} />
-                        <span>{totalExperience} total experience</span>
+                        <FiCalendar size={11} /> {totalExp} total experience
                       </div>
                     )}
                   </div>
@@ -391,12 +419,13 @@ export default function PublicProfileByShareId() {
               </div>
             </Section>
 
-            <Section title="Education" icon={<FaGraduationCap size={15} />} empty={!sections.hasEducation}>
+            <Section title="Education" icon={<FaGraduationCap size={15} />}
+              empty={!has.education} addRef={addRef}>
               <div className="pp-timeline">
-                <div className="pp-timeline-dot" />
+                <div className="pp-timeline__dot" />
                 <div className="pp-exp-card">
-                  <div className="pp-exp-icon-wrap pp-edu-icon-wrap">
-                    <FaGraduationCap size={18} />
+                  <div className="pp-exp-icon pp-exp-icon--edu">
+                    <FaGraduationCap size={19} />
                   </div>
                   <div className="pp-exp-body">
                     <h3 className="pp-exp-title">{education}</h3>
@@ -405,131 +434,182 @@ export default function PublicProfileByShareId() {
               </div>
             </Section>
 
-            <Section title="Skills" icon={<FiAward size={15} />} empty={!sections.hasSkills}>
-              <div className="pp-skills-grid">
+            <Section title="Skills" icon={<FiAward size={15} />}
+              empty={!has.skills} addRef={addRef}>
+              <div className="pp-skills-wrap">
                 {skills.map((s, i) => (
-                  <SkillBar key={String(s)} name={s} index={i} />
+                  <span
+                    key={String(s) + i}
+                    className="pp-skill-pill"
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    {s}
+                  </span>
                 ))}
               </div>
             </Section>
 
-            <Section title="IT Skills" icon={<FiCode size={15} />} empty={!sections.hasItSkills}>
-              <div className="pp-it-skills">
-                <p className="pp-it-skills-text">{itSkills}</p>
-              </div>
+            <Section title="IT Skills" icon={<FiCode size={15} />}
+              empty={!has.itSkills} addRef={addRef}>
+              <div className="pp-it-skills">{itSkills}</div>
             </Section>
 
-            <Section title="Projects" icon={<FiBookOpen size={15} />} empty={!sections.hasProjects}>
-              <div className="pp-project-card">
-                {projectTitle && <h3 className="pp-project-title">{projectTitle}</h3>}
-                {projectDescription && <p className="pp-project-desc">{projectDescription}</p>}
+            <Section title="Projects" icon={<FiBookOpen size={15} />}
+              empty={!has.projects} addRef={addRef}>
+              <div className="pp-project">
+                {projectTitle && (
+                  <h3 className="pp-project__title">{projectTitle}</h3>
+                )}
+                {projectDesc && (
+                  <p className="pp-project__desc">{projectDesc}</p>
+                )}
                 {projectLink && (
-                  <a href={projectLink} target="_blank" rel="noopener noreferrer" className="pp-project-link">
+                  <a href={projectLink} target="_blank" rel="noopener noreferrer"
+                    className="pp-project__link">
                     <FiExternalLink size={13} /> View Project
                   </a>
                 )}
               </div>
             </Section>
 
-            <Section title="Additional Information" icon={<FiGlobe size={15} />} empty={!sections.hasAdditional}>
-              <div className="pp-additional-grid">
-                {preferredLocations.length > 0 && (
-                  <div className="pp-additional-item">
-                    <span className="pp-additional-label">Preferred Locations</span>
-                    <span className="pp-additional-value">{preferredLocations.join(", ")}</span>
+            <Section title="Additional Information" icon={<FiGlobe size={15} />}
+              empty={!has.additional} addRef={addRef}>
+              <div className="pp-add-grid">
+                {preferredLocs.length > 0 && (
+                  <div className="pp-add-row">
+                    <span className="pp-add-label">Preferred Locations</span>
+                    <span className="pp-add-value">{preferredLocs.join(", ")}</span>
                   </div>
                 )}
                 {noticePeriod && (
-                  <div className="pp-additional-item">
-                    <span className="pp-additional-label">Notice Period</span>
-                    <span className="pp-additional-value">{noticePeriod}</span>
+                  <div className="pp-add-row">
+                    <span className="pp-add-label">Notice Period</span>
+                    <span className="pp-add-value">{noticePeriod}</span>
                   </div>
                 )}
                 {expectedSalary && (
-                  <div className="pp-additional-item">
-                    <span className="pp-additional-label">Expected Salary</span>
-                    <span className="pp-additional-value">{expectedSalary}</span>
+                  <div className="pp-add-row">
+                    <span className="pp-add-label">Expected Salary</span>
+                    <span className="pp-add-value">{expectedSalary}</span>
                   </div>
                 )}
               </div>
             </Section>
+
           </div>
 
+          {/* Sidebar */}
           <aside className="pp-sidebar">
-            <div className="pp-sidebar-card" ref={addSectionRef}>
-              <h3 className="pp-sidebar-card-title">Contact</h3>
-              <div className="pp-contact-list">
-                {email && (
-                  <a href={`mailto:${email}`} className="pp-contact-item">
-                    <div className="pp-contact-icon"><FiMail size={14} /></div>
-                    <span>{email}</span>
-                  </a>
-                )}
-                {phone && (
-                  <a href={`tel:${phone}`} className="pp-contact-item">
-                    <div className="pp-contact-icon"><FiPhone size={14} /></div>
-                    <span>{phone}</span>
-                  </a>
-                )}
-              </div>
-            </div>
 
-            <div className="pp-sidebar-card" ref={addSectionRef}>
-              <h3 className="pp-sidebar-card-title">Links</h3>
-              <div className="pp-links-list">
-                {linkedInUrl && (
-                  <a href={linkedInUrl} target="_blank" rel="noopener noreferrer" className="pp-link-item">
-                    <div className="pp-link-icon pp-link-icon-li"><FaLinkedinIn size={14} /></div>
-                    <span>LinkedIn</span>
-                    <FiExternalLink size={11} className="pp-link-ext" />
-                  </a>
-                )}
-                {portfolioUrl && (
-                  <a href={portfolioUrl} target="_blank" rel="noopener noreferrer" className="pp-link-item">
-                    <div className="pp-link-icon pp-link-icon-portfolio"><FiGlobe size={14} /></div>
-                    <span>Portfolio</span>
-                    <FiExternalLink size={11} className="pp-link-ext" />
-                  </a>
-                )}
-                {resumeUrl && (
-                  <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="pp-link-item">
-                    <div className="pp-link-icon pp-link-icon-resume"><FiDownload size={14} /></div>
-                    <span>Resume</span>
-                    <FiExternalLink size={11} className="pp-link-ext" />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {(currentTitle || currentCompany) && (
-              <div className="pp-sidebar-card pp-sidebar-card-highlight" ref={addSectionRef}>
-                <div className="pp-highlight-badge">Currently</div>
-                <div className="pp-highlight-title">{currentTitle || "Professional"}</div>
-                {currentCompany && <div className="pp-highlight-sub">at {currentCompany}</div>}
+            {/* Contact */}
+            {has.contact && (
+              <div className="pp-sidebar-card" ref={addRef}>
+                <p className="pp-sidebar-card__title">Contact</p>
+                <div className="pp-contact-list">
+                  {email && (
+                    <a href={`mailto:${email}`} className="pp-contact-row">
+                      <div className="pp-contact-icon"><FiMail size={14} /></div>
+                      <span>{email}</span>
+                    </a>
+                  )}
+                  {phone && (
+                    <a href={`tel:${phone}`} className="pp-contact-row">
+                      <div className="pp-contact-icon"><FiPhone size={14} /></div>
+                      <span>{phone}</span>
+                    </a>
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="pp-sidebar-card pp-sidebar-cta" ref={addSectionRef}>
-              <div className="pp-cta-glow" />
-              <h3 className="pp-sidebar-card-title">Looking to hire?</h3>
-              <p className="pp-sidebar-cta-text">
-                Connect with {name.split(" ")[0] || "this candidate"} for opportunities that match their profile.
+            {/* Links */}
+            {has.links && (
+              <div className="pp-sidebar-card" ref={addRef}>
+                <p className="pp-sidebar-card__title">Links</p>
+                <div className="pp-links-list">
+                  {linkedInUrl && (
+                    <a href={linkedInUrl} target="_blank" rel="noopener noreferrer"
+                      className="pp-link-row">
+                      <div className="pp-link-icon pp-link-icon--li">
+                        <FaLinkedinIn size={14} />
+                      </div>
+                      <span>LinkedIn</span>
+                      <FiExternalLink size={11} className="pp-link-ext" />
+                    </a>
+                  )}
+                  {portfolioUrl && (
+                    <a href={portfolioUrl} target="_blank" rel="noopener noreferrer"
+                      className="pp-link-row">
+                      <div className="pp-link-icon pp-link-icon--web">
+                        <FiGlobe size={14} />
+                      </div>
+                      <span>Portfolio</span>
+                      <FiExternalLink size={11} className="pp-link-ext" />
+                    </a>
+                  )}
+                  {resumeUrl && (
+                    <a href={resumeUrl} target="_blank" rel="noopener noreferrer"
+                      className="pp-link-row">
+                      <div className="pp-link-icon pp-link-icon--file">
+                        <FiDownload size={14} />
+                      </div>
+                      <span>Resume / CV</span>
+                      <FiExternalLink size={11} className="pp-link-ext" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Currently working */}
+            {(currentTitle || currentCompany) && (
+              <div className="pp-sidebar-card pp-currently-card" ref={addRef}>
+                <div className="pp-currently-badge">Currently</div>
+                <div className="pp-currently-title">
+                  {currentTitle || "Professional"}
+                </div>
+                {currentCompany && (
+                  <div className="pp-currently-sub">at {currentCompany}</div>
+                )}
+              </div>
+            )}
+
+            {/* CTA */}
+            <div className="pp-sidebar-card pp-cta-card" ref={addRef}>
+              <div className="pp-cta-card__orb" style={{
+                width: 140, height: 140, top: -40, right: -40,
+                background: "radial-gradient(circle, rgba(214,243,61,.18), transparent 70%)",
+              }} />
+              <div className="pp-cta-card__orb" style={{
+                width: 100, height: 100, bottom: -20, left: -20,
+                background: "radial-gradient(circle, rgba(46,169,196,.18), transparent 70%)",
+              }} />
+              <h3 className="pp-cta-card__title">Looking to hire?</h3>
+              <p className="pp-cta-card__sub">
+                Connect with {name.split(" ")[0] || "this candidate"} and unlock
+                high-quality talent on MavenJobs.
               </p>
-              <button className="pp-btn pp-btn-primary pp-btn-full" onClick={() => navigate("/employer-login")}>
-                <FiUserPlus size={14} /> Connect
+              <button
+                className="pp-btn pp-btn--lime pp-btn--full"
+                onClick={() => navigate("/employer-login")}
+              >
+                <FiUserPlus size={14} /> Connect Now
               </button>
             </div>
+
           </aside>
         </div>
 
+        {/* ── FOOTER ── */}
         <footer className="pp-footer">
-          <div className="pp-footer-inner">
-            <div className="pp-footer-dot" />
-            <img src={mavenLogo} alt="MavenJobs" className="pp-footer-logo" />
-            <span className="pp-footer-text">Powered by MavenJobs — Professional Candidate Profiles</span>
-            <div className="pp-footer-dot" />
-          </div>
+          <div className="pp-footer__dot" />
+          <img src={mavenLogo} alt="MavenJobs" className="pp-footer__logo" />
+          <span className="pp-footer__text">
+            Powered by MavenJobs — Professional Candidate Profiles
+          </span>
+          <div className="pp-footer__dot" />
         </footer>
+
       </div>
     </div>
   );
