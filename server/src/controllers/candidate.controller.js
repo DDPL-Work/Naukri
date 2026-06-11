@@ -503,7 +503,7 @@ const ensureCandidateProfile = async (user) => {
   }
 
   if (!profile.publicShareId) {
-    const deterministicPart = `in_${String(user._id).slice(-6)}`;
+    const deterministicPart = `mj_${String(user._id).slice(-6)}`;
     const randomPart =
       typeof crypto.randomUUID === "function"
         ? crypto.randomUUID().replace(/-/g, "").slice(0, 10)

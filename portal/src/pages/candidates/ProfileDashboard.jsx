@@ -192,8 +192,8 @@ export default function ProfileDashboard() {
   }, [user]);
 
   const shareUrl = publicShareId
-    ? `${window.location.origin}/in/${String(publicShareId).trim()}`
-    : `${window.location.origin}/in/`;
+    ? `${window.location.origin}/mj/${String(publicShareId).trim()}`
+    : `${window.location.origin}/mj/`;
 
   const [recommendedJobs, setRecommendedJobs] = useState({});
   const [candidateProfile, setCandidateProfile] = useState(null);
@@ -2341,102 +2341,115 @@ export default function ProfileDashboard() {
           border-color: #10b981;
         }
       `}</style>
-      {/* â”€â”€â”€ Share Profile Modal â”€â”€â”€ */}
+      {/* ─── Share Profile Modal ─── */}
       {showShareModal && (
-              <div className="cm-modal-overlay" style={{ backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }} onClick={() => setShowShareModal(false)}>
-          <div className="cm-modal-box" style={{ maxWidth: 540, padding: 0, borderRadius: 28, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }} onClick={e => e.stopPropagation()}>
-            <div className="cm-modal-header" style={{ borderBottom: 'none', padding: '32px 32px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="cm-modal-overlay" style={{ backdropFilter: 'blur(12px)', background: 'rgba(15, 23, 42, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }} onClick={() => setShowShareModal(false)}>
+          <div className="cm-modal-box" style={{ maxWidth: 520, width: '92%', padding: 0, borderRadius: 24, overflow: 'hidden', boxShadow: '0 32px 64px -16px rgba(0,0,0,0.3)', background: '#fff', animation: 'modalSlideUp 0.3s ease' }} onClick={e => e.stopPropagation()}>
 
-              <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', fontFamily: 'var(--fd)' }}>Share Profile</h3>
-              <button className="cm-modal-close" style={{ background: '#f1f5f9', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', border: 'none' }} onClick={() => setShowShareModal(false)}>
-                <FiX size={20} color="#64748b" />
+            <style>{`
+              @keyframes modalSlideUp { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+              @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+              @keyframes checkPop { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+            `}</style>
+
+            <div style={{ padding: '28px 28px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', fontFamily: 'var(--fd)' }}>Share Profile</h3>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#64748b', fontWeight: 500, fontFamily: 'var(--fd)' }}>Let recruiters discover you anywhere</p>
+              </div>
+              <button style={{ width: 38, height: 38, borderRadius: 12, border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', color: '#64748b' }}
+                onClick={() => setShowShareModal(false)}
+                onMouseEnter={e => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}>
+                <FiX size={18} />
               </button>
             </div>
 
-            <div className="cm-modal-body" style={{ padding: '0 32px 36px' }}>
-              <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '28px', fontWeight: 500 }}>Share your professional profile with your network or recruiters.</p>
-
-              {isGeneratingShareLink && (
-                <div style={{ marginBottom: 16, color: '#2563eb', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, background: '#2563eb', boxShadow: '0 0 0 6px rgba(37,99,235,0.1)' }} />
-                  Generating share link...
+            <div style={{ padding: '20px 28px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16, background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: 16, border: '1px solid #e2e8f0' }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 800, fontFamily: 'var(--fd)' }}>
+                  {user?.profilePicUrl || user?.profilePic ? (
+                    <img src={user?.profilePicUrl || user?.profilePic} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    (user?.name || "U").charAt(0).toUpperCase()
+                  )}
                 </div>
-              )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a', fontFamily: 'var(--fd)', marginBottom: 2 }}>{user?.name || "Your Name"}</div>
+                  <div style={{ fontSize: 13, color: '#64748b', fontWeight: 500, fontFamily: 'var(--fd)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.headline || "Professional Profile"}</div>
+                </div>
+                <div style={{ padding: '6px 14px', background: '#dbeafe', borderRadius: 20, fontSize: 12, fontWeight: 700, color: '#1d4ed8', fontFamily: 'var(--fd)', whiteSpace: 'nowrap' }}>
+                  {user?.profileCompletion || 0}% Complete
+                </div>
+              </div>
+            </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '36px' }}>
-                {[
-                  { name: 'WhatsApp', color: '#25D366', bg: '#ecfdf5', icon: <FaWhatsapp size={24} /> },
-                  { name: 'LinkedIn', color: '#0A66C2', bg: '#eef2ff', icon: <FaLinkedinIn size={22} /> },
-                  { name: 'X', color: '#000000', bg: '#f8fafc', icon: <FaXTwitter size={20} /> },
-                  { name: 'Facebook', color: '#1877F2', bg: '#eff6ff', icon: <FaFacebookF size={20} /> },
-                  { name: 'Email', color: '#EA4335', bg: '#fff1f2', icon: <FiMail size={22} /> }
-                ].map(social => (
-                  <div key={social.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', cursor: 'pointer', group: 'true' }}>
-                    <div style={{
-                      width: 60, height: 60, borderRadius: '20px', background: social.bg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: social.color, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      border: '1px solid transparent'
-                    }} onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'translateY(-5px) scale(1.05)';
-                      e.currentTarget.style.boxShadow = `0 12px 20px -8px ${social.color}40`;
-                      e.currentTarget.style.borderColor = `${social.color}20`;
+            {isGeneratingShareLink && (
+              <div style={{ margin: '16px 28px 0', padding: '12px 16px', background: '#eff6ff', borderRadius: 12, border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb', animation: 'pulse-dot 1.2s ease-in-out infinite' }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d4ed8', fontFamily: 'var(--fd)' }}>Creating your unique profile link...</span>
+              </div>
+            )}
+
+            <div style={{ padding: '24px 28px 0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--fd)' }}>Your unique MavenJobs link</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px 4px 16px', background: '#f8fafc', border: `2px solid ${linkCopied ? '#10b981' : '#e2e8f0'}`, borderRadius: 14, transition: 'all 0.3s ease' }}>
+                  <FiGlobe size={16} color="#94a3b8" style={{ flexShrink: 0 }} />
+                  <input type="text" readOnly
+                    value={isGeneratingShareLink ? "Generating link..." : (publicShareId ? shareUrl : "Generating link...")}
+                    style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px 4px', outline: 'none', color: '#0f172a', fontSize: 13, fontWeight: 600, fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace", minWidth: 0 }}
+                    onFocus={e => e.target.select()}
+                  />
+                  <button
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, fontFamily: 'var(--fd)', cursor: 'pointer', transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)', background: linkCopied ? '#10b981' : '#0f172a', color: '#fff', boxShadow: linkCopied ? '0 4px 12px rgba(16,185,129,0.25)' : '0 4px 12px rgba(15,23,42,0.2)', flexShrink: 0 }}
+                    onClick={() => {
+                      if (publicShareId) {
+                        navigator.clipboard.writeText(shareUrl);
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2500);
+                      }
                     }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.borderColor = 'transparent';
-                      }}>
+                    onMouseEnter={e => { if (!linkCopied) { e.currentTarget.style.background = '#1e293b'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                    onMouseLeave={e => { if (!linkCopied) { e.currentTarget.style.background = '#0f172a'; e.currentTarget.style.transform = 'translateY(0)'; } }}
+                  >
+                    {linkCopied ? <span style={{ display: 'flex', alignItems: 'center', gap: 6, animation: 'checkPop 0.3s ease' }}><FiCheckCircle size={15} style={{ animation: 'checkPop 0.3s ease' }} /> Copied</span> : <><FiCopy size={15} /> Copy Link</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', fontFamily: 'var(--fd)', letterSpacing: '0.03em' }}>SHARE ON</span>
+                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                {[
+                  { name: 'WhatsApp', color: '#25D366', bg: '#ecfdf5', hoverBg: '#d1fae5', icon: <FaWhatsapp size={22} />, url: `https://wa.me/?text=${encodeURIComponent(`Check out my professional profile: ${shareUrl}`)}` },
+                  { name: 'LinkedIn', color: '#0A66C2', bg: '#eef2ff', hoverBg: '#e0e7ff', icon: <FaLinkedinIn size={20} />, url: `https://linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
+                  { name: 'X', color: '#000000', bg: '#f1f5f9', hoverBg: '#e2e8f0', icon: <FaXTwitter size={18} />, url: `https://x.com/intent/tweet?text=${encodeURIComponent(`Check out my professional profile: ${shareUrl}`)}` },
+                  { name: 'Facebook', color: '#1877F2', bg: '#eff6ff', hoverBg: '#dbeafe', icon: <FaFacebookF size={20} />, url: `https://facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
+                  { name: 'Email', color: '#EA4335', bg: '#fff1f2', hoverBg: '#ffe4e6', icon: <FiMail size={20} />, url: `mailto:?subject=${encodeURIComponent('Check out my professional profile on MavenJobs')}&body=${encodeURIComponent(`View my profile: ${shareUrl}`)}` }
+                ].map(social => (
+                  <a key={social.name} href={publicShareId ? social.url : "#"} target={social.name !== 'Email' ? "_blank" : undefined} rel="noopener noreferrer"
+                    onClick={e => { if (!publicShareId) e.preventDefault(); }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 4px', borderRadius: 14, textDecoration: 'none', cursor: 'pointer', transition: 'all 0.25s ease', background: 'transparent' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = social.hoverBg; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 16, background: social.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: social.color, transition: 'all 0.25s ease', fontSize: 20 }}>
                       {social.icon}
                     </div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', fontFamily: 'var(--fd)' }}>{social.name}</span>
-                  </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', fontFamily: 'var(--fd)', whiteSpace: 'nowrap' }}>{social.name}</span>
+                  </a>
                 ))}
               </div>
+            </div>
 
-              <div style={{
-                    position: 'relative',
-                    background: '#f8fafc',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '16px',
-                    padding: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    transition: 'all 0.2s'
-                  }} onFocusCapture={e => e.currentTarget.style.borderColor = '#1e5eff'}>
-                <div style={{ padding: '0 16px', color: '#94a3b8' }}>
-                  <FiGlobe size={18} />
-                </div>
-                <input
-                  type="text"
-                  readOnly
-                  value={isGeneratingShareLink ? "Generating share link..." : (publicShareId ? shareUrl : "Generating share link...")}
-                  style={{
-                    flex: 1, background: 'transparent', border: 'none',
-                    padding: '12px 0', outline: 'none', color: '#0f172a',
-                    fontSize: '14px', fontWeight: 600, fontFamily: 'monospace'
-                  }}
-                />
-                <button
-                  style={{
-                    background: linkCopied ? '#10b981' : '#1e5eff',
-                    color: '#fff', border: 'none',
-                    height: '44px',
-                    padding: '0 24px', borderRadius: '12px', fontWeight: 800,
-                    cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    fontSize: '14px', fontFamily: 'var(--fd)',
-                    boxShadow: linkCopied ? '0 4px 12px rgba(16, 185, 129, 0.2)' : '0 4px 12px rgba(30, 94, 255, 0.2)'
-                  }}
-                  onClick={() => {
-                    navigator.clipboard.writeText(shareUrl);
-                    setLinkCopied(true);
-                    setTimeout(() => setLinkCopied(false), 2000);
-                  }}
-                >
-                  {linkCopied ? <><FiCheckCircle size={16} /> Copied</> : <><FiCopy size={16} /> Copy</>}
-                </button>
-              </div>
+            <div style={{ padding: '16px 28px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <FiShield size={12} color="#94a3b8" />
+              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500, fontFamily: 'var(--fd)' }}>Your profile link is permanent and only shares what you&apos;ve made public</span>
             </div>
           </div>
         </div>

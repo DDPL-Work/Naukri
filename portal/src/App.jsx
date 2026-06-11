@@ -102,7 +102,7 @@ function AppContent() {
         <Route path="/hiring-automation" element={<HiringAutomation />} />
         <Route path="/employer-dashboard" element={<EmployerDashboard />} />
         <Route path="/review/:reviewId" element={<ReviewSharePage />} />
-        <Route path="/in/:shareId" element={<PublicProfileByShareId />} />
+        <Route path="/mj/:shareId" element={<PublicProfileByShareId />} />
       </Routes>
 
       <DailyQuizNotification
