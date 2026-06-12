@@ -1876,40 +1876,120 @@ const companyColor = (id) => {
   return COMPANY_PALETTE[Math.abs(idx)];
 };
 
-exports.getCompanyStats = asyncHandler(async (req, res) => {
-  const [mncs, internet, manufacturing, fortune500, product] = await Promise.all([
-    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "MNC|Corporate", $options: "i" } }),
-    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "Internet|IT|Software", $options: "i" } }),
-    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "Manufacturing", $options: "i" } }),
-    Company.countDocuments({ status: "ACTIVE", packageType: "ELITE" }),
-    Company.countDocuments({ status: "ACTIVE", industry: { $regex: "Product", $options: "i" } }),
+// ── Dynamic filter options for companies directory ──
+exports.getCompanyFilterOptions = asyncHandler(async (req, res) => {
+  const [industries, cities, companyTypes] = await Promise.all([
+    Company.distinct("industry", { status: "ACTIVE", industry: { $ne: "", $exists: true } }),
+    Company.aggregate([
+      { $match: { status: "ACTIVE" } },
+      {
+        $group: {
+          _id: null,
+          cities: {
+            $addToSet: {
+              $cond: [
+                { $and: [{ $ne: ["$location.city", ""] }, { $ne: ["$location.city", null] }] },
+                "$location.city",
+                "$headquarters",
+              ],
+            },
+          },
+        },
+      },
+    ]),
+    Company.distinct("packageType", { status: "ACTIVE" }),
   ]);
+
+  const cleanCities = (
+    (cities[0]?.cities || []).filter(Boolean).map((c) => c.trim()).filter(Boolean)
+  );
 
   res.status(200).json({
     success: true,
     data: {
-      mncs,
-      internet,
-      manufacturing,
-      fortune500,
-      product,
+      industries: industries.filter(Boolean).sort(),
+      cities: [...new Set(cleanCities)].sort(),
+      companyTypes: companyTypes.filter(Boolean).sort(),
     },
   });
 });
 
-exports.getCompanies = asyncHandler(async (req, res) => {
-  const { q = "", sort = "popular", page = 1, limit = 20, industry = "" } = req.query;
+exports.getCompanyStats = asyncHandler(async (req, res) => {
+  const { q = "", location = "" } = req.query;
+  const baseFilter = { status: "ACTIVE" };
 
-  const filter = { status: "ACTIVE" };
   if (q) {
-    filter.$or = [
+    baseFilter.$or = [
       { name: { $regex: q, $options: "i" } },
       { industry: { $regex: q, $options: "i" } },
       { tagline: { $regex: q, $options: "i" } },
     ];
   }
+
+  const [mncs, internet, manufacturing, fortune500, product] = await Promise.all([
+    Company.countDocuments({ ...baseFilter, industry: { $regex: "MNC|Corporate", $options: "i" } }),
+    Company.countDocuments({ ...baseFilter, industry: { $regex: "Internet|IT|Software", $options: "i" } }),
+    Company.countDocuments({ ...baseFilter, industry: { $regex: "Manufacturing", $options: "i" } }),
+    Company.countDocuments({ ...baseFilter, packageType: "ELITE" }),
+    Company.countDocuments({ ...baseFilter, industry: { $regex: "Product", $options: "i" } }),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: { mncs, internet, manufacturing, fortune500, product },
+  });
+});
+
+exports.getCompanies = asyncHandler(async (req, res) => {
+  let { q = "", sort = "popular", page = 1, limit = 20, industry = "", companyType = "", location = "", packageType = "" } = req.query;
+
+  const filter = { status: "ACTIVE" };
+  const andConditions = [];
+
+  // Text search
+  if (q) {
+    andConditions.push({
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { industry: { $regex: q, $options: "i" } },
+        { tagline: { $regex: q, $options: "i" } },
+      ],
+    });
+  }
+
+  // Industry filter (from category pills)
   if (industry && industry !== 'All') {
-    filter.industry = { $regex: industry, $options: "i" };
+    andConditions.push({ industry: { $regex: industry, $options: "i" } });
+  }
+
+  // Company Type filter (Corporate, Foreign MNC, Startup, Indian MNC)
+  if (companyType) {
+    const types = String(companyType).split(",").map(t => t.trim()).filter(Boolean);
+    if (types.length > 0) {
+      const typePatterns = types.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      andConditions.push({ industry: { $regex: typePatterns.join("|"), $options: "i" } });
+    }
+  }
+
+  // Package Type filter (STANDARD, PREMIUM, ELITE)
+  if (packageType) {
+    andConditions.push({ packageType: { $regex: packageType, $options: "i" } });
+  }
+
+  // Location filter
+  if (location) {
+    andConditions.push({
+      $or: [
+        { "location.city": { $regex: location, $options: "i" } },
+        { headquarters: { $regex: location, $options: "i" } },
+      ],
+    });
+  }
+
+  if (andConditions.length === 1) {
+    Object.assign(filter, andConditions[0]);
+  } else if (andConditions.length > 1) {
+    filter.$and = andConditions;
   }
 
   let sortQuery = { activeJobCount: -1, createdAt: -1 };

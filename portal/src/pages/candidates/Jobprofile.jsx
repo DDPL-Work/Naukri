@@ -15,7 +15,7 @@ import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
 const Jobprofile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, openLogin, openRegister } = useAuth();
   const [activeTab, setActiveTab] = useState('Overview');
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
@@ -243,11 +243,11 @@ const Jobprofile = () => {
                 borderRadius: '50%', border: '2px solid white'
               }} />
             </button>
-            {user && (
+            {user ? (
               <>
                 <Link to="/profile">
                   <img
-                    src={user.profilePic || 'https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg'}
+                    src={user.profilePic || ""}
                     alt="User"
                     style={{ width: 40, height: 40, borderRadius: 11, border: '2px solid #1E5EFF', objectFit: 'cover', cursor: 'pointer' }}
                   />
@@ -264,6 +264,22 @@ const Jobprofile = () => {
                 >
                   <FiLogOut size={18} />
                 </button>
+              </>
+            ) : (
+              <>
+                <button onClick={openLogin} style={{
+                  fontFamily: "'Sora',sans-serif", fontSize:'0.82rem', fontWeight:700,
+                  padding:'8px 18px', borderRadius:10, cursor:'pointer',
+                  background:'white', border:'1.5px solid #E2E8F0',
+                  color:'#334155', letterSpacing:'-0.01em',
+                  transition:'all 0.18s'
+                }}>Login</button>
+                <button onClick={openRegister} style={{
+                  fontFamily: "'Sora',sans-serif", fontSize:'0.82rem', fontWeight:700,
+                  padding:'8px 18px', borderRadius:10, cursor:'pointer', border:'none',
+                  background:'#1E5EFF', color:'white', letterSpacing:'-0.01em',
+                  boxShadow:'0 4px 12px rgba(30,94,255,0.25)', transition:'all 0.18s'
+                }}>Register</button>
               </>
             )}
           </div>

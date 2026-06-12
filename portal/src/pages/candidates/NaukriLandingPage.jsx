@@ -22,10 +22,10 @@ import { useAuth } from "../../AuthContext";
 import authService from "../../services/authService";
 
 const events = [
-  { title: "Zero to Data Analyst: Amazon Analyst Roadmap for 30L+ CTC", provider: "Coding Ninjas", badge: "Webinar", timeLeft: "Entry closes in 20h", tags: ["Interview Preparation", "Career Guidance", "Data"], date: "18 Apr, 12:00 PM", enrolled: 145, image: "https://i.pinimg.com/1200x/59/8e/c4/598ec42e15c85716c6954c26840d4f4b.jpg" },
-  { title: "Get hired with 25L+ CTC Interview-ready GenAI project at Amazon", provider: "Coding Ninjas", badge: "Webinar", timeLeft: "Entry closes in 4h", tags: ["Interview Preparation", "Career Guidance"], date: "17 Apr, 8:30 PM", enrolled: 133, image: "https://i.pinimg.com/1200x/c1/0a/86/c10a86560fe721210e6d5397438d3c2b.jpg" },
-  { title: "Full Stack Engineer Bootcamp with live interview practice", provider: "SkillUP Pro", badge: "Live", timeLeft: "Starts in 2d", tags: ["Technical", "Full Stack", "Placement"], date: "19 Apr, 11:00 AM", enrolled: 287, image: "https://i.pinimg.com/736x/ea/c6/cb/eac6cb24e593ae2d2c3329516e0126eb.jpg" },
-  { title: "Mastering System Design: Architecting Scalable Applications", provider: "Maven Academy", badge: "Masterclass", timeLeft: "Starts in 5d", tags: ["Architecture", "System Design", "Advanced"], date: "22 Apr, 06:00 PM", enrolled: 412, image: "https://i.pinimg.com/1200x/82/4b/4b/824b4b2c74e3b4f66f2cd0575c76dcb0.jpg" },
+  { title: "Zero to Data Analyst: Amazon Analyst Roadmap for 30L+ CTC", provider: "Coding Ninjas", badge: "Webinar", timeLeft: "Entry closes in 20h", tags: ["Interview Preparation", "Career Guidance", "Data"], date: "18 Apr, 12:00 PM", enrolled: 145, image: "" },
+  { title: "Get hired with 25L+ CTC Interview-ready GenAI project at Amazon", provider: "Coding Ninjas", badge: "Webinar", timeLeft: "Entry closes in 4h", tags: ["Interview Preparation", "Career Guidance"], date: "17 Apr, 8:30 PM", enrolled: 133, image: "" },
+  { title: "Full Stack Engineer Bootcamp with live interview practice", provider: "SkillUP Pro", badge: "Live", timeLeft: "Starts in 2d", tags: ["Technical", "Full Stack", "Placement"], date: "19 Apr, 11:00 AM", enrolled: 287, image: "" },
+  { title: "Mastering System Design: Architecting Scalable Applications", provider: "Maven Academy", badge: "Masterclass", timeLeft: "Starts in 5d", tags: ["Architecture", "System Design", "Advanced"], date: "22 Apr, 06:00 PM", enrolled: 412, image: "" },
 ];
 
 const interviewCompanies = [
@@ -105,6 +105,7 @@ export default function NaukriLandingPage() {
   ];
 
   const pageRef = useRef(null);
+  const landingFetched = useRef(false);
 
   const goToJobs = ({ keyword = searchKeyword, location = searchLocation, experience = experienceValue } = {}) => {
     const params = new URLSearchParams();
@@ -116,11 +117,11 @@ export default function NaukriLandingPage() {
   };
 
   useEffect(() => {
-    let isMounted = true;
+    if (landingFetched.current) return;
+    landingFetched.current = true;
     authService.getLandingHome()
-      .then((response) => { if (isMounted && response?.success) setLandingData(response.data); })
-      .catch(() => { if (isMounted) setLandingData(null); });
-    return () => { isMounted = false; };
+      .then((response) => { if (response?.success) setLandingData(response.data); })
+      .catch(() => { setLandingData(null); });
   }, []);
 
   // --- Dynamic data with fallbacks ---
@@ -151,7 +152,7 @@ export default function NaukriLandingPage() {
     if (!dynamicTopCategories.includes(activeTopCat)) setActiveTopCat("All");
   }, [dynamicTopCategories]);
 
-  // GSAP
+  // GSAP — hero entrance animations
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) return;
@@ -160,8 +161,6 @@ export default function NaukriLandingPage() {
         .from(".lp-nav", { y: -24, autoAlpha: 0, duration: 0.7 })
         .to("[data-hero-intro]", { autoAlpha: 1, y: 0, duration: 0.8, stagger: 0.1 }, "-=0.2");
       gsap.from(".lp-stat", { y: 24, autoAlpha: 0, duration: 0.7, delay: 0.4, stagger: 0.08, ease: "power3.out" });
-      gsap.to(".orb1", { x: 20, y: -10, duration: 7, repeat: -1, yoyo: true, ease: "sine.inOut" });
-      gsap.to(".orb2", { x: -14, y: 16, duration: 6, repeat: -1, yoyo: true, ease: "sine.inOut" });
       const handleScroll = () => {
         const total = document.documentElement.scrollHeight - window.innerHeight;
         setScrollProgress((window.scrollY / total) * 100);
@@ -242,7 +241,7 @@ export default function NaukriLandingPage() {
               {user ? (
                 <div className="lp-nav__user">
                   <Link to="/profile" className="lp-nav__avatar-link">
-                    <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="Profile" />
+                    <img src={user.profilePic || ""} alt="Profile" />
                     <span>{user.name || "Profile"}</span>
                   </Link>
                   <button type="button" className="lp-btn lp-btn--outline" onClick={logout}>Logout</button>
@@ -276,10 +275,8 @@ export default function NaukriLandingPage() {
       </nav>
 
       <main>
-        {/* ── HERO ── */}
+        {/* ── HERO — Centralized ── */}
         <section className="lp-hero">
-          <div className="orb1" />
-          <div className="orb2" />
           <div className="lp-hero__inner">
             <div className="lp-hero__eyebrow" data-hero-intro>
               <span className="lp-hero__dot" />
@@ -333,8 +330,8 @@ export default function NaukriLandingPage() {
             )}
 
             {/* Tag badges */}
-            <div className="lp-hero__tags" data-hero-intro>
-              {trendingTags.slice(0, 7).map(tag => {
+              <div className="lp-hero__tags" data-hero-intro>
+                {trendingTags.map(tag => {
                 const Icon = tag.icon;
                 return (
                   <button key={tag.label} type="button" className="lp-tag-badge" onClick={() => goToJobs({ keyword: tag.label })}>
@@ -568,7 +565,7 @@ export default function NaukriLandingPage() {
               <p>India's most trusted hiring platform for the next generation of careers.</p>
               <div className="lp-footer__socials">
                 {socialLinks.map(({ label, icon: Icon }) => (
-                  <a key={label} href="#" aria-label={label}><Icon /></a>
+                  <a key={label} href="https://www.instagram.com/mavenjobs.in/" target="_blank" rel="noopener noreferrer" aria-label={label}><Icon /></a>
                 ))}
               </div>
             </div>

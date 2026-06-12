@@ -512,7 +512,7 @@ const Services = () => {
                 <Link to="/profile" className="nav-profile-link" style={{ textDecoration: 'none' }}>
                   <div style={{ width: '42px', height: '42px', borderRadius: '12px', padding: '2px', background: 'linear-gradient(135deg, #1E5EFF, #0DBF7B)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
                     <img
-                      src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"}
+                      src={user.profilePic || ""}
                       alt="Profile"
                       style={{
                         width: '100%', height: '100%', borderRadius: '10px',
@@ -729,12 +729,12 @@ const Services = () => {
           <img src={mavenLogo} alt="MavenJobs" style={{ height: 26, margin: '0 auto 36px', display: 'block', opacity: .28, filter: 'brightness(0) invert(1)' }} />
           <div className="fts">
             {[
-              { Icon: FaFacebookF, to: "#" },
-              { Icon: FaLinkedinIn, to: "#" },
-              { Icon: FaXTwitter, to: "#" },
-              { Icon: FaInstagram, to: "#" }
-            ].map(({ Icon, to }, i) => (
-              <Link key={i} to={to} className="ftsl"><Icon size={15} /></Link>
+              { Icon: FaFacebookF },
+              { Icon: FaLinkedinIn },
+              { Icon: FaXTwitter },
+              { Icon: FaInstagram }
+            ].map(({ Icon }, i) => (
+              <a key={i} href="https://www.instagram.com/mavenjobs.in/" target="_blank" rel="noopener noreferrer" className="ftsl"><Icon size={15} /></a>
             ))}
           </div>
           <div className="ftl">

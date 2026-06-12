@@ -193,6 +193,57 @@
   transform: scale(1.06);
 }
 
+.cp-btn {
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.cp-btn--outline {
+  background: white;
+  border: 1.5px solid var(--slate-3);
+  color: var(--text-2);
+}
+.cp-btn--outline:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-lt);
+}
+.cp-btn--fill {
+  background: var(--blue);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 12px rgba(30, 94, 255, 0.25);
+}
+.cp-btn--fill:hover {
+  background: #1a52e0;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(30, 94, 255, 0.32);
+}
+.cp-logout-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1.5px solid var(--slate-3);
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.cp-logout-btn:hover {
+  background: #FEF2F2;
+  color: var(--red);
+  border-color: #FECACA;
+}
+
 /* ─── Main ───────────────────────────────────────────────── */
 .cp-main {
   max-width: 1320px;
@@ -363,6 +414,20 @@
   border-color: var(--accent, var(--blue));
   transform: translateY(-4px);
   box-shadow: var(--shadow-md);
+}
+
+.cp-cat-pill.active {
+  border-color: var(--accent, var(--blue));
+  background: color-mix(in srgb, var(--accent, var(--blue)) 8%, white);
+  box-shadow: var(--shadow);
+}
+
+.cp-cat-pill.active::before {
+  opacity: 1;
+}
+
+.cp-cat-pill.active .cp-cat-arrow {
+  color: var(--accent, var(--blue));
 }
 
 .cp-cat-pill:hover::before {
@@ -988,6 +1053,108 @@
   font-size: 0.82rem;
   color: var(--text-4);
   font-weight: 500;
+}
+
+/* ─── Loading Skeletons ──────────────────────────────────── */
+.cp-loading-state {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cp-skeleton-card {
+  height: 88px;
+  background: white;
+  border-radius: var(--radius);
+  border: 1px solid var(--slate-3);
+  position: relative;
+  overflow: hidden;
+}
+
+.cp-skeleton-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(30, 94, 255, 0.04) 50%, transparent 100%);
+  animation: cp-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes cp-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ─── Empty State ────────────────────────────────────────── */
+.cp-empty-state {
+  text-align: center;
+  padding: 72px 20px;
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--slate-3);
+}
+
+.cp-empty-icon {
+  color: var(--text-4);
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.cp-empty-title {
+  font-family: var(--font-disp);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
+.cp-empty-desc {
+  font-size: 0.85rem;
+  color: var(--text-4);
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.cp-empty-clear {
+  background: var(--slate-1);
+  border: 1.5px solid var(--slate-3);
+  padding: 9px 22px;
+  border-radius: 10px;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.cp-empty-clear:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-lt);
+}
+
+/* ─── Filter More Indicator ───────────────────────────────── */
+.cp-filter-more {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-4);
+  padding: 6px 6px 2px;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Hiring Badge ────────────────────────────────────────── */
+.cp-hiring-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #0DBF7B !important;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
 }
 
 /* ─── Responsive ─────────────────────────────────────────── */

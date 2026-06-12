@@ -37,6 +37,7 @@ router.get("/jobs/:id", protectCandidate, candidateController.getJobDetail);
 router.get("/jobs/:id/similar", protectCandidate, candidateController.getSimilarJobs);
 router.patch("/jobs/:id/save", protectCandidate, candidateController.toggleSavedJob);
 router.get("/jobs/saved", protectCandidate, candidateController.getSavedJobs);
+router.get("/companies/filter-options", candidateController.getCompanyFilterOptions);
 router.get("/companies/stats", candidateController.getCompanyStats);
 router.get("/companies", candidateController.getCompanies);
 router.get("/companies/:id", protectCandidate, candidateController.getCompanyDetail);

@@ -100,12 +100,21 @@ const authService = {
     }
   },
 
-  getCompanyStats: async () => {
+  getCompanyStats: async (params = {}) => {
     try {
-      const response = await api.get('/candidate/companies/stats');
+      const response = await api.get('/candidate/companies/stats', { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch company stats' };
+    }
+  },
+
+  getCompanyFilterOptions: async () => {
+    try {
+      const response = await api.get('/candidate/companies/filter-options');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch company filter options' };
     }
   },
 
@@ -442,6 +451,17 @@ const authService = {
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch candidate profile' };
+    }
+  },
+
+  uploadResume: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('resume', file);
+      const response = await api.post('/candidate/profile/resume', formData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Resume upload failed' };
     }
   }
 };

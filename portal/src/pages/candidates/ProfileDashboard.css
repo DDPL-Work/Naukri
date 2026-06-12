@@ -3162,6 +3162,25 @@
   color: var(--navy);
 }
 
+.pd-notif-mark-read {
+  background: none;
+  border: 1.5px solid #2563eb;
+  color: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.02em;
+  margin-left: auto;
+  margin-right: 12px;
+}
+.pd-notif-mark-read:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
 .pd-notif-close {
   background: var(--slate-1);
   border: none;
@@ -5258,6 +5277,171 @@
 
 .ppm-inline-edit:hover {
   color: var(--blue);
+}
+
+/* ─── PPM Card Empty State ─── */
+.ppm-card-empty {
+  border-color: #e2e8f0 !important;
+  background: #fafcff !important;
+}
+
+.ppm-add-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  transition: all 0.2s;
+}
+.ppm-sec-header:hover .ppm-add-badge {
+  background: #1d4ed8;
+  transform: scale(1.04);
+}
+
+.ppm-add-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 20px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.25s;
+}
+.ppm-add-target:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+}
+.ppm-add-target svg {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.ppm-add-target:hover svg {
+  opacity: 1;
+}
+.ppm-add-target span {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ppm-exp-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.ppm-upload-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  background: #eff6ff;
+  border-radius: 50%;
+  color: #2563eb;
+}
+.ppm-upload-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+.ppm-upload-hint {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.ppm-upload-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 0;
+  font-weight: 600;
+  color: #2563eb;
+  font-size: 0.95rem;
+}
+
+.ppm-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: ppmSpin 0.7s linear infinite;
+}
+
+@keyframes ppmSpin {
+  to { transform: rotate(360deg); }
+}
+
+.ppm-career-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.ppm-career-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ppm-career-icon {
+  display: flex;
+  align-items: center;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+.ppm-career-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ppm-career-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+.ppm-career-na {
+  color: #94a3b8;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.ppm-project-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+.ppm-project-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+.ppm-project-desc {
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .ppm-career-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Ensure ProfileModals forms look good inline */

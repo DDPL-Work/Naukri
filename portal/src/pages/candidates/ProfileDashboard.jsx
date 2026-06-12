@@ -5,7 +5,7 @@ import { buildRtcConfig as buildWebRtcConfig, createPeerConnection as createRtcP
 import {
   FiEdit2, FiBriefcase, FiMapPin, FiZap, FiCheckCircle,
   FiChevronRight, FiHome, FiFileText, FiMonitor, FiShare2,
-  FiDownload, FiPlus, FiUsers, FiEye, FiTrendingUp, FiAward,
+  FiDownload, FiUpload, FiPlus, FiUsers, FiEye, FiTrendingUp, FiAward,
   FiBell, FiSettings, FiLogOut, FiPhone, FiMail, FiX,
   FiCalendar, FiClock, FiChevronLeft, FiInfo, FiSend, FiChevronDown,
   FiStar, FiBookmark, FiGlobe, FiTwitter, FiFacebook, FiLinkedin, FiCopy, FiShare,
@@ -108,8 +108,10 @@ export default function ProfileDashboard() {
   const blogScrollRef = useRef(null);
   const pfpInputRef = useRef(null);
   const coverInputRef = useRef(null);
+  const resumeInputRef = useRef(null);
   const [skills, setSkills] = useState(user?.skills || []);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [newSkillValue, setNewSkillValue] = useState('');
   const [activeTip, setActiveTip] = useState(null); // 'experience', 'summary', 'skills'
   const [activeEditSection, setActiveEditSection] = useState(null);
@@ -124,6 +126,7 @@ export default function ProfileDashboard() {
   const [isGeneratingShareLink, setIsGeneratingShareLink] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState([]);
   const { updateProfile } = useAuth();
 
   useEffect(() => {
@@ -147,6 +150,36 @@ export default function ProfileDashboard() {
       console.error("Save failed:", err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('File size must be under 10MB');
+      return;
+    }
+    const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/rtf', 'text/rtf'];
+    if (!allowed.includes(file.type)) {
+      alert('Please upload a doc, docx, rtf, or pdf file');
+      return;
+    }
+    setIsUploadingResume(true);
+    try {
+      const result = await authService.uploadResume(file);
+      if (result.success || result.resume) {
+        const updated = result.resume || result.data?.resume;
+        if (updated && updateUser) {
+          updateUser({ ...user, resume: updated });
+        }
+      }
+    } catch (err) {
+      console.error('Resume upload failed:', err);
+      alert('Failed to upload resume. Please try again.');
+    } finally {
+      setIsUploadingResume(false);
     }
   };
 
@@ -391,7 +424,12 @@ export default function ProfileDashboard() {
     return [...chatItems, ...backendItems, ...fallbackItems];
   }, [candidateThreads, dashboardSummary.totalApplications, notifications]);
 
-  const unreadNotificationCount = dynamicNotifications.filter((item) => item.unread).length;
+  const unreadNotificationCount = dynamicNotifications.filter((item) => item.unread && !readNotificationIds.includes(item.id)).length;
+
+  const handleMarkAllRead = () => {
+    setReadNotificationIds(dynamicNotifications.map(n => n.id));
+  };
+
   const activeCandidateThread = candidateThreads[activeCandidateConv] || candidateThreads[0] || null;
 
   useEffect(() => {
@@ -819,7 +857,7 @@ export default function ProfileDashboard() {
               {unreadNotificationCount > 0 && <span className="pd-nav-badge">{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}
             </button>
             <div className="pd-navbar-avatar" onClick={() => navigate('/profile')}>
-              <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="You" />
+              <img src={user.profilePic || ""} alt="You" />
               <span className="pd-avatar-status" />
             </div>
             <button className="pd-navbar-logout" onClick={logout}>
@@ -1405,7 +1443,7 @@ export default function ProfileDashboard() {
                         (link === 'IT skills' && !!user.itSkills) ||
                         (link === 'Projects' && !!user.projectTitle) ||
                         (link === 'Profile summary' && !!user.summary) ||
-                        (link === 'Career profile' && !!user.expectedSalary)
+                        (link === 'Career profile' && !!(user.expectedSalary || (Array.isArray(user.preferredLocations) && user.preferredLocations.length > 0)))
                       );
 
                       return (
@@ -1450,71 +1488,197 @@ export default function ProfileDashboard() {
                       </div>
                       {[
                         {
-                          title: 'Resume', content: (
-                            <div>
+                          title: 'Profile summary',
+                          isFilled: !!user.summary,
+                          content: user.summary ? (
+                            <p className="ppm-body-text">{user.summary}</p>
+                          ) : null,
+                          addLabel: 'Add professional summary'
+                        },
+                        {
+                          title: 'Resume',
+                          isFilled: !!user.resume?.url,
+                          customRender: true,
+                          render: () => (
+                            <>
+                              <input
+                                type="file"
+                                ref={resumeInputRef}
+                                style={{ display: 'none' }}
+                                accept=".doc,.docx,.rtf,.pdf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/rtf"
+                                onChange={handleResumeUpload}
+                              />
                               {user.resume?.url ? (
-                                <div className="ppm-resume-row">
-                                  <FiFileText size={20} color="#64748b" />
-                                  <div>
-                                    <div className="ppm-fname">{user.resume.fileName}</div>
-                                    <div className="ppm-fdate">Uploaded {new Date(user.resume.uploadedAt).toLocaleDateString()}</div>
+                                <>
+                                  <div className="ppm-resume-row">
+                                    <FiFileText size={22} color="#2563eb" />
+                                    <div>
+                                      <div className="ppm-fname">{user.resume.fileName}</div>
+                                      <div className="ppm-fdate">Uploaded {new Date(user.resume.uploadedAt).toLocaleDateString()}</div>
+                                    </div>
+                                    <div className="ppm-file-actions">
+                                      <a href={user.resume.url} target="_blank" rel="noopener noreferrer" title="Download"><FiDownload size={18} /></a>
+                                    </div>
                                   </div>
-                                  <div className="ppm-file-actions">
-                                    <a href={user.resume.url} target="_blank" rel="noopener noreferrer"><FiDownload size={16} /></a>
-                                    <FiSettings size={16} />
+                                  <div className="ppm-upload-zone" onClick={() => resumeInputRef.current?.click()}>
+                                    {isUploadingResume ? (
+                                      <div className="ppm-upload-loader"><span className="ppm-spinner" /> Uploading...</div>
+                                    ) : (
+                                      <>
+                                        <div className="ppm-upload-icon"><FiUpload size={28} /></div>
+                                        <p className="ppm-upload-title">Replace resume</p>
+                                        <p className="ppm-upload-hint">doc, docx, rtf, pdf &mdash; max 10MB</p>
+                                      </>
+                                    )}
                                   </div>
+                                </>
+                              ) : (
+                                <div
+                                  className="ppm-upload-zone"
+                                  onClick={() => !isUploadingResume && resumeInputRef.current?.click()}
+                                  style={{ cursor: isUploadingResume ? 'not-allowed' : 'pointer' }}
+                                >
+                                  {isUploadingResume ? (
+                                    <div className="ppm-upload-loader"><span className="ppm-spinner" /> Uploading...</div>
+                                  ) : (
+                                    <>
+                                      <div className="ppm-upload-icon"><FiUpload size={28} /></div>
+                                      <p className="ppm-upload-title">Upload your resume</p>
+                                      <p className="ppm-upload-hint">doc, docx, rtf, pdf &mdash; max 10MB</p>
+                                    </>
+                                  )}
                                 </div>
-                              ) : (
-                                <div className="ppm-empty-state">No resume uploaded yet.</div>
                               )}
-                              <div className="ppm-upload-zone">
-                                <button className="ppm-upload-btn" onClick={() => setActiveEditSection('Resume')}>Update resume</button>
-                                <p>doc, docx, rtf, pdf - max 2MB</p>
-                              </div>
-                            </div>
+                            </>
                           )
                         },
-                        { title: 'Resume headline', content: <p className="ppm-body-text">{user.headline || "Add a professional headline..."}</p> },
                         {
-                          title: 'Key skills', content: (
+                          title: 'Resume headline',
+                          isFilled: !!user.headline,
+                          content: user.headline ? (
+                            <p className="ppm-body-text">{user.headline}</p>
+                          ) : null
+                        },
+                        {
+                          title: 'Key skills',
+                          isFilled: user.skills?.length > 0,
+                          content: user.skills?.length > 0 ? (
                             <div className="ppm-skills-wrap">
-                              {user.skills?.length > 0 ? (
-                                user.skills.map(s => (
-                                  <span key={s} className="ppm-skill-chip">{s}</span>
-                                ))
-                              ) : (
-                                <p className="ppm-empty-state">Add your key skills here.</p>
-                              )}
+                              {user.skills.map(s => (
+                                <span key={s} className="ppm-skill-chip">{s}</span>
+                              ))}
                             </div>
-                          )
+                          ) : null
                         },
                         {
-                          title: 'Employment', content: (
-                            user.currentTitle ? (
-                              <div className="ppm-exp-item">
-                                <div className="ppm-exp-title">{user.currentTitle} <FiEdit2 size={13} /></div>
-                                <div className="ppm-exp-co">{user.currentCompany}</div>
-                                <div className="ppm-exp-meta">{user.totalExperience} &middot; {user.noticePeriod} notice</div>
-                                <p className="ppm-body-text">{user.summary?.slice(0, 150)}...</p>
+                          title: 'Employment',
+                          isFilled: !!user.currentTitle,
+                          content: user.currentTitle ? (
+                            <div className="ppm-exp-item">
+                              <div className="ppm-exp-title-row">
+                                <FiBriefcase size={16} color="#2563eb" />
+                                <span className="ppm-exp-title">{user.currentTitle}</span>
                               </div>
-                            ) : (
-                              <p className="ppm-empty-state">Add your employment details.</p>
-                            )
+                              <div className="ppm-exp-co">{user.currentCompany}</div>
+                              <div className="ppm-exp-meta">{user.totalExperience} &middot; {user.noticePeriod} notice</div>
+                            </div>
+                          ) : null
+                        },
+                        {
+                          title: 'Education',
+                          isFilled: !!user.education,
+                          content: user.education ? (
+                            <div className="ppm-exp-item">
+                              <div className="ppm-exp-title-row">
+                                <FiBookOpen size={16} color="#2563eb" />
+                                <span className="ppm-exp-title">{user.education}</span>
+                              </div>
+                            </div>
+                          ) : null
+                        },
+                        {
+                          title: 'IT skills',
+                          isFilled: !!user.itSkills,
+                          content: user.itSkills ? (
+                            <p className="ppm-body-text">{user.itSkills}</p>
+                          ) : null
+                        },
+                        {
+                          title: 'Projects',
+                          isFilled: !!user.projectTitle,
+                          content: user.projectTitle ? (
+                            <div className="ppm-exp-item">
+                              <div className="ppm-exp-title-row">
+                                <FiMonitor size={16} color="#2563eb" />
+                                <span className="ppm-exp-title">{user.projectTitle}</span>
+                              </div>
+                              {user.projectLink && (
+                                <div className="ppm-exp-co">
+                                  <a href={user.projectLink} target="_blank" rel="noopener noreferrer" className="ppm-project-link">{user.projectLink}</a>
+                                </div>
+                              )}
+                              {user.projectDescription && (
+                                <p className="ppm-body-text ppm-project-desc">{user.projectDescription}</p>
+                              )}
+                            </div>
+                          ) : null
+                        },
+                        {
+                          title: 'Career profile',
+                          isFilled: !!(user.expectedSalary || (Array.isArray(user.preferredLocations) && user.preferredLocations.length > 0)),
+                          content: (
+                            <div className="ppm-career-grid">
+                              <div className="ppm-career-item">
+                                <div className="ppm-career-icon"><FiZap size={14} /></div>
+                                <span className="ppm-career-label">Expected Salary</span>
+                                <span className="ppm-career-value">{user.expectedSalary || <span className="ppm-career-na">Not set</span>}</span>
+                              </div>
+                              <div className="ppm-career-item">
+                                <div className="ppm-career-icon"><FiMapPin size={14} /></div>
+                                <span className="ppm-career-label">Preferred Locations</span>
+                                <span className="ppm-career-value">{Array.isArray(user.preferredLocations) ? user.preferredLocations.join(', ') : user.preferredLocations || <span className="ppm-career-na">Not set</span>}</span>
+                              </div>
+                              <div className="ppm-career-item">
+                                <div className="ppm-career-icon"><FiClock size={14} /></div>
+                                <span className="ppm-career-label">Notice Period</span>
+                                <span className="ppm-career-value">{user.noticePeriod || <span className="ppm-career-na">Not set</span>}</span>
+                              </div>
+                            </div>
                           )
                         },
                       ].map(sec => {
-                        const isComplete = sec.title === 'Key skills' ? user.skills?.length > 0 : 
-                                         sec.title === 'Resume headline' ? !!user.headline :
-                                         sec.title === 'Resume' ? !!user.resume?.url : 
-                                         sec.title === 'Employment' ? !!user.currentTitle : false;
+                        if (sec.customRender) {
+                          return (
+                            <div className={`ppm-card ${!sec.isFilled ? 'ppm-card-empty' : ''}`} key={sec.title}>
+                              <div className="ppm-sec-header" onClick={() => setActiveEditSection(sec.title)}>
+                                <h3>{sec.title}</h3>
+                                {sec.isFilled && <FiCheckCircle color="#10b981" size={16} />}
+                              </div>
+                              {sec.render()}
+                            </div>
+                          );
+                        }
+                        const isEmpty = !sec.isFilled;
                         return (
-                          <div className="ppm-card" key={sec.title}>
+                          <div className={`ppm-card ${isEmpty ? 'ppm-card-empty' : ''}`} key={sec.title}>
                             <div className="ppm-sec-header" onClick={() => setActiveEditSection(sec.title)}>
                               <h3>{sec.title}</h3>
-                              {isComplete && <FiCheckCircle color="#10b981" size={16} />}
-                              <FiEdit2 size={14} className="ppm-sec-edit-icon" />
+                              {!isEmpty && <FiCheckCircle color="#10b981" size={16} />}
+                              {isEmpty ? (
+                                <span className="ppm-add-badge"><FiPlus size={13} /> Add</span>
+                              ) : (
+                                <FiEdit2 size={14} className="ppm-sec-edit-icon" />
+                              )}
                             </div>
-                            {sec.content}
+                            {isEmpty ? (
+                              <div className="ppm-add-target" onClick={() => setActiveEditSection(sec.title)}>
+                                <FiPlus size={22} />
+                                <span>{sec.addLabel || `Add ${sec.title.toLowerCase()}`}</span>
+                              </div>
+                            ) : (
+                              sec.content
+                            )}
+                            {sec.extra}
                           </div>
                         );
                       })}
@@ -1553,6 +1717,9 @@ export default function ProfileDashboard() {
       <div className={`pd-notif-sidebar ${showNotifications ? 'show' : ''}`}>
         <div className="pd-notif-head">
           <h3>Notifications</h3>
+          {unreadNotificationCount > 0 && (
+            <button className="pd-notif-mark-read" onClick={handleMarkAllRead}>Mark all read</button>
+          )}
           <button className="pd-notif-close" onClick={() => setShowNotifications(false)}><FiX size={18} /></button>
         </div>
         <div className="pd-notif-body">
@@ -1576,7 +1743,7 @@ export default function ProfileDashboard() {
             </div>
           ))}
           {dynamicNotifications.map((n) => (
-            <div className={`pd-notif-item ${n.unread ? 'unread' : ''}`} key={n.id} onClick={() => handleNotificationClick(n)}>
+            <div className={`pd-notif-item ${(n.unread && !readNotificationIds.includes(n.id)) ? 'unread' : ''}`} key={n.id} onClick={() => handleNotificationClick(n)}>
               <div className="pd-notif-icon" style={{ background: n.bg, color: n.color }}>{n.icon}</div>
               <div className="pd-notif-content">
                 <div className="pd-notif-title">{n.title}</div>
@@ -1943,7 +2110,7 @@ export default function ProfileDashboard() {
                   {/* Rohan Profile Card */}
                   <div className="km-visual-card">
                     <div className="km-user-mini">
-                      <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="" />
+                      <img src={user.profilePic || ""} alt="" />
                       <div>
                         <div className="km-mini-name">{user.name} <FiCheckCircle size={10} color="#10b981" /></div>
                         <div className="km-mini-role">{user.headline || 'MERN Stack Developer'}</div>

@@ -440,7 +440,7 @@ export default function JobListingPage() {
             {user ? (
               <div className="flex items-center gap-4" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: '#333', fontWeight: '600', cursor: 'pointer' }}>
-                  <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #2563eb' }} />
+                  <img src={user.profilePic || ""} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #2563eb' }} />
                 </Link>
                 <button className="jlp-btn-login" onClick={logout}>Logout</button>
               </div>
@@ -782,7 +782,7 @@ export default function JobListingPage() {
                 { label: "X", icon: FaXTwitter },
                 { label: "Instagram", icon: FaInstagram },
               ].map(({ label, icon: Icon }) => (
-                <Link key={label} to="#" aria-label={label}><Icon /></Link>
+                <a key={label} href="https://www.instagram.com/mavenjobs.in/" target="_blank" rel="noopener noreferrer" aria-label={label}><Icon /></a>
               ))}
             </div>
           </div>

@@ -1,17 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  FiSearch, FiMapPin, FiBriefcase, FiUsers, FiClock, FiStar,
-  FiChevronRight, FiChevronLeft, FiFilter, FiCheckCircle, FiBell,
-  FiTrendingUp, FiSettings, FiFileText, FiArrowRight, FiX, FiAward, FiZap, FiGlobe, FiLayers, FiBox
+  FiSearch, FiMapPin, FiBriefcase, FiChevronRight, FiChevronLeft,
+  FiFilter, FiCheckCircle, FiBell, FiArrowRight, FiX, FiAward,
+  FiZap, FiGlobe, FiLayers, FiBox, FiLogOut, FiClock
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import mavenLogo from '../../../assets/maven-logo-BdiSsfJk.svg';
 import authService from '../../services/authService';
+import { useAuth } from '../../AuthContext';
 import './CompaniesPage.css';
+
+const COMPANIES_PER_PAGE = 10;
+
+const categoryConfig = [
+  { id: 'MNCs', icon: <FiGlobe />, accent: '#1E5EFF', industryMatch: 'MNC' },
+  { id: 'Internet', icon: <FiZap />, accent: '#7C3AED', industryMatch: 'Internet|IT|Software' },
+  { id: 'Manufacturing', icon: <FiLayers />, accent: '#0DBF7B', industryMatch: 'Manufacturing' },
+  { id: 'Fortune 500', icon: <FiAward />, accent: '#F59E0B', industryMatch: null, packageMatch: 'ELITE' },
+  { id: 'Product', icon: <FiBox />, accent: '#EF4444', industryMatch: 'Product' },
+];
+
+const sortOptions = [
+  { label: 'Most Popular', value: 'popular' },
+  { label: 'Highest Rated', value: 'name' },
+  { label: 'Recently Added', value: 'newest' },
+];
 
 const CompaniesPage = () => {
   const navigate = useNavigate();
+  const { user, logout, openLogin, openRegister } = useAuth();
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [locQuery, setLocQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [sortBy, setSortBy] = useState('Most Popular');
   const [activePage, setActivePage] = useState(1);
@@ -22,24 +42,56 @@ const CompaniesPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const fetchCompanies = async (page = 1, query = '', category = '') => {
+  const [stats, setStats] = useState({ mncs: 0, internet: 0, manufacturing: 0, fortune500: 0, product: 0 });
+  const [filterOptions, setFilterOptions] = useState({ industries: [], cities: [], companyTypes: [] });
+  const [locSearch, setLocSearch] = useState('');
+  const initialised = useRef(false);
+
+  const buildFilterParams = useCallback((page = 1) => {
+    let sortParam = 'popular';
+    if (sortBy === 'Highest Rated') sortParam = 'name';
+    if (sortBy === 'Recently Added') sortParam = 'newest';
+
+    const params = {
+      q: searchQuery,
+      location: locQuery,
+      sort: sortParam,
+      page,
+      limit: COMPANIES_PER_PAGE,
+    };
+
+    if (activeCategory && activeCategory !== 'All') {
+      const cfg = categoryConfig.find(c => c.id === activeCategory);
+      if (cfg) {
+        if (cfg.industryMatch) params.industry = cfg.industryMatch;
+        if (cfg.packageMatch) params.packageType = cfg.packageMatch;
+      }
+    }
+
+    if (activeFilters['Company Type']?.length) {
+      params.companyType = activeFilters['Company Type'].join(',');
+    }
+    if (activeFilters['Location']?.length) {
+      const locs = activeFilters['Location'].filter(Boolean);
+      if (locs.length) params.location = locs.join(',');
+    }
+    if (activeFilters['Industry']?.length) {
+      const inds = activeFilters['Industry'].filter(Boolean);
+      if (inds.length) {
+        params.industry = params.industry
+          ? `${params.industry}|${inds.join('|')}`
+          : inds.join('|');
+      }
+    }
+
+    return params;
+  }, [searchQuery, locQuery, sortBy, activeCategory, activeFilters]);
+
+  const fetchCompanies = useCallback(async (page = 1) => {
     setLoading(true);
     try {
-      let sortParam = 'popular';
-      if (sortBy === 'Highest Rated') sortParam = 'name';
-      if (sortBy === 'Recently Added') sortParam = 'newest';
-
-      // Map category names to industry search terms
-      const industryFilter = category && category !== 'All' ? getIndustryFilter(category) : '';
-
-      const res = await authService.getCompanies({
-        q: query,
-        sort: sortParam,
-        page,
-        limit: 20,
-        industry: industryFilter,
-      });
-
+      const params = buildFilterParams(page);
+      const res = await authService.getCompanies(params);
       if (res?.success && res?.data) {
         setCompanies(res.data.companies || []);
         setTotalCompanies(res.data.total || 0);
@@ -47,28 +99,71 @@ const CompaniesPage = () => {
         setActivePage(res.data.page || 1);
       }
     } catch (err) {
-      console.error('Failed to fetch companies:', err);
+      if (err?.status !== 401) console.error('Failed to fetch companies:', err);
+      setCompanies([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [buildFilterParams]);
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await authService.getCompanyStats({ q: searchQuery, location: locQuery });
+      if (res?.success && res?.data) {
+        setStats(res.data);
+      }
+    } catch (err) {
+      if (err?.status !== 401) console.error('Failed to fetch stats:', err);
+    }
+  }, [searchQuery, locQuery]);
+
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const res = await authService.getCompanyFilterOptions();
+      if (res?.success && res?.data) {
+        setFilterOptions({
+          industries: res.data.industries || [],
+          cities: res.data.cities || [],
+          companyTypes: res.data.companyTypes || [],
+        });
+      }
+    } catch (err) {
+      if (err?.status !== 401) console.error('Failed to fetch filter options:', err);
+    }
+  }, []);
+
+  // ── Initial load (runs once) ──
   useEffect(() => {
+    if (initialised.current) return;
+    initialised.current = true;
+    fetchFilterOptions();
+    fetchCompanies(1);
+    fetchStats();
+  }, [fetchFilterOptions, fetchCompanies, fetchStats]);
+
+  // ── Re-fetch when filters/sort/category change ──
+  useEffect(() => {
+    if (!initialised.current) return;
     window.scrollTo(0, 0);
-    fetchCompanies(1, searchQuery, activeCategory);
-  }, [sortBy, activeCategory]);
+    fetchCompanies(1);
+    fetchStats();
+  }, [sortBy, activeCategory, activeFilters, locQuery, fetchCompanies, fetchStats]);
 
+  // ── Debounced search ──
   useEffect(() => {
+    if (!initialised.current) return;
     const timeout = setTimeout(() => {
-      fetchCompanies(1, searchQuery, activeCategory);
-    }, 400);
+      setActivePage(1);
+      fetchCompanies(1);
+      fetchStats();
+    }, 350);
     return () => clearTimeout(timeout);
-  }, [searchQuery, activeCategory]);
+  }, [searchQuery, fetchCompanies, fetchStats]);
 
   const handlePageChange = (page) => {
-    if (typeof page === 'number' && page >= 1 && page <= totalPages) {
-      fetchCompanies(page, searchQuery, activeCategory);
-    }
+    if (page === '...' || page < 1 || page > totalPages) return;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    fetchCompanies(page);
   };
 
   const toggleFilter = (group, value) => {
@@ -81,62 +176,35 @@ const CompaniesPage = () => {
           : [...groupFilters, value],
       };
     });
+    setActivePage(1);
   };
 
-  const [stats, setStats] = useState({ mncs: 0, internet: 0, manufacturing: 0, fortune500: 0, product: 0 });
-
-  const fetchStats = async () => {
-    try {
-      const res = await authService.getCompanyStats();
-      if (res?.success && res?.data) {
-        setStats(res.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
+  const clearAll = () => {
+    setActiveFilters({});
+    setActiveCategory('All');
+    setSearchQuery('');
+    setLocQuery('');
+    setActivePage(1);
   };
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  const categories = categoryConfig.map(cfg => {
+    let count;
+    if (cfg.id === 'MNCs') count = stats.mncs;
+    else if (cfg.id === 'Internet') count = stats.internet;
+    else if (cfg.id === 'Manufacturing') count = stats.manufacturing;
+    else if (cfg.id === 'Fortune 500') count = stats.fortune500;
+    else if (cfg.id === 'Product') count = stats.product;
+    else count = 0;
+    return { ...cfg, count: `${count} Companies` };
+  });
 
-  const clearAll = () => setActiveFilters({});
-
-  const categories = [
-    { name: 'MNCs', count: `${stats.mncs} Companies`, icon: <FiGlobe />, accent: '#1E5EFF' },
-    { name: 'Internet', count: `${stats.internet} Companies`, icon: <FiZap />, accent: '#7C3AED' },
-    { name: 'Manufacturing', count: `${stats.manufacturing} Companies`, icon: <FiLayers />, accent: '#0DBF7B' },
-    { name: 'Fortune 500', count: `${stats.fortune500} Companies`, icon: <FiAward />, accent: '#F59E0B' },
-    { name: 'Product', count: `${stats.product} Companies`, icon: <FiBox />, accent: '#EF4444' },
-  ];
-
-// Industry keyword mapping for category filters
-const categoryIndustryMap = {
-  'MNCs': 'MNC',
-  'Internet': 'Internet',
-  'Manufacturing': 'Manufacturing',
-  'Fortune 500': 'Fortune 500',
-  'Product': 'Product',
-};
-
-const filterGroups = {
-  'Company Type': ['Corporate', 'Foreign MNC', 'Startup', 'Indian MNC'],
-  'Location': ['Bengaluru', 'Pune', 'Mumbai', 'Noida'],
-  'Industry': ['IT Services', 'E-Learning', 'Finance', 'Healthcare'],
-};
-
-const getIndustryFilter = (category) => {
-  if (!category || category === 'All') return '';
-  return categoryIndustryMap[category] || '';
-};
+  const filteredCities = locSearch
+    ? filterOptions.cities.filter(c =>
+        c.toLowerCase().includes(locSearch.toLowerCase())
+      )
+    : filterOptions.cities;
 
   const totalActiveFilters = Object.values(activeFilters).reduce((sum, arr) => sum + arr.length, 0);
-
-  const getRatingColor = (rating) => {
-    if (rating >= 4.0) return '#0DBF7B';
-    if (rating >= 3.5) return '#F59E0B';
-    return '#EF4444';
-  };
 
   const buildPagination = () => {
     const pages = [];
@@ -185,13 +253,23 @@ const getIndustryFilter = (category) => {
               <FiBell size={18} />
               <span className="cp-bell-dot"></span>
             </div>
-            <Link to="/profile">
-              <img
-                src="https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"
-                alt="User"
-                className="cp-avatar"
-              />
-            </Link>
+            {user ? (
+              <>
+                <Link to="/profile">
+                  <img
+                    src={user.profilePic || ""}
+                    alt="User"
+                    className="cp-avatar"
+                  />
+                </Link>
+                <button onClick={logout} className="cp-logout-btn" title="Logout"><FiLogOut size={16} /></button>
+              </>
+            ) : (
+              <>
+                <button className="cp-btn cp-btn--outline" onClick={openLogin}>Login</button>
+                <button className="cp-btn cp-btn--fill" onClick={openRegister}>Register</button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -212,29 +290,29 @@ const getIndustryFilter = (category) => {
         {/* Category Grid */}
         <div className="cp-cat-grid-layout">
           <div
-            className="cp-cat-pill"
+            className={`cp-cat-pill ${activeCategory === 'MNCs' ? 'active' : ''}`}
             style={{ '--accent': categories[0].accent, width: '100%' }}
             onClick={() => setActiveCategory(activeCategory === 'MNCs' ? 'All' : 'MNCs')}
           >
             <span className="cp-cat-icon" style={{ color: categories[0].accent }}>{categories[0].icon}</span>
             <div>
-              <div className="cp-cat-name">{categories[0].name}</div>
+              <div className="cp-cat-name">{categories[0].id}</div>
               <div className="cp-cat-count">{categories[0].count}</div>
             </div>
             <FiArrowRight size={14} className="cp-cat-arrow" />
           </div>
 
           <div className="cp-cat-right-row">
-            {categories.slice(1).map((cat, i) => (
+            {categories.slice(1).map((cat) => (
               <div
-                key={i}
-                className="cp-cat-pill"
+                key={cat.id}
+                className={`cp-cat-pill ${activeCategory === cat.id ? 'active' : ''}`}
                 style={{ '--accent': cat.accent, flex: 1 }}
-                onClick={() => setActiveCategory(activeCategory === cat.name ? 'All' : cat.name)}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? 'All' : cat.id)}
               >
                 <span className="cp-cat-icon" style={{ color: cat.accent }}>{cat.icon}</span>
                 <div>
-                  <div className="cp-cat-name">{cat.name}</div>
+                  <div className="cp-cat-name">{cat.id}</div>
                   <div className="cp-cat-count">{cat.count}</div>
                 </div>
                 <FiArrowRight size={14} className="cp-cat-arrow" />
@@ -260,26 +338,17 @@ const getIndustryFilter = (category) => {
                 )}
               </div>
 
-              {Object.entries(filterGroups).map(([group, items]) => (
-                <div key={group} className="cp-filter-group">
-                  <h4 className="cp-filter-group-label">{group}</h4>
-                  {group === 'Location' && (
-                    <div className="cp-filter-search-wrap">
-                      <FiSearch size={13} className="cp-filter-search-icon" />
-                      <input
-                        type="text"
-                        placeholder="Search city..."
-                        className="cp-filter-search-input"
-                      />
-                    </div>
-                  )}
-                  {items.map(item => {
-                    const isChecked = (activeFilters[group] || []).includes(item);
+              {/* Company Type */}
+              {filterOptions.companyTypes.length > 0 && (
+                <div className="cp-filter-group">
+                  <h4 className="cp-filter-group-label">Company Type</h4>
+                  {filterOptions.companyTypes.map(item => {
+                    const isChecked = (activeFilters['Company Type'] || []).includes(item);
                     return (
                       <label
                         key={item}
                         className={`cp-checkbox-item ${isChecked ? 'checked' : ''}`}
-                        onClick={() => toggleFilter(group, item)}
+                        onClick={() => toggleFilter('Company Type', item)}
                       >
                         <div className={`cp-checkbox ${isChecked ? 'checked' : ''}`}>
                           {isChecked && <FiCheckCircle size={11} />}
@@ -289,7 +358,67 @@ const getIndustryFilter = (category) => {
                     );
                   })}
                 </div>
-              ))}
+              )}
+
+              {/* Location */}
+              {filterOptions.cities.length > 0 && (
+                <div className="cp-filter-group">
+                  <h4 className="cp-filter-group-label">Location</h4>
+                  <div className="cp-filter-search-wrap">
+                    <FiSearch size={13} className="cp-filter-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Search city..."
+                      className="cp-filter-search-input"
+                      value={locSearch}
+                      onChange={(e) => setLocSearch(e.target.value)}
+                    />
+                  </div>
+                  {filteredCities.slice(0, 8).map(item => {
+                    const isChecked = (activeFilters['Location'] || []).includes(item);
+                    return (
+                      <label
+                        key={item}
+                        className={`cp-checkbox-item ${isChecked ? 'checked' : ''}`}
+                        onClick={() => toggleFilter('Location', item)}
+                      >
+                        <div className={`cp-checkbox ${isChecked ? 'checked' : ''}`}>
+                          {isChecked && <FiCheckCircle size={11} />}
+                        </div>
+                        <span className="cp-checkbox-label">{item}</span>
+                      </label>
+                    );
+                  })}
+                  {filteredCities.length > 8 && (
+                    <div className="cp-filter-more">+{filteredCities.length - 8} more cities</div>
+                  )}
+                </div>
+              )}
+
+              {/* Industry */}
+              {filterOptions.industries.length > 0 && (
+                <div className="cp-filter-group">
+                  <h4 className="cp-filter-group-label">Industry</h4>
+                  {filterOptions.industries.slice(0, 10).map(item => {
+                    const isChecked = (activeFilters['Industry'] || []).includes(item);
+                    return (
+                      <label
+                        key={item}
+                        className={`cp-checkbox-item ${isChecked ? 'checked' : ''}`}
+                        onClick={() => toggleFilter('Industry', item)}
+                      >
+                        <div className={`cp-checkbox ${isChecked ? 'checked' : ''}`}>
+                          {isChecked && <FiCheckCircle size={11} />}
+                        </div>
+                        <span className="cp-checkbox-label">{item}</span>
+                      </label>
+                    );
+                  })}
+                  {filterOptions.industries.length > 10 && (
+                    <div className="cp-filter-more">+{filterOptions.industries.length - 10} more industries</div>
+                  )}
+                </div>
+              )}
             </div>
           </aside>
 
@@ -298,31 +427,39 @@ const getIndustryFilter = (category) => {
             <div className="cp-results-bar">
               <div className="cp-results-info">
                 <span className="cp-results-count">{totalCompanies.toLocaleString()}</span>
-                <span className="cp-results-text"> elite companies found</span>
+                <span className="cp-results-text"> companies found</span>
               </div>
               <div className="cp-sort-wrap">
                 <span className="cp-sort-label">Sort by</span>
                 <select
                   className="cp-sort-select"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    setActivePage(1);
+                  }}
                 >
-                  <option>Most Popular</option>
-                  <option>Highest Rated</option>
-                  <option>Recently Added</option>
+                  {sortOptions.map(opt => (
+                    <option key={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>Loading companies...</div>
+              <div className="cp-loading-state">
+                <div className="cp-skeleton-card" />
+                <div className="cp-skeleton-card" />
+                <div className="cp-skeleton-card" />
               </div>
             ) : companies.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
-                <FiBriefcase size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>No companies found</div>
-                <p style={{ fontSize: '13px', marginTop: 4 }}>Try adjusting your search or filters</p>
+              <div className="cp-empty-state">
+                <FiBriefcase size={40} className="cp-empty-icon" />
+                <div className="cp-empty-title">No companies found</div>
+                <p className="cp-empty-desc">Try adjusting your search or filters</p>
+                {totalActiveFilters > 0 && (
+                  <button className="cp-empty-clear" onClick={clearAll}>Clear all filters</button>
+                )}
               </div>
             ) : (
               <div className="cp-grid">
@@ -338,7 +475,7 @@ const getIndustryFilter = (category) => {
                         style={{ background: company.logoUrl ? 'transparent' : company.color }}
                       >
                         {company.logoUrl ? (
-                          <img src={company.logoUrl} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12 }} />
+                          <img src={company.logoUrl} alt={company.name} />
                         ) : (
                           company.logo
                         )}
@@ -349,8 +486,8 @@ const getIndustryFilter = (category) => {
                       <div className="cp-comp-header">
                         <span className="cp-comp-name">{company.name}</span>
                         {company.activelyHiring && (
-                          <div className="cp-rating-badge" style={{ background: '#0DBF7B' }}>
-                            <FiZap size={9} style={{ fill: 'white', stroke: 'white' }} />
+                          <div className="cp-rating-badge cp-hiring-badge">
+                            <FiZap size={9} />
                             Hiring
                           </div>
                         )}
@@ -362,7 +499,12 @@ const getIndustryFilter = (category) => {
 
                       <div className="cp-comp-tags">
                         {company.industry && <span className="cp-comp-tag">{company.industry}</span>}
-                        {company.location && <span className="cp-comp-tag">{company.location}</span>}
+                        {company.location && (
+                          <span className="cp-comp-tag">
+                            <FiMapPin size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+                            {company.location}
+                          </span>
+                        )}
                         {company.founded && <span className="cp-comp-tag">Founded: {company.founded}</span>}
                       </div>
                     </div>
@@ -376,7 +518,7 @@ const getIndustryFilter = (category) => {
             )}
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {totalPages > 1 && !loading && (
               <div className="cp-pagination">
                 <button
                   className="cp-page-btn cp-page-nav"

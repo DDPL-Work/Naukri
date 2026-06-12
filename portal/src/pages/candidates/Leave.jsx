@@ -596,7 +596,7 @@ export default function TemplatesPage() {
 
             {/* ── HERO ── */}
             <div ref={heroRef} style={{
-                backgroundImage: 'linear-gradient(140deg, rgba(0,16,48,0.92) 0%, rgba(0,26,80,0.85) 45%, rgba(0,47,160,0.7) 100%), url("https://i.pinimg.com/736x/aa/40/1a/aa401a239923db8914ee7dd9af144608.jpg")',
+                backgroundImage: 'linear-gradient(140deg, rgba(0,16,48,0.92) 0%, rgba(0,26,80,0.85) 45%, rgba(0,47,160,0.7) 100%)',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 padding: '72px 40px 80px', position: 'relative', overflow: 'hidden'

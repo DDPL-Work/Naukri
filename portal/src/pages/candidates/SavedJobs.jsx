@@ -153,9 +153,7 @@ export default function SavedJobs() {
             <Link to="/jobs" style={{ fontSize: 13.5, fontWeight: 700, color: "#002366", background: "#EEF2FF", border: "1.5px solid #C7D7FF", padding: "9px 20px", borderRadius: 12, textDecoration: "none", transition: "all 0.18s", display: "inline-flex", alignItems: "center", gap: 6 }}>
               <FiSearch size={14} /> Find more jobs
             </Link>
-            {user && (
-              <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="Profile" onClick={() => navigate("/profile")} style={{ width: 40, height: 40, borderRadius: "50%", border: "2.5px solid #E2E8F0", objectFit: "cover", cursor: "pointer", transition: "border-color 0.18s" }} onMouseEnter={(e) => e.currentTarget.style.borderColor = "#002366"} onMouseLeave={(e) => e.currentTarget.style.borderColor = "#E2E8F0"} />
-            )}
+            {user?.profilePic && <img src={user.profilePic} alt="Profile" onClick={() => navigate("/profile")} style={{ width: 40, height: 40, borderRadius: "50%", border: "2.5px solid #E2E8F0", objectFit: "cover", cursor: "pointer", transition: "border-color 0.18s" }} onMouseEnter={(e) => e.currentTarget.style.borderColor = "#002366"} onMouseLeave={(e) => e.currentTarget.style.borderColor = "#E2E8F0"} />}
           </div>
         </div>
       </header>

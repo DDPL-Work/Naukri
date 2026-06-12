@@ -221,7 +221,7 @@ export default function JobDetailsPage() {
                 <Link to="/profile" className="jdp-avatar-link">
                   <div className="jdp-avatar-wrap">
                     <img
-                      src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"}
+                      src={user.profilePic || ""}
                       alt="Profile"
                     />
                   </div>

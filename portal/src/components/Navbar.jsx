@@ -90,7 +90,7 @@ export default function Navbar() {
             <div className="shared-nav-profile-pill">
               <FiGrid size={18} color="#6b7280" style={{ cursor: 'pointer' }} />
               <div className="shared-nav-avatar-wrapper" onClick={() => navigate('/profile')}>
-                <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="Profile" className="shared-nav-avatar" />
+                <img src={user.profilePic || ""} alt="Profile" className="shared-nav-avatar" />
                 <span className="nav-badge avatar-badge">2</span>
               </div>
               

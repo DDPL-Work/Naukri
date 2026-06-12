@@ -503,7 +503,7 @@ const MavenPro = () => {
                   </button>
                   <Link to="/profile" style={{ textDecoration: 'none' }}>
                     <div style={{ width: '42px', height: '42px', borderRadius: '12px', padding: '2px', background: 'linear-gradient(135deg,#1E5EFF,#0DBF7B)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <img src={user.profilePic || "https://i.pinimg.com/736x/26/89/19/268919fb14ab9fb609647d7011140ab7.jpg"} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover', border: `2px solid ${isScrolled ? '#002366' : 'white'}` }} />
+                      <img src={user.profilePic || ""} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover', border: `2px solid ${isScrolled ? '#002366' : 'white'}` }} />
                     </div>
                   </Link>
                   <button onClick={logout} title="Logout" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isScrolled ? 'rgba(239,68,68,.08)' : 'rgba(255,255,255,.08)', border: isScrolled ? '1.5px solid rgba(239,68,68,.15)' : '1px solid rgba(255,255,255,.15)', borderRadius: '12px', color: isScrolled ? '#EF4444' : 'rgba(255,255,255,.9)', cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#EF4444' }} onMouseOut={e => { e.currentTarget.style.background = isScrolled ? 'rgba(239,68,68,.08)' : 'rgba(255,255,255,.08)'; e.currentTarget.style.color = isScrolled ? '#EF4444' : 'rgba(255,255,255,.9)'; e.currentTarget.style.borderColor = isScrolled ? 'rgba(239,68,68,.15)' : 'rgba(255,255,255,.15)' }}>
@@ -850,7 +850,7 @@ const MavenPro = () => {
           <img src={mavenLogo} alt="MavenJobs" style={{ height: 26, margin: '0 auto 36px', display: 'block', opacity: .28, filter: 'brightness(0) invert(1)' }} />
           <div className="fts">
             {[FaFacebookF, FaLinkedinIn, FaXTwitter, FaInstagram].map((Icon, i) => (
-              <a key={i} href="#" className="ftsl"><Icon size={15} /></a>
+              <a key={i} href="https://www.instagram.com/mavenjobs.in/" target="_blank" rel="noopener noreferrer" className="ftsl"><Icon size={15} /></a>
             ))}
           </div>
           <div className="ftl">
