@@ -1,50 +1,43 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import {
-  clearStoredSession,
   getCandidateMe,
-  getStoredSession,
   restoreStoredSession,
-  setStoredSession,
+  setStoredUser,
+  clearStoredUser,
+  getStoredUser,
 } from "../services/candidateApi";
 
 export default function ProtectedRoute() {
   const [status, setStatus] = useState("checking");
-  const session = getStoredSession();
 
   useEffect(() => {
     let isMounted = true;
 
     const validateSession = async () => {
-      if (!session?.token) {
-        try {
-          await restoreStoredSession();
-          if (isMounted) {
-            setStatus("authenticated");
-          }
-        } catch {
-          if (isMounted) {
-            setStatus("unauthenticated");
-          }
-        }
-        return;
-      }
-
       try {
         const response = await getCandidateMe();
+        if (!isMounted) return;
 
-        if (isMounted) {
-          setStoredSession({
-            token: session.token,
-            user: response.user,
-            profile: response.profile,
+        setStoredUser({
+          user: response.user,
+          profile: response.profile,
+        });
+        setStatus("authenticated");
+      } catch {
+        if (!isMounted) return;
+
+        try {
+          const refreshed = await restoreStoredSession();
+          if (!isMounted) return;
+          setStoredUser({
+            user: refreshed.user,
+            profile: refreshed.profile,
           });
           setStatus("authenticated");
-        }
-      } catch {
-        clearStoredSession();
-
-        if (isMounted) {
+        } catch {
+          if (!isMounted) return;
+          clearStoredUser();
           setStatus("unauthenticated");
         }
       }
@@ -55,7 +48,7 @@ export default function ProtectedRoute() {
     return () => {
       isMounted = false;
     };
-  }, [session?.token]);
+  }, []);
 
   if (status === "checking") {
     return (

@@ -1,15 +1,19 @@
 import { LuBell, LuLogOut, LuMenu } from "react-icons/lu";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCandidatePageMeta } from "../config/candidateMenuConfig";
-import { clearStoredSession } from "../services/candidateApi";
+import { logoutCandidate } from "../services/candidateApi";
 
 export default function CandidateHeader({ toggleSidebar }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const pageMeta = getCandidatePageMeta(pathname);
 
-  const handleLogout = () => {
-    clearStoredSession();
+  const handleLogout = async () => {
+    try {
+      await logoutCandidate();
+    } catch {
+      // Server cookie cleanup already attempted; navigate regardless
+    }
     navigate("/login", { replace: true });
   };
 

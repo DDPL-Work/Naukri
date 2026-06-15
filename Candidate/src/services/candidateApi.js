@@ -1,6 +1,6 @@
 const API_ROOT =
   import.meta.env.VITE_CANDIDATE_API_URL || "http://localhost:3000/api/v1/candidate";
-const SESSION_KEY = "candidate_panel_session";
+const USER_KEY = "candidate_user_data";
 
 const parseJsonSafely = async (response) => {
   const text = await response.text();
@@ -16,8 +16,8 @@ const parseJsonSafely = async (response) => {
   }
 };
 
-export function getStoredSession() {
-  const rawValue = sessionStorage.getItem(SESSION_KEY);
+export function getStoredUser() {
+  const rawValue = sessionStorage.getItem(USER_KEY);
 
   if (!rawValue) {
     return null;
@@ -26,27 +26,19 @@ export function getStoredSession() {
   try {
     return JSON.parse(rawValue);
   } catch {
-    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(USER_KEY);
     return null;
   }
 }
 
-export function setStoredSession(session) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+export function setStoredUser(data) {
+  sessionStorage.setItem(USER_KEY, JSON.stringify(data));
   window.dispatchEvent(new Event("candidate-session-updated"));
 }
 
-export function clearStoredSession() {
-  sessionStorage.removeItem(SESSION_KEY);
+export function clearStoredUser() {
+  sessionStorage.removeItem(USER_KEY);
   window.dispatchEvent(new Event("candidate-session-updated"));
-}
-
-export function getStoredCandidateUser() {
-  return getStoredSession()?.user || null;
-}
-
-function getStoredToken() {
-  return getStoredSession()?.token || "";
 }
 
 const isFormDataPayload = (value) => 
@@ -62,49 +54,26 @@ async function refreshAuthSession() {
   const payload = await parseJsonSafely(response);
 
   if (!response.ok) {
-    clearStoredSession();
     throw new Error(payload.message || "Session expired");
   }
-
-  setStoredSession({
-    token: payload.accessToken || payload.token,
-    user: payload.user,
-  });
 
   return payload.accessToken || payload.token;
 }
 
 export async function restoreStoredSession() {
-  const token = await refreshAuthSession();
-  const profile = await getCandidateMe();
-  setStoredSession({
-    token,
-    user: profile.user,
-    profile: profile.profile,
-  });
-  return getStoredSession();
+  await refreshAuthSession();
+  return getCandidateMe();
 }
 
 async function request(
   path,
-  { method = "GET", body, auth = true, retryOnUnauthorized = true, tokenOverride = "" } = {},
+  { method = "GET", body, auth = true, retryOnUnauthorized = true } = {},
 ) {
   const headers = {};
   const isFormData = isFormDataPayload(body);
 
   if (body && !isFormData) {
     headers["Content-Type"] = "application/json";
-  }
-
-  if (auth) {
-    const token = tokenOverride || getStoredToken();
-
-    if (!token) {
-      const refreshedToken = await refreshAuthSession();
-      headers.Authorization = `Bearer ${refreshedToken}`;
-    } else {
-      headers.Authorization = `Bearer ${token}`;
-    }
   }
 
   const response = await fetch(`${API_ROOT}${path}`, {
@@ -119,21 +88,20 @@ async function request(
   if (!response.ok) {
     if (auth && response.status === 401 && retryOnUnauthorized) {
       try {
-        const refreshedToken = await refreshAuthSession();
+        await refreshAuthSession();
         return request(path, {
           method,
           body,
           auth,
           retryOnUnauthorized: false,
-          tokenOverride: refreshedToken,
         });
       } catch {
-        clearStoredSession();
+        clearStoredUser();
       }
     }
 
     if (auth && response.status === 401) {
-      clearStoredSession();
+      clearStoredUser();
     }
 
     throw new Error(payload.message || "Request failed");
@@ -147,8 +115,6 @@ export async function registerCandidate(payload) {
     method: "POST",
     credentials: "include",
     body: payload,
-    // The browser natively handles FormData payloads and applies the correct 
-    // Content-Type: multipart/form-data boundary automatically without JSON serialization.
   });
 
   const parsed = await parseJsonSafely(response);
@@ -172,7 +138,7 @@ export function logoutCandidate() {
   return request("/auth/logout", {
     method: "POST",
     auth: false,
-  }).finally(clearStoredSession);
+  }).finally(clearStoredUser);
 }
 
 export function getCandidateMe() {

@@ -1,16 +1,16 @@
 import { NavLink } from "react-router-dom";
 import logo from "../assets/maven-logo.svg";
 import { candidateMenu } from "../config/candidateMenuConfig";
-import { getStoredSession } from "../services/candidateApi";
+import { getStoredUser } from "../services/candidateApi";
 
 export default function CandidateSidebar({
   isOpen,
   closeSidebar,
   shouldCloseOnNavigate = false,
 }) {
-  const session = getStoredSession();
-  const candidateUser = session?.user || null;
-  const candidateProfile = session?.profile || null;
+  const cachedUser = getStoredUser();
+  const candidateUser = cachedUser?.user || null;
+  const candidateProfile = cachedUser?.profile || null;
   const displayName = candidateUser?.name || "Candidate Session";
   const displayRole =
     candidateProfile?.currentTitle ||

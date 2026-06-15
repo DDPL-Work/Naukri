@@ -168,6 +168,8 @@ const signRefreshToken = ({
     },
   );
 
+const ACCESS_TOKEN_COOKIE_MAX_AGE = 15 * 60 * 1000;
+
 const buildCookieOptions = ({ maxAge = true } = {}) => {
   const requestedSameSite = String(process.env.AUTH_COOKIE_SAME_SITE || "lax").toLowerCase();
   const sameSite = ["strict", "lax", "none"].includes(requestedSameSite)
@@ -181,8 +183,10 @@ const buildCookieOptions = ({ maxAge = true } = {}) => {
     path: "/",
   };
 
-  if (maxAge) {
+  if (maxAge === true) {
     options.maxAge = REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+  } else if (typeof maxAge === "number") {
+    options.maxAge = maxAge;
   }
 
   return options;
@@ -190,6 +194,10 @@ const buildCookieOptions = ({ maxAge = true } = {}) => {
 
 const setRefreshCookie = (res, token) => {
   res.cookie(REFRESH_COOKIE_NAME, token, buildCookieOptions());
+};
+
+const setAccessCookie = (res, token) => {
+  res.cookie(ACCESS_COOKIE_NAME, token, buildCookieOptions({ maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE }));
 };
 
 const clearAuthCookies = (res) => {
@@ -634,6 +642,7 @@ module.exports = {
   revokeSession,
   revokeSessionFromRefreshToken,
   rotateRefreshToken,
+  setAccessCookie,
   setRefreshCookie,
   validateSession,
   verifyAccessToken,

@@ -16,6 +16,7 @@ const { uploadResumeFile } = require("../services/resume-storage.service");
 const { replaceCandidateImage } = require("../services/candidate-image-storage.service");
 const {
   issueTokenPair,
+  setAccessCookie,
   setRefreshCookie,
 } = require("../services/auth.service");
 const { fetchHomeLandingData } = require("./landing.controller");
@@ -876,6 +877,7 @@ exports.register = asyncHandler(async (req, res) => {
     });
 
     setRefreshCookie(res, tokenPair.refreshToken);
+    setAccessCookie(res, tokenPair.accessToken);
 
     res.status(201).json({
       success: true,
@@ -933,6 +935,7 @@ exports.login = asyncHandler(async (req, res) => {
   });
 
   setRefreshCookie(res, tokenPair.refreshToken);
+  setAccessCookie(res, tokenPair.accessToken);
 
   res.status(200).json({
     success: true,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { LuBriefcaseBusiness } from "react-icons/lu";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { loginCandidate, setStoredSession } from "../services/candidateApi";
+import { loginCandidate, setStoredUser } from "../services/candidateApi";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
@@ -30,8 +30,7 @@ export default function Login() {
         password,
       });
 
-      setStoredSession({
-        token: response.token,
+      setStoredUser({
         user: response.user,
         profile: response.profile,
       });

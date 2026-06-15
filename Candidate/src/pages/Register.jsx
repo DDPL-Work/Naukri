@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { LuUserRoundPlus } from "react-icons/lu";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { registerCandidate, setStoredSession, updateProfile } from "../services/candidateApi";
+import { registerCandidate, setStoredUser, updateProfile } from "../services/candidateApi";
 
 export default function Register() {
   const [searchParams] = useSearchParams();
@@ -87,35 +87,32 @@ export default function Register() {
 
       const response = await registerCandidate(payload);
 
-      setStoredSession({
-        token: response.token,
-        user: response.user,
-        profile: response.profile,
-      });
-
+      let syncedUser = response.user;
       let syncedProfile = response.profile;
       if (designation && !response.profile?.currentTitle) {
         try {
           const profileResponse = await updateProfile({ currentTitle: designation });
           syncedProfile = profileResponse.data || response.profile;
+          syncedUser = {
+            ...response.user,
+            designation: response.user?.designation || designation,
+          };
         } catch {
           syncedProfile = {
             ...response.profile,
             currentTitle: designation,
           };
-        }
-
-        setStoredSession({
-          token: response.token,
-          user: {
+          syncedUser = {
             ...response.user,
-            designation:
-              response.user?.designation ||
-              designation,
-          },
-          profile: syncedProfile,
-        });
+            designation: response.user?.designation || designation,
+          };
+        }
       }
+
+      setStoredUser({
+        user: syncedUser,
+        profile: syncedProfile,
+      });
 
       if (token) {
         const query = new URLSearchParams();

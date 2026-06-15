@@ -14,7 +14,7 @@ import { formatDate } from "../utils/formatters";
 import {
   createApplication,
   getLandingData,
-  getStoredSession,
+  getStoredUser,
 } from "../services/candidateApi";
 
 export default function LandingPage() {
@@ -68,7 +68,7 @@ export default function LandingPage() {
 
   const jobs = Array.isArray(state.payload?.jobs) ? state.payload.jobs : [];
   const company = state.payload?.company;
-  const hasSession = Boolean(getStoredSession()?.token);
+  const hasSession = Boolean(getStoredUser());
   const focusedJobId = (searchParams.get("jobId") || "").trim();
   const autoApplyJobId = (searchParams.get("applyJobId") || "").trim();
   const visibleJobs = focusedJobId

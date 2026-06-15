@@ -12,6 +12,7 @@ const {
   revokeSessionFromRefreshToken,
   revokeSession,
   rotateRefreshToken,
+  setAccessCookie,
   setRefreshCookie,
   validateSession,
 } = require("../services/auth.service");
@@ -51,6 +52,7 @@ const sendAuthResponse = async (req, res, { user, source }) => {
   });
 
   setRefreshCookie(res, tokenPair.refreshToken);
+  setAccessCookie(res, tokenPair.accessToken);
 
   return res.status(200).json({
     success: true,
@@ -94,6 +96,7 @@ exports.registerCandidate = asyncHandler(async (req, res) => {
   });
 
   setRefreshCookie(res, tokenPair.refreshToken);
+  setAccessCookie(res, tokenPair.accessToken);
 
   res.status(201).json({
     success: true,
@@ -150,6 +153,7 @@ exports.refresh = asyncHandler(async (req, res) => {
   });
 
   setRefreshCookie(res, tokenPair.refreshToken);
+  setAccessCookie(res, tokenPair.accessToken);
 
   res.status(200).json({
     success: true,
