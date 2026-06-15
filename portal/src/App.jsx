@@ -16,6 +16,7 @@ import Info from "./pages/candidates/Info";
 import FooterPage from "./pages/candidates/FooterPage";
 import Blogs from "./pages/candidates/Blogs";
 import BlogAIRex from "./pages/candidates/Blogsx";
+import BlogArticle from "./pages/candidates/BlogArticle";
 import DailyQuiz from "./pages/candidates/DailyQuiz";
 import SavedJobs from "./pages/candidates/SavedJobs";
 import Leave from "./pages/candidates/Leave";
@@ -89,6 +90,7 @@ function AppContent() {
         <Route path="/info" element={<Info />} />
         <Route path="/company/:slug/info" element={<FooterPage />} />
         <Route path="/blogs" element={<Blogs />} />
+        <Route path="/blogs/:slug" element={<BlogArticle />} />
         <Route path="/blog-article" element={<BlogAIRex />} />
         <Route path="/daily-quiz" element={<DailyQuiz />} />
         <Route path="/saved-jobs" element={<SavedJobs />} />

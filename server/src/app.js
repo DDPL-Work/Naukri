@@ -20,6 +20,7 @@ const adminRoutes = require("./routes/admin.routes");
 const candidateRoutes = require("./routes/candidate.routes");
 const nshRoutes = require("./routes/national-sales-head.routes");
 const companyPanelRoutes = require("./routes/company-panel.routes");
+const blogRoutes = require("./routes/blog.routes");
 
 const app = express();
 
@@ -92,6 +93,8 @@ app.use(`${BASE_ROUTE}/admin`, adminRoutes);
 app.use(`${BASE_ROUTE}/candidate`, candidateRoutes);
 app.use(`${BASE_ROUTE}/national-sales-head`, nshRoutes);
 app.use(`${BASE_ROUTE}/company-panel`, companyPanelRoutes);
+app.use(`${BASE_ROUTE}/blog`, blogRoutes);
+app.use(`${BASE_ROUTE}/admin/blogs`, blogRoutes);
 
 app.get("/", (req, res) => {
   res.json({

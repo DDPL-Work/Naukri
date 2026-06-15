@@ -211,6 +211,81 @@ export async function assignAdminRole({ id, source, userId }) {
   });
 }
 
+export async function getBlogs(params = {}) {
+  const query = new URLSearchParams();
+  if (params.status) query.set("status", params.status);
+  if (params.category) query.set("category", params.category);
+  if (params.page) query.set("page", params.page);
+  if (params.limit) query.set("limit", params.limit);
+  if (params.search) query.set("search", params.search);
+
+  const qs = query.toString();
+  return request(`/blogs${qs ? `?${qs}` : ""}`);
+}
+
+export async function getBlogById(id) {
+  return request(`/blogs/id/${id}`);
+}
+
+export async function createBlog(formData) {
+  const token = getStoredToken();
+
+  const response = await fetch(`${API_ROOT}/blogs`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "include",
+    body: formData,
+  });
+
+  const payload = await parseJsonSafely(response);
+  if (!response.ok) throw new Error(payload.message || "Failed to create blog");
+  return payload;
+}
+
+export async function updateBlog({ id, formData }) {
+  const token = getStoredToken();
+
+  const response = await fetch(`${API_ROOT}/blogs/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "include",
+    body: formData,
+  });
+
+  const payload = await parseJsonSafely(response);
+  if (!response.ok) throw new Error(payload.message || "Failed to update blog");
+  return payload;
+}
+
+export async function deleteBlog(id) {
+  return request(`/blogs/${id}`, { method: "DELETE" });
+}
+
+export async function toggleBlogStatus(id) {
+  return request(`/blogs/${id}/toggle-status`, { method: "PATCH" });
+}
+
+export async function uploadBlogInlineImage(formData) {
+  const token = getStoredToken();
+
+  const response = await fetch(`${API_ROOT}/blogs/upload-inline`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "include",
+    body: formData,
+  });
+
+  const payload = await parseJsonSafely(response);
+  if (!response.ok) throw new Error(payload.message || "Failed to upload image");
+  return payload;
+}
+
 export async function getNotifications(page = 1, limit = 20) {
   return request(`/notifications?page=${page}&limit=${limit}`);
 }

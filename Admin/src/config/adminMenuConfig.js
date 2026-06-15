@@ -1,4 +1,5 @@
 import {
+  LuBookOpen,
   LuBriefcase,
   LuBuilding2,
   LuChartColumn,
@@ -19,6 +20,7 @@ export const adminMenu = [
   { title: "Job Postings", path: "/admin/jobs", icon: LuBriefcase },
   { title: "Candidates", path: "/admin/candidates", icon: LuUserCog },
   { title: "Applications", path: "/admin/applications", icon: LuFileCheck2 },
+  { title: "Blogs", path: "/admin/blogs", icon: LuBookOpen },
   { title: "Monitoring", path: "/admin/monitoring", icon: LuMonitorCog },
   { title: "Reports", path: "/admin/reports", icon: LuChartColumn },
   { title: "Settings", path: "/admin/settings", icon: LuSettings },

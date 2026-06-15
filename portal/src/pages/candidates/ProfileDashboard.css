@@ -4534,6 +4534,8 @@
   border: 1px solid var(--slate-3);
   overflow: hidden;
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--card-bg);
 }
@@ -4581,6 +4583,32 @@
   font-size: 0.72rem;
   color: var(--text-4);
   font-weight: 500;
+}
+
+.pd-blog-empty {
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+}
+
+.pd-blog-empty p {
+  color: var(--text-4);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.pd-blog-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.85);
+  color: #1E40AF;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* --- FAQ MODAL --- */
@@ -5054,6 +5082,9 @@
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   text-align: left;
+  text-decoration: none;
+  color: inherit;
+  display: block;
   transition: all 0.3s;
 }
 
@@ -5062,10 +5093,11 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
-.faq-blog-card img {
+.faq-blog-img {
   width: 100%;
   height: 200px;
-  object-fit: cover;
+  background-size: cover;
+  background-position: center;
 }
 
 .faq-blog-info {

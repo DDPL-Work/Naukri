@@ -102,6 +102,7 @@ export default function ProfileDashboard() {
   const [showJobsModal, setShowJobsModal] = useState(false);
   const [showEarlyAccessModal, setShowEarlyAccessModal] = useState(false);
   const [showKnowMoreModal, setShowKnowMoreModal] = useState(false);
+  const [latestBlogs, setLatestBlogs] = useState([]);
   const jobScrollRef = useRef(null);
   const earlyScrollRef = useRef(null);
   const matchScrollRef = useRef(null);
@@ -439,6 +440,16 @@ export default function ProfileDashboard() {
   useEffect(() => {
     activeCandidateThreadIdRef.current = activeCandidateThread?.id || "";
   }, [activeCandidateThread?.id]);
+
+  useEffect(() => {
+    authService.getPublishedBlogs({ limit: 8, page: 1 })
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          setLatestBlogs(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!showCandidateChat) return;
@@ -1287,28 +1298,44 @@ export default function ProfileDashboard() {
           <div className="pd-card pd-blog-card">
             <div className="pd-section-header">
               <h3>Stay updated with our blogs</h3>
-              <button className="pd-text-btn" onClick={() => navigate('/blogs')}>View all <FiChevronRight size={14} /></button>
+              <Link to="/blogs" className="pd-text-btn">View all <FiChevronRight size={14} /></Link>
             </div>
             <div className="pd-scroll-wrap">
               <button className="pd-scroll-btn left" onClick={() => handleScroll(blogScrollRef, 'left')}><FiChevronLeft size={18} /></button>
               <div className="pd-blog-scroll" ref={blogScrollRef}>
-                {[
-                  { title: 'AI-powered premium talent discovery', banner: 'linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 50%, #FBBF24 100%)', label: 'PremiumX', labelStyle: { background: 'rgba(255,255,255,0.85)', color: '#92400E', fontWeight: 800, fontSize: '16px', padding: '6px 14px', borderRadius: 8 }, source: 'MavenJobs blog', date: '28 Apr 2026' },
-                  { title: 'Resdex Enterprise - Search smarter, reach faster, and operate...', banner: 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 40%, #06B6D4 100%)', label: 'Resdex Enterprise', labelStyle: { background: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 700, fontSize: '13px', padding: '5px 12px', borderRadius: 6 }, source: 'MavenJobs blog', date: '10 Apr 2026' },
-                  { title: 'Introducing AI REX - MavenJobs agentic AI talent sourcing...', banner: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 50%, #C084FC 100%)', label: 'AI REX', labelStyle: { background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 800, fontSize: '15px', padding: '5px 14px', borderRadius: 8 }, source: 'MavenJobs blog', date: '10 Apr 2026' },
-                  { title: 'How to write a resume that gets you hired in 2026', banner: 'linear-gradient(135deg, #059669 0%, #10B981 50%, #6EE7B7 100%)', label: 'Career Tips', labelStyle: { background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 700, fontSize: '13px', padding: '5px 12px', borderRadius: 6 }, source: 'MavenJobs blog', date: '02 Apr 2026' },
-                  { title: 'Top 10 interview questions every developer should prepare for', banner: 'linear-gradient(135deg, #DC2626 0%, #F43F5E 50%, #FB7185 100%)', label: 'Interview Prep', labelStyle: { background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 700, fontSize: '13px', padding: '5px 12px', borderRadius: 6 }, source: 'MavenJobs blog', date: '25 Mar 2026' },
-                ].map((blog, i) => (
-                  <div className="pd-blog-item" key={i}>
-                    <div className="pd-blog-banner" style={{ background: blog.banner }}>
-                      <span style={blog.labelStyle}>{blog.label}</span>
-                    </div>
-                    <div className="pd-blog-body">
-                      <h4>{blog.title}</h4>
-                      <p>{blog.source} &bull; {blog.date}</p>
-                    </div>
+                {latestBlogs.length === 0 ? (
+                  <div className="pd-blog-empty">
+                    <p>No blogs yet. Check back soon!</p>
                   </div>
-                ))}
+                ) : (
+                  latestBlogs.map((blog) => (
+                    <Link
+                      to={`/blogs/${blog.slug}`}
+                      className="pd-blog-item"
+                      key={blog._id || blog.id}
+                    >
+                      <div
+                        className="pd-blog-banner"
+                        style={{
+                          background: blog.coverImage?.url
+                            ? `url(${blog.coverImage.url}) center/cover`
+                            : 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 40%, #06B6D4 100%)',
+                        }}
+                      >
+                        <span className="pd-blog-badge">{blog.category}</span>
+                      </div>
+                      <div className="pd-blog-body">
+                        <h4>{blog.title}</h4>
+                        <p>
+                          {blog.metadata?.readTimeMinutes
+                            ? `${blog.metadata.readTimeMinutes} min read`
+                            : ''}
+                          {blog.publishedAt ? ` · ${new Date(blog.publishedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                        </p>
+                      </div>
+                    </Link>
+                  ))
+                )}
               </div>
               <button className="pd-scroll-btn right" onClick={() => handleScroll(blogScrollRef, 'right')}><FiChevronRight size={18} /></button>
             </div>
@@ -3309,36 +3336,33 @@ export default function ProfileDashboard() {
                   Career Resources
                 </div>
                 <div className="faq-blog-grid">
-                  {[
-                    {
-                      img: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400",
-                      tag: "Interview Tips",
-                      title: "Ace Your Next Interview",
-                      desc: "Proven strategies from top recruiters to help you stand out and land the offer.",
-                    },
-                    {
-                      img: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400",
-                      tag: "Platform Guide",
-                      title: "Getting the Most from MavenJobs",
-                      desc: "A step-by-step walkthrough of every feature - from profile setup to PremiumX.",
-                    },
-                    {
-                      img: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400",
-                      tag: "Career Growth",
-                      title: "Negotiating a Rs. 30L+ Offer",
-                      desc: "Expert advice on salary negotiation, counter-offers, and knowing your market worth.",
-                    },
-                  ].map((b, i) => (
-                    <div className="faq-blog-card" key={i}>
-                      <img className="faq-blog-img" src={b.img} alt={b.title} />
+                  {latestBlogs.slice(0, 3).map((blog) => (
+                    <Link
+                      to={`/blogs/${blog.slug}`}
+                      className="faq-blog-card"
+                      key={blog._id || blog.id}
+                    >
+                      <div
+                        className="faq-blog-img"
+                        style={{
+                          background: blog.coverImage?.url
+                            ? `url(${blog.coverImage.url}) center/cover`
+                            : 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 40%, #06B6D4 100%)',
+                        }}
+                      />
                       <div className="faq-blog-info">
-                        <span className="faq-blog-tag">{b.tag}</span>
-                        <h4>{b.title}</h4>
-                        <p>{b.desc}</p>
+                        <span className="faq-blog-tag">{blog.category}</span>
+                        <h4>{blog.title}</h4>
+                        <p>{blog.excerpt || 'Click to read more...'}</p>
                         <div className="faq-blog-read">Read Article <FiArrowRight size={12} /></div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
+                  {latestBlogs.length === 0 ? (
+                    <p style={{ color: '#94a3b8', fontSize: 13, gridColumn: '1 / -1', textAlign: 'center' }}>
+                      No resources yet. Check back soon.
+                    </p>
+                  ) : null}
                 </div>
 
                 {/* â”€â”€ CONTACT SUPPORT â”€â”€ */}

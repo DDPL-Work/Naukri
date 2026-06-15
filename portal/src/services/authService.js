@@ -463,7 +463,39 @@ const authService = {
     } catch (error) {
       throw error.response?.data || { message: 'Resume upload failed' };
     }
-  }
+  },
+
+  getPublishedBlogs: async (params = {}) => {
+    try {
+      const query = new URLSearchParams();
+      if (params.category) query.set('category', params.category);
+      if (params.page) query.set('page', params.page);
+      if (params.limit) query.set('limit', params.limit);
+      const qs = query.toString();
+      const response = await api.get(`/blog/published${qs ? `?${qs}` : ''}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch blogs' };
+    }
+  },
+
+  getBlogBySlug: async (slug) => {
+    try {
+      const response = await api.get(`/blog/${slug}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Blog not found' };
+    }
+  },
+
+  getBlogCategories: async () => {
+    try {
+      const response = await api.get('/blog/categories');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch categories' };
+    }
+  },
 };
 
 export default authService;

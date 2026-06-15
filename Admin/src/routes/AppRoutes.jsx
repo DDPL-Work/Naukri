@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 import AdminLayout from "../layout/AdminLayout";
 import AdminDashboard from "../pages/AdminDashboard";
 import AdminSection from "../pages/AdminSection";
+import BlogEditorPage from "../pages/BlogEditorPage";
+import BlogsPage from "../pages/BlogsPage";
 import Login from "../pages/Login";
 import NotFound from "../pages/NotFound";
 import RolesPage from "../pages/RolesPage";
@@ -25,6 +27,9 @@ const router = createBrowserRouter([
           { path: "/admin/jobs", element: <AdminSection /> },
           { path: "/admin/candidates", element: <AdminSection /> },
           { path: "/admin/applications", element: <AdminSection /> },
+          { path: "/admin/blogs", element: <BlogsPage /> },
+          { path: "/admin/blogs/new", element: <BlogEditorPage /> },
+          { path: "/admin/blogs/:id/edit", element: <BlogEditorPage /> },
           { path: "/admin/monitoring", element: <AdminSection /> },
           { path: "/admin/reports", element: <AdminSection /> },
           { path: "/admin/settings", element: <AdminSection /> },
