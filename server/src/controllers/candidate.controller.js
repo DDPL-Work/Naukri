@@ -12,6 +12,8 @@ const CandidateProfile = require("../models/CandidateProfile");
 const CandidateProfileHistory = require("../models/CandidateProfileHistory");
 const CandidateNotification = require("../models/CandidateNotification");
 const CandidateQuizResult = require("../models/CandidateQuizResult");
+const EventBus = require("../events/EventBus");
+const { EVENTS } = require("../events/events");
 const { uploadResumeFile } = require("../services/resume-storage.service");
 const { replaceCandidateImage } = require("../services/candidate-image-storage.service");
 const {
@@ -879,6 +881,12 @@ exports.register = asyncHandler(async (req, res) => {
     setRefreshCookie(res, tokenPair.refreshToken);
     setAccessCookie(res, tokenPair.accessToken);
 
+    EventBus.emit(EVENTS.CANDIDATE_REGISTERED, {
+      candidateId: user._id,
+      email: user.email,
+      fullName: user.name,
+    });
+
     res.status(201).json({
       success: true,
       referenceId: `MVN-${String(user._id).slice(-8).toUpperCase()}`,
@@ -1257,6 +1265,14 @@ exports.createApplication = asyncHandler(async (req, res) => {
       } has been submitted successfully.`,
     category: "APPLICATION",
     actionUrl: "/candidate/applications",
+  });
+
+  EventBus.emit(EVENTS.CANDIDATE_APPLICATION_SUBMITTED, {
+    email: req.user.email,
+    fullName: req.user.name,
+    jobTitle: job.title,
+    companyName: job.companyId?.name || "the company",
+    applicationId: application._id,
   });
 
   const hydratedApplication = await Application.findById(application._id)

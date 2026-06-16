@@ -14,6 +14,8 @@ const CandidateProfile = require("../models/CandidateProfile");
 const CrmCampaign = require("../models/CrmCampaign");
 const CandidateNotification = require("../models/CandidateNotification");
 const PackageChangeRequest = require("../models/PackageChangeRequest");
+const EventBus = require("../events/EventBus");
+const { EVENTS } = require("../events/events");
 const cloudinary = require("../config/cloudinary");
 const { generateCompanyQRPDF } = require("../services/pdf.service");
 const {
@@ -844,6 +846,14 @@ exports.createClient = asyncHandler(async (req, res) => {
       qrGenerationError = error?.message || "Unable to generate QR kit.";
     }
 
+    EventBus.emit(EVENTS.RECRUITER_REGISTERED, {
+      recruiterId: clientUser._id,
+      email: clientUser.email,
+      fullName: clientUser.name,
+      companyId: company._id,
+      companyName: company.name,
+    });
+
     res.status(201).json({
       success: true,
       data: formatClient(company, clientUser),
@@ -1047,6 +1057,17 @@ exports.createJob = asyncHandler(async (req, res) => {
 
   if (!createAsClient) {
     await syncCompanyCapacity(company._id);
+
+    const clientUser = company.clientUserId
+      ? await User.findById(company.clientUserId).select("email").lean()
+      : null;
+    if (clientUser?.email) {
+      EventBus.emit(EVENTS.RECRUITER_JOB_POSTED, {
+        email: clientUser.email,
+        jobTitle: job.title,
+        jobId: job._id,
+      });
+    }
   }
 
   const hydratedJob = await Job.findById(job._id).populate("companyId", "name");
@@ -1176,6 +1197,19 @@ exports.updateJobApproval = asyncHandler(async (req, res) => {
 
   await job.save();
   await syncCompanyCapacity(company._id);
+
+  if (decision === "APPROVE") {
+    const clientUser = company.clientUserId
+      ? await User.findById(company.clientUserId).select("email").lean()
+      : null;
+    if (clientUser?.email) {
+      EventBus.emit(EVENTS.RECRUITER_JOB_POSTED, {
+        email: clientUser.email,
+        jobTitle: job.title,
+        jobId: job._id,
+      });
+    }
+  }
 
   const hydratedJob = await Job.findById(job._id).populate("companyId", "name");
 
@@ -1887,6 +1921,40 @@ exports.updateApplicationStatus = asyncHandler(async (req, res) => {
       category: "APPLICATION",
       actionUrl: "/candidate/applications",
     });
+
+    const newStatus = application.status;
+    const jobTitle = application.jobId?.title || "the role";
+    const companyName = application.companyId?.name || "The company";
+    const basePayload = {
+      email: candidateUser.email,
+      fullName: candidateUser.name,
+      jobTitle,
+      companyName,
+    };
+
+    switch (newStatus) {
+      case "SHORTLISTED":
+        EventBus.emit(EVENTS.CANDIDATE_SHORTLISTED, basePayload);
+        break;
+      case "REJECTED":
+        EventBus.emit(EVENTS.CANDIDATE_REJECTED, basePayload);
+        break;
+      case "INTERVIEW":
+        EventBus.emit(EVENTS.CANDIDATE_INTERVIEW_SCHEDULED, {
+          ...basePayload,
+          interviewDate: "",
+          interviewTime: "",
+          interviewMode: "",
+          interviewLink: "",
+        });
+        break;
+      case "OFFERED":
+        EventBus.emit(EVENTS.CANDIDATE_OFFER_ISSUED, {
+          ...basePayload,
+          offerLink: "",
+        });
+        break;
+    }
   }
 
   res.status(200).json({

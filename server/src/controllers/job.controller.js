@@ -1,5 +1,8 @@
 const Job = require("../models/Job");
 const Company = require("../models/Company");
+const User = require("../models/User");
+const EventBus = require("../events/EventBus");
+const { EVENTS } = require("../events/events");
 const {
   loadPackageCatalog,
   applyCompanyPackageSnapshot,
@@ -48,6 +51,12 @@ exports.createJob = async (req, res) => {
   if (job.approvalStatus === "APPROVED") {
     company.activeJobCount += 1;
     await company.save();
+
+    EventBus.emit(EVENTS.RECRUITER_JOB_POSTED, {
+      email: req.user.email,
+      jobTitle: job.title,
+      jobId: job._id,
+    });
   }
 
   res.status(201).json(job);
@@ -81,6 +90,17 @@ exports.approveJob = async (req, res) => {
 
   company.activeJobCount += 1;
   await company.save();
+
+  const clientUser = company.clientUserId
+    ? await User.findById(company.clientUserId).select("email").lean()
+    : null;
+  if (clientUser?.email) {
+    EventBus.emit(EVENTS.RECRUITER_JOB_POSTED, {
+      email: clientUser.email,
+      jobTitle: job.title,
+      jobId: job._id,
+    });
+  }
 
   res.json({ message: "Job approved" });
 };

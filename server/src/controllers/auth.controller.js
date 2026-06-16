@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const asyncHandler = require("../middleware/async.middleware");
 const User = require("../models/User");
 const CrmUser = require("../models/CrmUser");
+const EventBus = require("../events/EventBus");
+const { EVENTS } = require("../events/events");
 const {
   ACCESS_TOKEN_TTL,
   buildAuthUser,
@@ -87,6 +89,12 @@ exports.registerCandidate = asyncHandler(async (req, res) => {
     role: "CANDIDATE",
     accessStatus: "ACTIVE",
     isActive: true,
+  });
+
+  EventBus.emit(EVENTS.CANDIDATE_REGISTERED, {
+    candidateId: user._id,
+    email: user.email,
+    fullName: user.name,
   });
 
   const tokenPair = await issueTokenPair({

@@ -13,6 +13,8 @@ const Application = require("../models/Application");
 const CandidateProfile = require("../models/CandidateProfile");
 const CandidateNotification = require("../models/CandidateNotification");
 const PackageChangeRequest = require("../models/PackageChangeRequest");
+const EventBus = require("../events/EventBus");
+const { EVENTS } = require("../events/events");
 const {
   loadPackageCatalog,
   applyCompanyPackageSnapshot,
@@ -435,6 +437,14 @@ exports.register = asyncHandler(async (req, res) => {
 
   setRefreshCookie(res, tokenPair.refreshToken);
 
+  EventBus.emit(EVENTS.RECRUITER_REGISTERED, {
+    recruiterId: user._id,
+    email: user.email,
+    fullName: user.name,
+    companyId: company._id,
+    companyName: company.name,
+  });
+
   res.status(201).json({
     success: true,
     token: tokenPair.accessToken,
@@ -692,6 +702,14 @@ exports.createJob = asyncHandler(async (req, res) => {
   company.openRoles = company.activeJobCount;
   if (shouldPersist) {
     await company.save();
+  }
+
+  if (hasAvailablePackageSlot) {
+    EventBus.emit(EVENTS.RECRUITER_JOB_POSTED, {
+      email: user.email,
+      jobTitle: job.title,
+      jobId: job._id,
+    });
   }
 
   res.status(201).json({
@@ -985,6 +1003,36 @@ exports.updateApplicationStatus = asyncHandler(async (req, res) => {
         currentStatus: requestedStatus,
       },
     });
+
+    const candidateEmail = application.candidateId?.email;
+    const candidateName = application.candidateId?.name;
+    const jobTitle = application.jobId?.title || "the role";
+    const companyName = company.name || "The company";
+    const eventPayload = { email: candidateEmail, fullName: candidateName, jobTitle, companyName };
+
+    switch (requestedStatus) {
+      case "SHORTLISTED":
+        EventBus.emit(EVENTS.CANDIDATE_SHORTLISTED, eventPayload);
+        break;
+      case "REJECTED":
+        EventBus.emit(EVENTS.CANDIDATE_REJECTED, eventPayload);
+        break;
+      case "INTERVIEW":
+        EventBus.emit(EVENTS.CANDIDATE_INTERVIEW_SCHEDULED, {
+          ...eventPayload,
+          interviewDate: "",
+          interviewTime: "",
+          interviewMode: "",
+          interviewLink: "",
+        });
+        break;
+      case "OFFERED":
+        EventBus.emit(EVENTS.CANDIDATE_OFFER_ISSUED, {
+          ...eventPayload,
+          offerLink: "",
+        });
+        break;
+    }
   }
 
   const candidateProfiles = candidateId
