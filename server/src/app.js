@@ -23,9 +23,17 @@ const companyPanelRoutes = require("./routes/company-panel.routes");
 const blogRoutes = require("./routes/blog.routes");
 const emailRoutes = require("./routes/email.routes");
 const notificationPreferencesRoutes = require("./routes/notificationPreferences.routes");
+const recommendationsRoutes = require("./routes/recommendations.routes");
 const { registerAllSubscribers } = require("./subscribers");
+const recommendationEngine = require("./recommendations");
 
 registerAllSubscribers();
+recommendationEngine.init();
+
+if (!process.env.ADMIN_EMAIL) {
+  console.warn("⚠ ADMIN_EMAIL not set. Admin notifications will be disabled.");
+}
+process.env.ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@mavenjobs.in";
 
 const app = express();
 
@@ -102,6 +110,7 @@ app.use(`${BASE_ROUTE}/blog`, blogRoutes);
 app.use(`${BASE_ROUTE}/admin/blogs`, blogRoutes);
 app.use(`${BASE_ROUTE}/email`, emailRoutes);
 app.use(`${BASE_ROUTE}/notifications/preferences`, notificationPreferencesRoutes);
+app.use(`${BASE_ROUTE}/recommendations`, recommendationsRoutes);
 
 app.get("/", (req, res) => {
   res.json({

@@ -1,3 +1,5 @@
+jest.mock("bullmq", () => null, { virtual: true });
+
 const EmailQueue = require("../../../../src/email/queue/emailQueue");
 
 describe("EmailQueue", () => {

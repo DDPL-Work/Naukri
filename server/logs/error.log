@@ -371,3 +371,598 @@
 2026-06-16 13:34:13 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
 2026-06-16 13:34:13 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
 2026-06-16 14:14:32 [Maven CRM QR] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Message failed: 554 Message rejected: Email address is not verified. The following identities failed the check in region AP-SOUTH-1: ashu2kathait@gmail.com {"code":"EMAIL_TRANSPORT_ERROR","recipient":"a**********t@gmail.com","subject":"Welcome to Maven Jobs"}
+2026-06-16 17:50:33 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:33 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:33 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:33 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:33 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:33 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:35 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-16 17:50:38 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-16 17:50:38 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 17:50:38 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-16 17:50:38 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 17:50:38 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 17:50:38 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 17:50:38 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-16 17:50:38 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:39 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-16 17:50:39 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 17:50:39 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 17:50:39 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 17:50:39 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 17:50:39 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:45 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:46 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-16 17:50:46 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-16 17:50:46 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-16 17:50:46 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-16 17:50:46 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-16 17:50:46 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-16 17:50:46 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-16 17:50:48 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-16 17:50:49 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:49 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-16 17:50:50 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-16 17:50:51 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:51 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:51 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:51 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-16 17:50:51 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-16 17:50:51 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-16 17:50:48 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-16 17:51:03 [Application] error: [recommendations:subscriber] Failed to send {"plan":"PRO","userId":"507f191e810c19729de860ea","error":"SMTP error"}
+2026-06-16 18:28:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:56 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-16 18:28:57 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:28:57 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-16 18:28:57 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:58 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-16 18:28:58 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-16 18:28:58 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-16 18:28:58 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-16 18:28:58 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-16 18:28:58 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-16 18:28:58 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:58 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-16 18:28:58 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-16 18:28:58 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-16 18:28:58 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:28:58 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:28:59 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:59 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:59 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-16 18:28:59 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-16 18:28:59 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-16 18:28:59 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:14 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:14 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:15 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:29:15 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:15 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-16 18:29:15 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-16 18:29:15 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-16 18:29:15 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-16 18:29:15 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-16 18:29:15 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-16 18:29:15 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-16 18:29:15 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-16 18:29:15 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-16 18:29:15 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-16 18:29:15 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-16 18:29:16 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-16 18:29:16 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 18:29:16 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-16 18:29:16 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-16 18:29:16 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-16 18:29:16 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:25:56 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:25:56 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:25:56 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:25:56 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:25:56 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:25:56 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:25:58 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:26:01 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:26:01 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:26:01 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:26:01 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:26:01 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:26:01 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:26:01 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:26:01 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:02 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:26:02 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:26:02 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:26:02 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:26:02 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:26:02 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:26:05 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:06 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:06 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:06 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:26:06 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:26:06 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:26:06 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:06 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:06 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:26:06 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:26:06 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:26:06 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:26:06 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:26:06 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:26:06 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:26:06 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:26:06 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:26:07 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:26:07 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:38 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:38 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:38 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:38 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:38 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:38 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:41 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:32:43 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:32:43 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:32:43 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:32:43 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:32:43 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:32:43 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:32:43 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:32:43 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:44 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:32:44 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:32:44 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:32:44 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:32:44 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:32:44 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:32:48 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:48 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:48 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:48 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:49 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:32:49 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:32:49 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:32:49 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:32:49 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:32:49 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:32:49 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:32:49 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:10 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:14 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:33:14 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:33:14 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:33:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:33:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:33:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:14 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:33:14 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:15 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:33:15 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:16 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:33:16 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:15 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:33:16 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:33:17 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:33:17 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:17 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:18 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:17 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:33:17 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:33:17 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:33:17 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:33:17 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:33:17 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:33:18 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:18 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:18 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:33:18 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:33:18 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:37 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:40 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:33:41 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:33:41 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:33:41 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:33:41 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:33:41 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:33:41 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:41 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:33:41 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:42 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:33:42 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:33:42 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:33:42 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:33:42 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:42 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:42 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:43 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:43 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:43 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:43 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:33:43 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:33:43 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:43 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:43 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:33:43 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:33:43 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:33:44 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:33:44 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:33:44 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:33:44 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:33:44 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:33:44 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:33:44 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:33:44 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-17 11:33:45 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:33:45 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:33:45 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:33:45 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:33:45 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:33:45 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:33:45 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:34:06 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:07 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:07 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:07 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:07 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:07 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:11 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:34:11 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:34:11 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:34:11 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:34:11 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:34:11 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:34:11 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:34:11 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:12 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:34:12 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:34:12 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:34:12 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:34:12 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:34:12 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:34:13 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:34:13 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:34:13 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:34:13 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:34:13 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:34:13 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:34:13 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:34:13 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:34:13 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:14 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:14 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:34:14 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:15 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:15 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:34:15 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:34:15 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:34:15 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:53 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:40:53 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:54 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:53 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:54 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:54 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:54 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:54 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:55 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:40:55 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:40:55 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:40:55 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:40:55 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:40:55 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:40:55 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:40:57 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:40:58 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:40:58 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:58 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:40:59 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:41:00 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:41:00 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:35 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:42:35 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:35 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:36 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:39 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:42:39 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:42:39 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:42:39 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:42:39 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:42:39 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:42:39 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:42:39 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:39 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:42:40 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:42:40 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:42:40 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:42:40 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:42:40 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:42:40 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:42:42 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:42:42 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:42:42 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:42:42 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:42:42 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:42:42 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:42:42 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:42:43 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:43 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:44 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:42:46 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:46 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:46 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:42:46 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:42:46 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:42:46 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:23 [Application] error: [EventBus] Async handler error for test.async: async error {"event":"test.async","error":"async error"}
+2026-06-17 11:44:23 [Application] error: [EventBus] Handler error for test.sync: sync error {"event":"test.sync","error":"sync error"}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: A valid EmailProvider instance is required {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient email (to) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email subject is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Failed to send email: Provider error {"code":"EMAIL_TRANSPORT_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Bad config {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: Provider does not support connection verification {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:23 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: SMTP configuration is incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:24 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:24 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: AWS region is not configured. Set AWS_REGION environment variable. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:24 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:24 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Sender email (EMAIL_FROM) is not configured. {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:25 [Application] error: [AttachmentValidationError] Attachment "virus.exe" has disallowed content type: application/x-msdownload {"filename":"virus.exe","contentType":"application/x-msdownload","size":null}
+2026-06-17 11:44:25 [Application] error: [AttachmentValidationError] Attachment "large.pdf" exceeds maximum size of 10485760 bytes {"filename":"large.pdf","contentType":null,"size":15728640}
+2026-06-17 11:44:25 [Application] error: [AttachmentValidationError] Attachment at index 0: provide either content or path, not both {"filename":"conflict.pdf","contentType":null,"size":null}
+2026-06-17 11:44:25 [Application] error: [AttachmentValidationError] Attachment at index 0: filename, content, or path is required {"filename":null,"contentType":null,"size":null}
+2026-06-17 11:44:25 [Application] error: [AttachmentValidationError] Attachment "bad.pdf" failed virus scan: Trojan detected {"filename":"bad.pdf","contentType":"application/pdf","size":null}
+2026-06-17 11:44:25 [Application] error: [email:attachments] Virus scan error {"filename":"doc.pdf","error":"Scan service down"}
+2026-06-17 11:44:25 [Application] error: [AttachmentValidationError] Virus scan failed for "doc.pdf": Scan service down {"filename":"doc.pdf","contentType":null,"size":null}
+2026-06-17 11:44:27 [Application] error: [retry] SMTP email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Service unavailable"}
+2026-06-17 11:44:27 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Service unavailable {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:44:27 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP send failed after retries: Invalid email address {"code":"EMAIL_TRANSPORT_ERROR","recipient":"invalid","subject":"Test Subject"}
+2026-06-17 11:44:27 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:44:27 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:44:27 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:44:28 [Application] error: [email:smtp] Connection verification failed {"error":"Connection failed"}
+2026-06-17 11:44:28 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SMTP connection verification failed: Connection failed {"code":"EMAIL_TRANSPORT_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: code {"templateName":"test","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: email {"templateName":"test","missingPlaceholders":["email"],"extraVariables":[]}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Template "test" received unused variables: extra {"templateName":"test","missingPlaceholders":[],"extraVariables":["extra"]}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Template must be a string {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Variables must be an object {"templateName":"unknown","missingPlaceholders":[],"extraVariables":[]}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Template "test" has missing placeholders: name {"templateName":"test","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Template "unknown" has missing placeholders: name {"templateName":"unknown","missingPlaceholders":["name"],"extraVariables":[]}
+2026-06-17 11:44:28 [Application] error: [TemplateValidationError] Template "html-template" has missing placeholders: code {"templateName":"html-template","missingPlaceholders":["code"],"extraVariables":[]}
+2026-06-17 11:44:29 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:29 [Application] error: [EmailDeliveryError] EMAIL_THROTTLING_ERROR: Rate limit exceeded: maximum 1 emails per 60s {"code":"EMAIL_THROTTLING_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:30 [Application] error: [retry] SES email to recipient@example.com exhausted all 3 attempts {"attempts":3,"error":"Rate exceeded"}
+2026-06-17 11:44:30 [Application] error: [retry] email send exhausted all 2 attempts {"attempts":2,"error":"down"}
+2026-06-17 11:44:30 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Rate exceeded {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:44:30 [Application] error: [EmailDeliveryError] EMAIL_TRANSPORT_ERROR: SES send failed after retries: Email address is not verified {"code":"EMAIL_TRANSPORT_ERROR","recipient":"r*******t@example.com","subject":"Test Subject"}
+2026-06-17 11:44:30 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":null,"subject":"Test"}
+2026-06-17 11:44:30 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Recipient (to) and subject are required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:44:30 [Application] error: [EmailDeliveryError] EMAIL_VALIDATION_ERROR: Email body (html or text) is required {"code":"EMAIL_VALIDATION_ERROR","recipient":"u**r@example.com","subject":null}
+2026-06-17 11:44:31 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Something went wrong {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:31 [Application] error: [EmailDeliveryError] EMAIL_CONFIG_ERROR: Config error {"code":"EMAIL_CONFIG_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:31 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Wrapped {"code":"EMAIL_DELIVERY_ERROR","recipient":null,"subject":null}
+2026-06-17 11:44:31 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Failed {"code":"EMAIL_DELIVERY_ERROR","recipient":"u**r@example.com","subject":"Test"}
+2026-06-17 11:44:31 [Application] error: [EmailDeliveryError] EMAIL_DELIVERY_ERROR: Test {"code":"EMAIL_DELIVERY_ERROR","recipient":"j*****e@example.com","subject":null}
+2026-06-17 11:44:31 [Application] error: [EmailDeliveryError] EMAIL_TEST_ERROR: Error message {"code":"EMAIL_TEST_ERROR","recipient":null,"subject":null}

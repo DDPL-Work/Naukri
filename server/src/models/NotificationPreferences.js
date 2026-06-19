@@ -16,6 +16,12 @@ const notificationPreferencesSchema = new mongoose.Schema(
     applicationUpdates: { type: Boolean, default: true },
     marketingEmails: { type: Boolean, default: true },
     jobRecommendations: { type: Boolean, default: true },
+    jobRecommendationsEnabled: { type: Boolean, default: true },
+    recommendationFrequency: {
+      type: String,
+      enum: ["daily", "twice_daily", "weekly", "disabled"],
+      default: "daily",
+    },
     blogUpdates: { type: Boolean, default: true },
   },
   { timestamps: true }

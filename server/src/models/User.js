@@ -23,6 +23,16 @@ const userSchema = new mongoose.Schema(
       default: "ACTIVE",
     },
     isActive: { type: Boolean, default: true },
+    membership: {
+      plan: {
+        type: String,
+        enum: ["FREE", "PRO", "ELITE"],
+        default: "FREE",
+      },
+      active: { type: Boolean, default: false },
+      startedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

@@ -1,4 +1,11 @@
 const NotificationPreferences = require("../models/NotificationPreferences");
+const User = require("../models/User");
+
+const PLAN_DEFAULTS = {
+  FREE: { jobRecommendationsEnabled: false, recommendationFrequency: "disabled" },
+  PRO: { jobRecommendationsEnabled: true, recommendationFrequency: "daily" },
+  ELITE: { jobRecommendationsEnabled: true, recommendationFrequency: "twice_daily" },
+};
 
 async function getPreferences(req, res) {
   try {
@@ -6,7 +13,10 @@ async function getPreferences(req, res) {
     const role = req.user.role;
     let prefs = await NotificationPreferences.findOne({ userId, role });
     if (!prefs) {
-      prefs = await NotificationPreferences.create({ userId, role });
+      const user = await User.findById(userId).select("membership.plan").lean();
+      const plan = (user?.membership?.plan) || "FREE";
+      const defaults = PLAN_DEFAULTS[plan] || PLAN_DEFAULTS.FREE;
+      prefs = await NotificationPreferences.create({ userId, role, ...defaults });
     }
     res.status(200).json({ success: true, data: prefs });
   } catch (error) {
@@ -18,11 +28,15 @@ async function updatePreferences(req, res) {
   try {
     const userId = req.user.id;
     const role = req.user.role;
-    const allowed = ["applicationUpdates", "marketingEmails", "jobRecommendations", "blogUpdates"];
+    const allowed = ["applicationUpdates", "marketingEmails", "jobRecommendations", "jobRecommendationsEnabled", "recommendationFrequency", "blogUpdates"];
     const updates = {};
     for (const field of allowed) {
       if (req.body[field] !== undefined) {
-        updates[field] = Boolean(req.body[field]);
+        if (field === "recommendationFrequency") {
+          updates[field] = req.body[field];
+        } else {
+          updates[field] = Boolean(req.body[field]);
+        }
       }
     }
     const prefs = await NotificationPreferences.findOneAndUpdate(

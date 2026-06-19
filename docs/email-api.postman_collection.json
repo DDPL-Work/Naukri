@@ -1,0 +1,314 @@
+{
+  "info": {
+    "name": "Maven CRM — Email API",
+    "description": "Complete API reference for the email module. Base URL: {{base_url}}/api/v1/email\n\nSet collection variable `base_url` to your server URL (e.g. http://localhost:5050).\n\nSupports: raw send, templated emails (welcome, password-reset, OTP, application confirmation), connection verification, status, health, metrics, and production readiness.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "opencode"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5050",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Send Raw Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"user@example.com\",\n  \"subject\": \"Test Email\",\n  \"html\": \"<h1>Hello</h1><p>This is a test.</p>\",\n  \"text\": \"Hello, this is a test.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/send",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "send"]
+        },
+        "description": "Send a raw email with HTML and/or plain text content."
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Email sent successfully\",\n  \"data\": {\n    \"messageId\": \"<mock-msg-id@localhost>\",\n    \"provider\": \"smtp\",\n    \"timestamp\": \"2026-06-16T12:00:00.000Z\"\n  }\n}"
+        },
+        {
+          "name": "Validation Error",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Recipient (to) and subject are required\"\n}"
+        },
+        {
+          "name": "Rate Limited",
+          "status": "Too Many Requests",
+          "code": 429,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Failed to send email\",\n  \"error\": {\n    \"message\": \"Rate limit exceeded: maximum 10 emails per 60s\",\n    \"code\": \"EMAIL_RATE_LIMIT_ERROR\",\n    \"timestamp\": \"2026-06-16T12:00:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Send Welcome Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"newuser@example.com\",\n  \"name\": \"Jane Doe\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/welcome",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "welcome"]
+        },
+        "description": "Send a welcome email using the built-in template."
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Welcome email sent successfully\",\n  \"data\": {\n    \"messageId\": \"<welcome-msg-id@localhost>\",\n    \"provider\": \"smtp\",\n    \"timestamp\": \"2026-06-16T12:00:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Send Password Reset Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"user@example.com\",\n  \"name\": \"John Smith\",\n  \"resetLink\": \"https://app.example.com/reset-password?token=abc123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/password-reset",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "password-reset"]
+        },
+        "description": "Send a password reset email with a custom reset link."
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Password reset email sent successfully\",\n  \"data\": {\n    \"messageId\": \"<reset-msg-id@localhost>\",\n    \"provider\": \"smtp\",\n    \"timestamp\": \"2026-06-16T12:00:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Send OTP Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"user@example.com\",\n  \"otp\": \"482916\",\n  \"name\": \"John Smith\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/otp",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "otp"]
+        },
+        "description": "Send an OTP code email. Requires `to` and `otp`; `name` is optional."
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP email sent successfully\",\n  \"data\": {\n    \"messageId\": \"<otp-msg-id@localhost>\",\n    \"provider\": \"smtp\",\n    \"timestamp\": \"2026-06-16T12:00:00.000Z\"\n  }\n}"
+        },
+        {
+          "name": "Validation Error",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Recipient email (to) and OTP are required\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Send Application Confirmation",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"candidate@example.com\",\n  \"name\": \"Alice\",\n  \"jobTitle\": \"Senior Software Engineer\",\n  \"companyName\": \"Tech Corp\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/application-confirmation",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "application-confirmation"]
+        },
+        "description": "Send a job application confirmation email. Requires `to`, `jobTitle`, and `companyName`."
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Application confirmation email sent successfully\",\n  \"data\": {\n    \"messageId\": \"<app-msg-id@localhost>\",\n    \"provider\": \"smtp\",\n    \"timestamp\": \"2026-06-16T12:00:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify Connection",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/verify",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "verify"]
+        },
+        "description": "Test the email provider connection (SMTP or SES depending on NODE_ENV). Returns 200 on success, 503 on failure."
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Email provider connection verified successfully\",\n  \"provider\": \"smtp\"\n}"
+        },
+        {
+          "name": "Failure",
+          "status": "Service Unavailable",
+          "code": 503,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Email provider connection failed\",\n  \"error\": {\n    \"message\": \"SMTP connection verification failed: Connection refused\",\n    \"code\": \"EMAIL_TRANSPORT_ERROR\",\n    \"timestamp\": \"2026-06-16T12:00:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Status",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "status"]
+        },
+        "description": "Get current system status including provider, environment, sandbox info, circuit breaker state, and rate limiter state."
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"provider\": \"smtp\",\n  \"region\": null,\n  \"environment\": \"development\",\n  \"sandbox\": null,\n  \"verifiedIdentity\": null,\n  \"smtpConfigured\": true,\n  \"sesConfigured\": false,\n  \"queueEnabled\": false,\n  \"rateLimiter\": {\n    \"tokensRemaining\": 10,\n    \"maxPerWindow\": 10,\n    \"windowMs\": 60000\n  },\n  \"circuitBreaker\": {\n    \"state\": \"CLOSED\",\n    \"failureCount\": 0,\n    \"failureThreshold\": 5\n  },\n  \"emailFrom\": \"d*********r@example.com\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "health"]
+        },
+        "description": "Comprehensive health check. Returns 200 (healthy) or 503 (degraded/unhealthy) with provider connection status, diagnostics, and warnings."
+      },
+      "response": [
+        {
+          "name": "Healthy",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"status\": \"healthy\",\n  \"timestamp\": \"2026-06-16T12:00:00.000Z\",\n  \"provider\": \"smtp\",\n  \"providerConnected\": true,\n  \"providerError\": null,\n  \"queueEnabled\": false,\n  \"diagnostics\": [\n    \"Provider connection: OK\",\n    \"SMTP configuration: OK\",\n    \"Sender identity: configured\"\n  ],\n  \"warnings\": [],\n  \"circuitBreaker\": { \"state\": \"CLOSED\", \"failureCount\": 0 },\n  \"rateLimiter\": { \"tokensRemaining\": 10, \"maxPerWindow\": 10 }\n}"
+        },
+        {
+          "name": "Degraded",
+          "status": "Service Unavailable",
+          "code": 503,
+          "body": "{\n  \"status\": \"degraded\",\n  \"timestamp\": \"2026-06-16T12:00:00.000Z\",\n  \"provider\": \"smtp\",\n  \"providerConnected\": false,\n  \"providerError\": \"Connection refused\",\n  \"queueEnabled\": false,\n  \"diagnostics\": [\n    \"Provider connection: FAILED (Connection refused)\",\n    \"SMTP configuration: OK\"\n  ],\n  \"warnings\": [\n    \"SMTP configuration: INCOMPLETE\",\n    \"Sender identity: NOT CONFIGURED\"\n  ],\n  \"circuitBreaker\": { \"state\": \"CLOSED\", \"failureCount\": 0 },\n  \"rateLimiter\": { \"tokensRemaining\": 10, \"maxPerWindow\": 10 }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Metrics (Prometheus)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/metrics",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "metrics"],
+          "query": [
+            { "key": "format", "value": "prometheus", "disabled": true }
+          ]
+        },
+        "description": "Expose Prometheus-formatted metrics. Default format is Prometheus; add `?format=json` for JSON."
+      },
+      "response": [
+        {
+          "name": "Prometheus Output",
+          "status": "OK",
+          "code": 200,
+          "body": "# HELP email_sent_total Total emails sent\n# TYPE email_sent_total counter\nemail_sent_total{provider=\"SmtpEmailProvider\"} 5\n# HELP email_failed_total Total email send failures\n# TYPE email_failed_total counter\nemail_failed_total{provider=\"SmtpEmailProvider\"} 0\n# HELP email_retries_total Total email retries\n# TYPE email_retries_total counter\nemail_retries_total{provider=\"SmtpEmailProvider\"} 1\n# HELP email_rate_limited_total Total rate-limited requests\n# TYPE email_rate_limited_total counter\nemail_rate_limited_total{provider=\"SmtpEmailProvider\"} 0\n# HELP email_circuit_opens_total Total circuit breaker transitions to OPEN\n# TYPE email_circuit_opens_total counter\nemail_circuit_opens_total{provider=\"SmtpEmailProvider\"} 0\n# HELP email_send_duration_ms Email send duration in milliseconds\n# TYPE email_send_duration_ms histogram\nemail_send_duration_ms_bucket{le=\"50\"} 0\nemail_send_duration_ms_bucket{le=\"100\"} 2\nemail_send_duration_ms_bucket{le=\"200\"} 4\nemail_send_duration_ms_bucket{le=\"500\"} 5\nemail_send_duration_ms_bucket{le=\"+Inf\"} 5\nemail_send_duration_ms_sum 850\nemail_send_duration_ms_count 5"
+        }
+      ]
+    },
+    {
+      "name": "Get Metrics (JSON)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/metrics?format=json",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "metrics"],
+          "query": [
+            { "key": "format", "value": "json" }
+          ]
+        },
+        "description": "Get metrics in JSON format."
+      },
+      "response": [
+        {
+          "name": "JSON Output",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"counters\": {\n    \"email_sent_total\": 5,\n    \"email_failed_total\": 0,\n    \"email_retries_total\": 1,\n    \"email_rate_limited_total\": 0,\n    \"email_circuit_opens_total\": 0\n  },\n  \"histograms\": {\n    \"email_send_duration_ms\": {\n      \"count\": 5,\n      \"sum\": 850,\n      \"avg\": 170,\n      \"p95\": 420\n    }\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Production Readiness",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/email/readiness",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "email", "readiness"]
+        },
+        "description": "Check production readiness for SES: identity verification, DKIM, MAIL FROM domain, and send quota."
+      },
+      "response": [
+        {
+          "name": "Non-Production",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"environment\": \"development\",\n  \"productionAccess\": false,\n  \"message\": \"Production readiness checks only apply in NODE_ENV=production\",\n  \"envSetup\": {\n    \"fromConfigured\": true,\n    \"sesConfigured\": false,\n    \"smtpConfigured\": true\n  }\n}"
+        },
+        {
+          "name": "Production Not Ready",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"environment\": \"production\",\n  \"productionAccess\": true,\n  \"overallReady\": false,\n  \"details\": {\n    \"fromEmail\": \"noreply@example.com\",\n    \"region\": \"ap-south-1\",\n    \"identityVerified\": true,\n    \"dkimEnabled\": true,\n    \"mailFromConfigured\": false,\n    \"verifiedIdentities\": [\"noreply@example.com\"]\n  },\n  \"recommendations\": [\n    \"Configure a custom MAIL FROM domain for better deliverability\"\n  ],\n  \"errors\": [],\n  \"envSetup\": {\n    \"fromConfigured\": true,\n    \"sesConfigured\": true,\n    \"smtpConfigured\": false\n  }\n}"
+        }
+      ]
+    }
+  ]
+}
